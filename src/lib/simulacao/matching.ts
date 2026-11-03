@@ -1,3 +1,4 @@
+import { entradaParcelavel } from "./engine";
 import { regiaoLabel } from "../constants";
 import { formatBRL } from "../format";
 import type { DevelopmentForMatch, MatchPreferences, MatchResult, SimulationResult } from "./types";
@@ -42,6 +43,22 @@ export function avaliarCompatibilidade(
   const tetoOk = semPreco || sim.tetoImovel == null || preco <= sim.tetoImovel;
   const cabeSem = !semPreco && preco <= sim.capacidadeSemSubsidio;
   const cabeCom = !semPreco && preco <= sim.capacidadeComSubsidio;
+
+  // Entrada parcelada com a construtora durante a obra (até X% do preço, conforme a renda)
+  let entradaParcelada: MatchResult["entradaParcelada"] = null;
+  let cabeParcelando = false;
+  if (!semPreco && !cabeCom) {
+    const { valorMax, meses } = entradaParcelavel(preco, dev, sim);
+    const falta = preco - sim.capacidadeComSubsidio;
+    const faltaSemSub = preco - sim.capacidadeSemSubsidio;
+    if (valorMax > 0 && falta <= valorMax) {
+      cabeParcelando = true;
+      // valor exibido: o necessário sem contar subsídio, se couber; senão o necessário com subsídio
+      const valor = faltaSemSub <= valorMax ? faltaSemSub : falta;
+      entradaParcelada = { valor: Math.round(valor), meses, parcela: Math.round(valor / meses) };
+    }
+  }
+
   if (semPreco) {
     atencao.push("Preço sob consulta: o corretor confirma se cabe no seu orçamento");
   } else if (cabeSem) {
@@ -50,6 +67,11 @@ export function avaliarCompatibilidade(
   } else if (cabeCom) {
     score += PESOS.capacidade * 0.6;
     motivos.push(`Pode caber no orçamento considerando o subsídio, se aprovado`);
+  } else if (cabeParcelando && entradaParcelada) {
+    score += PESOS.capacidade * 0.5;
+    motivos.push(
+      `Pode caber com entrada de cerca de ${formatBRL(entradaParcelada.valor)} parcelada na obra (≈ ${entradaParcelada.meses}x de ${formatBRL(entradaParcelada.parcela)}), sujeito à aprovação da construtora`
+    );
   } else {
     atencao.push(`Valor a partir de ${formatBRL(preco)} acima da capacidade estimada (${formatBRL(sim.capacidadeComSubsidio)})`);
   }
@@ -96,7 +118,7 @@ export function avaliarCompatibilidade(
     (prefs.preferenciaObra === "planta" && dev.status_obra !== "pronto");
   if (obraOk) score += PESOS.obra;
 
-  const compativel = sim.enquadrado && rendaOk && cabeCom && tetoOk && disponivel;
+  const compativel = sim.enquadrado && rendaOk && (cabeCom || cabeParcelando) && tetoOk && disponivel;
 
   return {
     developmentId: dev.id,
@@ -105,6 +127,7 @@ export function avaliarCompatibilidade(
     motivos,
     atencao,
     entradaEstimada: Math.round(entradaEstimada),
+    entradaParcelada,
   };
 }
 

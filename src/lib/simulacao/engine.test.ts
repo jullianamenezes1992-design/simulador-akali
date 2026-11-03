@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { encontrarFaixa, financiamentoMaximo, primeiraParcela, simular, validarParametros, valorMaximoImovel } from "./engine";
+import { encontrarFaixa, entradaParcelavel, financiamentoMaximo, mesesAteEntrega, primeiraParcela, simular, validarParametros, valorMaximoImovel } from "./engine";
 import { ranquear } from "./matching";
 import type { DevelopmentForMatch, SimulationInput, SimulationParams } from "./types";
 
@@ -181,5 +181,48 @@ describe("preço sob consulta", () => {
     const { compativeis, demais } = ranquear([dev], sim, { regioes: [], dormitoriosMin: null, precisaVaga: false, preferenciaObra: "indiferente" });
     expect(compativeis).toHaveLength(0);
     expect(demais[0].match.atencao.join(" ")).toMatch(/sob consulta/i);
+  });
+});
+
+describe("entrada parcelada na obra", () => {
+  const pEp: SimulationParams = {
+    ...params,
+    entrada_parcelada: { pct_max: 0.25, comprometimento: 0.3, meses_lancamento: 30, meses_obras: 12 },
+  };
+  const devBase: DevelopmentForMatch = {
+    id: "x", slug: "x", nome: "x", regiao: "zona_leste", preco_min: 0, preco_max: null,
+    faixas: [1, 2], dormitorios: [2], vagas: false, disponivel: true, unidades_disponiveis: null, status_obra: "lancamento",
+  };
+  const prefs = { regioes: [], dormitoriosMin: null, precisaVaga: false, preferenciaObra: "indiferente" as const };
+
+  it("lê a previsão de entrega em formatos comuns", () => {
+    const hoje = new Date(2026, 10, 3); // nov/2026
+    expect(mesesAteEntrega("12/2027", hoje)).toBe(13);
+    expect(mesesAteEntrega("Dez/2027", hoje)).toBe(13);
+    expect(mesesAteEntrega("março de 2028", hoje)).toBe(16);
+    expect(mesesAteEntrega("2027", hoje)).toBe(13);
+    expect(mesesAteEntrega("em breve", hoje)).toBeNull();
+  });
+
+  it("limita ao menor entre % do preço e parcelas que cabem na renda", () => {
+    const sim = simular({ ...base, entrada: 0 }, pEp); // renda 3000 → até 900/mês
+    expect(sim.entradaParcelada?.parcelaMensalMax).toBe(900);
+    expect(entradaParcelavel(200000, devBase, sim).valorMax).toBe(27000); // 900 × 30 < 25%
+    expect(entradaParcelavel(80000, devBase, sim).valorMax).toBe(20000); // 25% < 900 × 30
+    expect(entradaParcelavel(200000, { status_obra: "pronto" }, sim).valorMax).toBe(0);
+  });
+
+  it("torna compatível o imóvel que só cabe parcelando a entrada", () => {
+    const semEp = simular({ ...base, entrada: 0 }, params);
+    const comEp = simular({ ...base, entrada: 0 }, pEp);
+    const preco = semEp.capacidadeComSubsidio + 15000;
+    const d = { ...devBase, preco_min: preco };
+    expect(ranquear([d], semEp, prefs).compativeis).toHaveLength(0);
+    const r = ranquear([d], comEp, prefs).compativeis;
+    expect(r).toHaveLength(1);
+    expect(r[0].match.entradaParcelada?.meses).toBe(30);
+    expect(r[0].match.motivos.join(" ")).toMatch(/parcelada na obra/);
+    // imóvel pronto não ganha parcelamento
+    expect(ranquear([{ ...d, status_obra: "pronto" }], comEp, prefs).compativeis).toHaveLength(0);
   });
 });

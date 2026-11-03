@@ -29,6 +29,18 @@ export interface SimulationParams {
   cota_financiamento_max: number | null;
   /** FGTS só é considerado com 3 anos de trabalho sob regime do FGTS */
   fgts_exige_3_anos: boolean;
+  /**
+   * Entrada parcelada com a construtora durante a obra.
+   * pct_max: parte máxima do preço que pode ser parcelada (0–1, ex.: 0.25). null/ausente = não considerar.
+   * comprometimento: parte da renda que o cliente pode pagar por mês nessas parcelas (0–1).
+   * meses_lancamento / meses_obras: nº padrão de parcelas quando o empreendimento não tem previsão de entrega.
+   */
+  entrada_parcelada?: {
+    pct_max: number | null;
+    comprometimento: number;
+    meses_lancamento: number;
+    meses_obras: number;
+  } | null;
   faixas: FaixaParam[];
   fontes?: { descricao: string; url: string }[];
   observacoes?: string;
@@ -71,6 +83,13 @@ export interface SimulationResult {
   /** valor estimado de imóvel considerando o subsídio potencial máximo */
   capacidadeComSubsidio: number;
   tetoImovel: number | null;
+  /** regras de entrada parcelada na obra usadas nesta simulação (ausente em simulações antigas) */
+  entradaParcelada?: {
+    pctMax: number;
+    parcelaMensalMax: number;
+    mesesLancamento: number;
+    mesesObras: number;
+  } | null;
   paramsVersao?: number;
   calculadoEm: string;
 }
@@ -89,6 +108,7 @@ export interface DevelopmentForMatch {
   disponivel: boolean;
   unidades_disponiveis: number | null;
   status_obra: string;
+  previsao_entrega?: string | null;
 }
 
 export interface MatchPreferences {
@@ -105,4 +125,6 @@ export interface MatchResult {
   motivos: string[];
   atencao: string[];
   entradaEstimada: number;
+  /** quando o imóvel só cabe com entrada parcelada na obra: valor e parcelas estimadas */
+  entradaParcelada?: { valor: number; meses: number; parcela: number } | null;
 }

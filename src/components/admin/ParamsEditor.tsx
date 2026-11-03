@@ -11,7 +11,19 @@ import { Feedback } from "./ui";
 const N = (v: string) => (v.trim() === "" ? NaN : Number(v.replace(",", ".")));
 
 export default function ParamsEditor({ inicial }: { inicial: SimulationParams }) {
-  const [p, setP] = useState<SimulationParams>(inicial);
+  const [p, setP] = useState<SimulationParams>(() => ({
+    ...inicial,
+    entrada_parcelada: inicial.entrada_parcelada ?? {
+      pct_max: null,
+      comprometimento: inicial.comprometimento_renda_max,
+      meses_lancamento: 30,
+      meses_obras: 12,
+    },
+  }));
+  const ep = p.entrada_parcelada!;
+  const setEp = (k: keyof NonNullable<SimulationParams["entrada_parcelada"]>, v: number | null) =>
+    setP((x) => ({ ...x, entrada_parcelada: { ...x.entrada_parcelada!, [k]: v } }));
+  const pct = (v: number | null) => (v == null || !Number.isFinite(v) ? "" : String(Math.round(v * 10000) / 100));
   const [state, action, pending] = useActionState<ActionState, FormData>(salvarParametros, {});
   const [teste, setTeste] = useState({ renda: "4000", idade: "30", fgts: "10000", entrada: "5000" });
 
@@ -111,6 +123,37 @@ export default function ParamsEditor({ inicial }: { inicial: SimulationParams })
         <div>
           <label className="label" htmlFor="dataref">Data de referência</label>
           <input id="dataref" type="date" value={p.data_referencia ?? ""} onChange={(e) => setP({ ...p, data_referencia: e.target.value })} className="input" />
+        </div>
+      </section>
+
+      <section className="card grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="sm:col-span-2 lg:col-span-4">
+          <h2 className="font-bold">Entrada parcelada na obra</h2>
+          <p className="hint">
+            Considera que parte do preço pode ser paga à construtora em parcelas até a entrega das chaves. Só vale para
+            imóveis na planta ou em obras. Deixe o percentual vazio para não considerar.
+          </p>
+        </div>
+        <div>
+          <label className="label" htmlFor="ep_pct">Até quanto do preço (%)</label>
+          <input id="ep_pct" inputMode="decimal" value={pct(ep.pct_max)} placeholder="Não considerar"
+            onChange={(e) => setEp("pct_max", e.target.value === "" ? null : N(e.target.value) / 100)} className="input" />
+        </div>
+        <div>
+          <label className="label" htmlFor="ep_comp">Parcela máx. por mês (% da renda)</label>
+          <input id="ep_comp" inputMode="decimal" value={pct(ep.comprometimento)}
+            onChange={(e) => setEp("comprometimento", N(e.target.value) / 100)} className="input" />
+        </div>
+        <div>
+          <label className="label" htmlFor="ep_ml">Nº de parcelas — lançamento</label>
+          <input id="ep_ml" inputMode="numeric" value={Number.isFinite(ep.meses_lancamento) ? ep.meses_lancamento : ""}
+            onChange={(e) => setEp("meses_lancamento", N(e.target.value))} className="input" />
+        </div>
+        <div>
+          <label className="label" htmlFor="ep_mo">Nº de parcelas — em obras</label>
+          <input id="ep_mo" inputMode="numeric" value={Number.isFinite(ep.meses_obras) ? ep.meses_obras : ""}
+            onChange={(e) => setEp("meses_obras", N(e.target.value))} className="input" />
+          <p className="hint">Usado quando o empreendimento não tem previsão de entrega cadastrada.</p>
         </div>
       </section>
 
@@ -224,6 +267,10 @@ export default function ParamsEditor({ inicial }: { inicial: SimulationParams })
             <strong>{previa.faixa?.nome ?? "Fora do programa"}</strong> • financiamento {formatBRL(previa.financiamentoMax)} • parcela até{" "}
             {formatBRL(previa.parcelaMax)} • imóvel até {formatBRL(previa.capacidadeSemSubsidio)} (com subsídio máx.:{" "}
             {formatBRL(previa.capacidadeComSubsidio)})
+            {previa.entradaParcelada && (
+              <> • entrada parcelada na obra: até {formatBRL(previa.entradaParcelada.parcelaMensalMax)}/mês, limitada a{" "}
+                {Math.round(previa.entradaParcelada.pctMax * 100)}% do preço</>
+            )}
           </p>
         )}
       </section>

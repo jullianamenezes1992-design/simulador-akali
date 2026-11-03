@@ -126,6 +126,17 @@ export function simular(input: SimulationInput, params: SimulationParams, params
     alertas.push(`Pelo programa, o imóvel na ${faixa.nome} pode custar até ${teto.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })} na localidade configurada.`);
   }
 
+  const ep = params.entrada_parcelada;
+  const entradaParcelada =
+    ep && ep.pct_max != null && ep.pct_max > 0 && faixa
+      ? {
+          pctMax: ep.pct_max,
+          parcelaMensalMax: round(rendaTotal * ep.comprometimento),
+          mesesLancamento: ep.meses_lancamento,
+          mesesObras: ep.meses_obras,
+        }
+      : null;
+
   return {
     rendaTotal: round(rendaTotal * 100) / 100,
     faixa: faixa
@@ -152,6 +163,7 @@ export function simular(input: SimulationInput, params: SimulationParams, params
     capacidadeSemSubsidio: round(capacidadeSemSubsidio),
     capacidadeComSubsidio: round(capacidadeComSubsidio),
     tetoImovel: teto,
+    entradaParcelada,
     paramsVersao,
     calculadoEm: new Date().toISOString(),
   };
@@ -172,6 +184,17 @@ export function validarParametros(p: unknown): { ok: true; params: SimulationPar
   if (x.taxa_referencia !== "min" && x.taxa_referencia !== "max") erros.push("Taxa de referência deve ser 'min' ou 'max'.");
   if (x.cota_financiamento_max != null && (!num(x.cota_financiamento_max) || x.cota_financiamento_max <= 0 || x.cota_financiamento_max > 1))
     erros.push("Cota máxima de financiamento deve estar entre 0 e 1, ou vazia.");
+  const ep = x.entrada_parcelada;
+  if (ep != null) {
+    if (ep.pct_max != null && (!num(ep.pct_max) || ep.pct_max < 0 || ep.pct_max > 1))
+      erros.push("Entrada parcelada: percentual máximo deve estar entre 0 e 100%.");
+    if (!num(ep.comprometimento) || ep.comprometimento <= 0 || ep.comprometimento > 1)
+      erros.push("Entrada parcelada: comprometimento da renda deve estar entre 0 e 100%.");
+    if (!num(ep.meses_lancamento) || ep.meses_lancamento < 0 || ep.meses_lancamento > 72)
+      erros.push("Entrada parcelada: meses (lançamento) inválido.");
+    if (!num(ep.meses_obras) || ep.meses_obras < 0 || ep.meses_obras > 72)
+      erros.push("Entrada parcelada: meses (em obras) inválido.");
+  }
   if (!Array.isArray(x.faixas) || x.faixas.length === 0) erros.push("Cadastre ao menos uma faixa.");
   else {
     const ids = new Set<number>();
@@ -193,4 +216,42 @@ export function validarParametros(p: unknown): { ok: true; params: SimulationPar
   }
   if (erros.length) return { ok: false, erros };
   return { ok: true, params: x as SimulationParams };
+}
+
+const MESES: Record<string, number> = { jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6, jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12 };
+
+/** Meses até a entrega a partir de textos como "12/2027", "dez/2027", "Dezembro de 2027" ou "2027". null se não reconhecer. */
+export function mesesAteEntrega(previsao: string | null | undefined, hoje = new Date()): number | null {
+  if (!previsao) return null;
+  const t = previsao.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const ano = t.match(/(20\d{2})/)?.[1];
+  if (!ano) return null;
+  let mes = 12;
+  const num = t.match(/\b(\d{1,2})\s*[/.-]\s*20\d{2}/);
+  if (num) mes = Math.min(12, Math.max(1, Number(num[1])));
+  else {
+    const nome = Object.keys(MESES).find((m) => t.includes(m));
+    if (nome) mes = MESES[nome];
+  }
+  const diff = (Number(ano) - hoje.getFullYear()) * 12 + (mes - (hoje.getMonth() + 1));
+  return Math.max(0, diff);
+}
+
+/**
+ * Quanto do preço pode ser pago como entrada parcelada durante a obra:
+ * o menor entre (% máximo do preço) e (parcela mensal possível × nº de meses até a entrega).
+ * Imóvel pronto = 0.
+ */
+export function entradaParcelavel(
+  preco: number,
+  dev: { status_obra: string; previsao_entrega?: string | null },
+  sim: Pick<SimulationResult, "entradaParcelada">,
+  hoje = new Date()
+): { valorMax: number; meses: number } {
+  const ep = sim.entradaParcelada;
+  if (!ep || dev.status_obra === "pronto") return { valorMax: 0, meses: 0 };
+  const padrao = dev.status_obra === "lancamento" ? ep.mesesLancamento : ep.mesesObras;
+  const meses = mesesAteEntrega(dev.previsao_entrega, hoje) ?? padrao;
+  if (meses <= 0) return { valorMax: 0, meses: 0 };
+  return { valorMax: Math.min(preco * ep.pctMax, ep.parcelaMensalMax * meses), meses };
 }
