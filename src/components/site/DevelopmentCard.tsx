@@ -1,6 +1,6 @@
 /* eslint-disable @next/next/no-img-element -- mídias vêm do Storage/URLs configuradas no painel */
 import Link from "next/link";
-import { BedDouble, Car, MapPin, Ruler } from "lucide-react";
+import { BedDouble, Building2, Car, MapPin, Ruler } from "lucide-react";
 import type { Development } from "@/lib/data";
 import { regiaoLabel, statusObraLabel } from "@/lib/constants";
 import { formatPreco } from "@/lib/format";
@@ -34,7 +34,7 @@ export default function DevelopmentCard({ d, href, destaque, children }: Props) 
         {capa ? (
           <img src={capa} alt={`Imagem de ${d.nome}`} className="h-full w-full object-cover" loading="lazy" />
         ) : (
-          <div className="flex h-full items-center justify-center text-sm text-ink-soft">Sem foto</div>
+          <div className="flex h-full flex-col items-center justify-center gap-1 text-sm font-semibold text-caixa"><Building2 size={32} aria-hidden /> Fotos em breve</div>
         )}
         <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
           <span className="chip bg-white/95 text-ink">{statusObraLabel(d.status_obra)}</span>

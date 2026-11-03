@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function Gallery({ fotos, nome }: { fotos: { url: string; legenda: string | null }[]; nome: string }) {
   const [i, setI] = useState(0);
-  if (fotos.length === 0) return <div className="flex aspect-[16/10] items-center justify-center rounded-2xl bg-mist text-ink-soft">Sem fotos</div>;
+  if (fotos.length === 0) return <div className="flex aspect-[16/10] items-center justify-center rounded-2xl bg-mist text-ink-soft">Fotos em breve</div>;
   const atual = fotos[i];
   const go = (d: number) => setI((x) => (x + d + fotos.length) % fotos.length);
   return (
