@@ -28,8 +28,8 @@ export default async function Privacidade() {
 
         <h2>2. Dados que coletamos</h2>
         <ul>
-          <li>Identificação e contato: nome, CPF, data de nascimento, estado civil, telefone/WhatsApp e e-mail.</li>
-          <li>Informações financeiras declaradas: profissão, tipo e valor de renda, composição de renda, saldo de FGTS, situação de imóvel, financiamento e restrição cadastral, entrada disponível.</li>
+          <li>Identificação e contato: nome, data de nascimento, estado civil, telefone/WhatsApp e e-mail.</li>
+          <li>Informações financeiras declaradas: profissão, tipo e valor de renda, composição de renda, saldo de FGTS, situação de imóvel, financiamento e restrição cadastral.</li>
           <li>Preferências de imóvel: regiões, dormitórios, vaga e prazo de compra.</li>
           <li>Navegação: empreendimentos visualizados, cliques no WhatsApp, origem da visita (parâmetros de campanha) e, com o seu consentimento, cookies de medição do Google e da Meta.</li>
         </ul>
@@ -59,9 +59,9 @@ export default async function Privacidade() {
 
         <h2>6. Segurança</h2>
         <ul>
-          <li>O CPF é armazenado criptografado e só pode ser consultado pela equipe autorizada, com registro de acesso.</li>
+          <li>A simulação não pede CPF nem documentos. Eles só são solicitados no atendimento, se você seguir com a compra.</li>
           <li>O acesso ao painel exige autenticação e cada alteração fica registrada em histórico.</li>
-          <li>O link de WhatsApp gerado pela plataforma não contém CPF nem dados financeiros.</li>
+          <li>O link de WhatsApp gerado pela plataforma não contém dados financeiros.</li>
         </ul>
 
         <h2>7. Por quanto tempo guardamos</h2>

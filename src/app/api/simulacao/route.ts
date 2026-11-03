@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { CONSENT_VERSION } from "@/lib/constants";
-import { encryptCPF, hashCPF } from "@/lib/crypto";
 import { getActiveParams } from "@/lib/data";
 import { idadeEmMeses } from "@/lib/format";
 import { inferirOrigem, listarAtivosParaMatch, rateLimit, ranquearDevs } from "@/lib/server/leads";
@@ -49,7 +48,7 @@ export async function POST(req: NextRequest) {
       idadeMeses: Math.max(idadeTitular, idadeComp),
       fgtsSaldo: d.fgts_saldo,
       fgtsTresAnos: d.fgts_tres_anos,
-      entrada: d.entrada_disponivel,
+      entrada: 0,
       possuiImovel: d.possui_imovel,
       financiamentoAtivo: d.financiamento_ativo,
       jaBeneficiado: d.ja_beneficiado,
@@ -78,7 +77,6 @@ export async function POST(req: NextRequest) {
       telefone: d.telefone,
       data_nascimento: d.data_nascimento,
       estado_civil: d.estado_civil,
-      cpf_final: d.cpf.slice(-2),
       profissao: d.profissao,
       tipo_renda: d.tipo_renda,
       renda_principal: d.renda_principal,
@@ -98,7 +96,6 @@ export async function POST(req: NextRequest) {
       dormitorios_min: d.dormitorios_min,
       precisa_vaga: d.precisa_vaga,
       preferencia_obra: d.preferencia_obra,
-      entrada_disponivel: d.entrada_disponivel,
       prazo_compra: d.prazo_compra,
       simulacao: resultado,
       params_versao: ativo.versao,
@@ -124,13 +121,6 @@ export async function POST(req: NextRequest) {
     console.error("Erro ao gravar lead", error);
     return NextResponse.json({ erro: "Não foi possível salvar a simulação. Tente novamente." }, { status: 500 });
   }
-
-  const { error: errSens } = await db.from("lead_sensitive").insert({
-    lead_id: lead.id,
-    cpf_enc: encryptCPF(d.cpf),
-    cpf_hash: hashCPF(d.cpf),
-  });
-  if (errSens) console.error("Erro ao gravar dado sensível", errSens);
 
   await db.from("lead_events").insert({
     lead_id: lead.id,

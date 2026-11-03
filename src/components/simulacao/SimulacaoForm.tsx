@@ -13,7 +13,7 @@ import {
   RESULT_KEY,
   TIPOS_RENDA,
 } from "@/lib/constants";
-import { brDateToISO, maskCPF, maskDate, maskMoney, maskPhone, onlyDigits, parseMoney } from "@/lib/format";
+import { brDateToISO, maskDate, maskMoney, maskPhone, onlyDigits, parseMoney } from "@/lib/format";
 import { getUtms, trackEvent } from "@/lib/tracking";
 import { ETAPAS, errosPorCampo } from "@/lib/validation/simulacao";
 import { RadioGroup, SelectInput, TextInput, YesNo } from "./fields";
@@ -23,7 +23,6 @@ const DRAFT_KEY = "akali_sim_rascunho";
 
 interface FormState {
   nome: string;
-  cpf: string;
   data_nascimento: string;
   email: string;
   telefone: string;
@@ -47,7 +46,6 @@ interface FormState {
   dormitorios_min: string;
   precisa_vaga: boolean | null;
   preferencia_obra: string;
-  entrada_disponivel: string;
   prazo_compra: string;
   consentimento: boolean;
   aceita_marketing: boolean;
@@ -55,7 +53,6 @@ interface FormState {
 
 const INICIAL: FormState = {
   nome: "",
-  cpf: "",
   data_nascimento: "",
   email: "",
   telefone: "",
@@ -79,7 +76,6 @@ const INICIAL: FormState = {
   dormitorios_min: "",
   precisa_vaga: null,
   preferencia_obra: "indiferente",
-  entrada_disponivel: "",
   prazo_compra: "",
   consentimento: false,
   aceita_marketing: false,
@@ -90,7 +86,6 @@ function toPayload(f: FormState) {
   const num = (s: string) => (s.trim() === "" ? null : Number(s));
   return {
     nome: f.nome.trim().replace(/\s+/g, " "),
-    cpf: onlyDigits(f.cpf),
     data_nascimento: brDateToISO(f.data_nascimento) ?? f.data_nascimento,
     email: f.email.trim().toLowerCase(),
     telefone: onlyDigits(f.telefone),
@@ -113,7 +108,6 @@ function toPayload(f: FormState) {
     dormitorios_min: num(f.dormitorios_min),
     precisa_vaga: f.precisa_vaga,
     preferencia_obra: f.preferencia_obra,
-    entrada_disponivel: parseMoney(f.entrada_disponivel),
     prazo_compra: f.prazo_compra || undefined,
     consentimento: f.consentimento,
     aceita_marketing: f.aceita_marketing,
@@ -134,14 +128,14 @@ export default function SimulacaoForm() {
   const carregado = useRef(false);
   const topoRef = useRef<HTMLDivElement>(null);
 
-  // Restaura rascunho (sem CPF — o CPF nunca é salvo no navegador)
+  // Restaura rascunho salvo no navegador
   useEffect(() => {
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
       if (raw) {
         const d = JSON.parse(raw) as { form: Partial<FormState>; step: number };
         // eslint-disable-next-line react-hooks/set-state-in-effect -- rascunho só existe no navegador
-        setForm({ ...INICIAL, ...d.form, cpf: "", consentimento: false });
+        setForm({ ...INICIAL, ...d.form, consentimento: false });
         setStep(Math.min(Math.max(0, d.step ?? 0), ETAPAS.length - 1));
         setRestaurado(true);
         iniciado.current = true;
@@ -156,7 +150,7 @@ export default function SimulacaoForm() {
     const t = setTimeout(() => {
       try {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { cpf, consentimento, ...semSensiveis } = form;
+        const { consentimento, ...semSensiveis } = form;
         localStorage.setItem(DRAFT_KEY, JSON.stringify({ form: semSensiveis, step, savedAt: Date.now() }));
         setSalvoEm(new Date());
       } catch {}
@@ -296,7 +290,7 @@ export default function SimulacaoForm() {
 
       {restaurado && (
         <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-caixa-50 px-4 py-3 text-sm text-caixa-dark">
-          <span>Continuamos de onde você parou. Por segurança, o CPF precisa ser digitado novamente.</span>
+          <span>Continuamos de onde você parou.</span>
           <button type="button" onClick={recomecar} className="flex items-center gap-1 font-semibold underline">
             <RotateCcw size={14} /> Recomeçar
           </button>
@@ -326,26 +320,15 @@ export default function SimulacaoForm() {
           {step === 0 && (
             <>
               <TextInput label="Nome completo" autoComplete="name" value={form.nome} onChange={(ev) => set("nome", ev.target.value)} error={e.nome} />
-              <div className="grid gap-4 sm:grid-cols-2">
-                <TextInput
-                  label="CPF"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  placeholder="000.000.000-00"
-                  value={form.cpf}
-                  onChange={(ev) => set("cpf", maskCPF(ev.target.value))}
-                  error={e.cpf}
-                  hint="Protegido por criptografia. Não aparece no WhatsApp."
-                />
-                <TextInput
-                  label="Data de nascimento"
-                  inputMode="numeric"
-                  placeholder="dd/mm/aaaa"
-                  value={form.data_nascimento}
-                  onChange={(ev) => set("data_nascimento", maskDate(ev.target.value))}
-                  error={e.data_nascimento}
-                />
-              </div>
+              <TextInput
+                label="Data de nascimento"
+                inputMode="numeric"
+                placeholder="dd/mm/aaaa"
+                value={form.data_nascimento}
+                onChange={(ev) => set("data_nascimento", maskDate(ev.target.value))}
+                error={e.data_nascimento}
+                hint="A idade influencia o prazo do financiamento."
+              />
               <div className="grid gap-4 sm:grid-cols-2">
                 <TextInput
                   label="WhatsApp (com DDD)"
@@ -538,15 +521,6 @@ export default function SimulacaoForm() {
 
           {step === 5 && (
             <>
-              <TextInput
-                label="Quanto você tem disponível para entrada (além do FGTS)?"
-                inputMode="numeric"
-                placeholder="R$ 0,00"
-                value={form.entrada_disponivel}
-                onChange={(ev) => set("entrada_disponivel", maskMoney(ev.target.value))}
-                error={e.entrada_disponivel}
-                hint="Pode ser R$ 0,00. Muitas construtoras parcelam a entrada."
-              />
               <SelectInput
                 label="Quando pretende comprar?"
                 options={PRAZOS_COMPRA}

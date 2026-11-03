@@ -8,8 +8,7 @@ import type { DevelopmentForMatch, MatchPreferences, MatchResult, SimulationResu
  */
 export const PESOS = {
   renda: 25, // faixa do programa atendida pelo empreendimento
-  capacidade: 20, // preço cabe na capacidade estimada
-  entrada: 10, // entrada informada cobre a diferença
+  capacidade: 30, // preço cabe na capacidade estimada (financiamento + FGTS [+ subsídio])
   regiao: 15,
   dormitorios: 10,
   vaga: 5,
@@ -56,21 +55,9 @@ export function avaliarCompatibilidade(
   }
   if (!tetoOk) atencao.push(`Valor acima do teto da faixa (${formatBRL(sim.tetoImovel)})`);
 
-  // 3. Entrada: diferença entre o preço e (financiamento + FGTS [+ subsídio])
-  const financ = sim.financiamentoMax;
-  const entradaSem = semPreco ? 0 : Math.max(0, preco - financ - sim.fgtsConsiderado);
-  const entradaCom = Math.max(0, entradaSem - sim.subsidioPotencial);
-  const entradaEstimada = entradaSem;
-  if (semPreco) {
-    // sem como estimar
-  } else if (sim.entrada >= entradaSem) {
-    score += PESOS.entrada;
-    if (entradaSem > 0) motivos.push("Sua entrada disponível cobre a diferença estimada");
-  } else if (sim.entrada >= entradaCom) {
-    score += PESOS.entrada * 0.5;
-  } else if (cabeCom) {
-    atencao.push(`Pode ser necessária entrada maior (estimativa: ${formatBRL(entradaCom)})`);
-  }
+  // 3. Entrada: a simulação não pergunta a entrada (foco MCMV); estimamos a diferença
+  //    entre o preço e financiamento + FGTS, só para o corretor.
+  const entradaEstimada = semPreco ? 0 : Math.max(0, preco - sim.financiamentoMax - sim.fgtsConsiderado);
 
   // 4. Região
   if (prefs.regioes.length === 0) {

@@ -84,7 +84,7 @@ export default async function ResultadoPage({ params }: { params: Promise<{ toke
             sub={
               sim.subsidioPotencial > 0 && sim.capacidadeComSubsidio > sim.capacidadeSemSubsidio
                 ? `Até ${formatBRL(sim.capacidadeComSubsidio)} se houver subsídio aprovado`
-                : "Somando financiamento, FGTS e entrada"
+                : "Somando financiamento e FGTS"
             }
           />
           <Stat label="Faixa do programa" valor={sim.faixa?.nome ?? "Fora do programa"} sub={`Renda familiar ${formatBRL(sim.rendaTotal, true)}`} />
@@ -96,9 +96,8 @@ export default async function ResultadoPage({ params }: { params: Promise<{ toke
           <Stat label="Parcela de referência" valor={`até ${formatBRL(sim.parcelaMax)}`} sub="Comprometimento máximo da renda" />
         </section>
 
-        <section className="mt-3 grid gap-3 sm:grid-cols-3">
+        <section className="mt-3 grid gap-3 sm:grid-cols-2">
           <Stat label="FGTS considerado" valor={formatBRL(sim.fgtsConsiderado)} />
-          <Stat label="Entrada informada" valor={formatBRL(sim.entrada)} />
           <Stat
             label="Subsídio possível"
             valor={sim.subsidioPotencial > 0 ? `até ${formatBRL(sim.subsidioPotencial)}` : "Não se aplica"}

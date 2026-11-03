@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { isValidCPF } from "../cpf";
 import { ESTADOS_CIVIS, PRAZOS_COMPRA, PREFERENCIAS_OBRA, REGIOES, RELACOES_COMPOSICAO, TIPOS_RENDA } from "../constants";
 
 const values = <T extends readonly { value: string }[]>(list: T) =>
@@ -11,7 +10,6 @@ const texto = (max: number) => z.string().trim().max(max);
 /** Etapa 1 — Dados pessoais */
 export const etapaDadosPessoais = z.object({
   nome: z.string().trim().min(5, "Informe nome e sobrenome").max(120).regex(/\S+\s+\S+/, "Informe nome e sobrenome"),
-  cpf: z.string().regex(/^\d{11}$/, "CPF deve ter 11 dígitos").refine(isValidCPF, "CPF inválido"),
   data_nascimento: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida")
@@ -69,7 +67,6 @@ export const etapaPreferencias = z.object({
 
 /** Etapa 6 — Entrada, prazo e consentimento */
 export const etapaEntrada = z.object({
-  entrada_disponivel: dinheiro,
   prazo_compra: z.enum(values(PRAZOS_COMPRA), { error: "Selecione o prazo" }),
   consentimento: z.literal(true, { error: "É necessário aceitar a Política de Privacidade para continuar" }),
   aceita_marketing: z.boolean({ error: "Selecione uma opção" }),
@@ -109,7 +106,7 @@ export const ETAPAS = [
   { id: 3, titulo: "Composição familiar", schema: etapaFamilia },
   { id: 4, titulo: "FGTS e histórico", schema: etapaFgts },
   { id: 5, titulo: "Preferências do imóvel", schema: etapaPreferencias },
-  { id: 6, titulo: "Entrada e prazo", schema: etapaEntrada },
+  { id: 6, titulo: "Prazo e confirmação", schema: etapaEntrada },
 ] as const;
 
 /** Converte erros do zod em { campo: mensagem } (primeira mensagem de cada campo). */

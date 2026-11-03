@@ -163,9 +163,9 @@ export default async function Home() {
           <div>
             <h2 className="text-xl font-extrabold">Seus dados protegidos</h2>
             <ul className="mt-3 grid gap-2 text-sm text-ink-soft sm:grid-cols-2">
-              <li>• O CPF é armazenado de forma criptografada e só é acessado pela equipe autorizada.</li>
+              <li>• Não pedimos CPF nem documentos na simulação.</li>
               <li>• Usamos seus dados apenas para a simulação e para o atendimento que você solicitar.</li>
-              <li>• O link do WhatsApp não leva CPF nem dados financeiros.</li>
+              <li>• O link do WhatsApp não leva dados financeiros.</li>
               <li>• Você pode pedir acesso, correção ou exclusão dos seus dados a qualquer momento (LGPD).</li>
             </ul>
             <Link href="/privacidade" className="mt-4 inline-block text-sm font-semibold text-caixa hover:underline">
