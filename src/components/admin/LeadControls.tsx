@@ -1,9 +1,9 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
-import { Eye, Loader2, ShieldOff } from "lucide-react";
+import { Eye, Loader2, ShieldOff, Trash2 } from "lucide-react";
 import { LEAD_STATUS } from "@/lib/constants";
-import { adicionarNota, anonimizarLead, atribuirResponsavel, atualizarStatusLead, revelarCPF, type ActionState } from "@/app/admin/actions";
+import { adicionarNota, anonimizarLead, excluirLead, atribuirResponsavel, atualizarStatusLead, revelarCPF, type ActionState } from "@/app/admin/actions";
 
 export function StatusSelect({ leadId, status }: { leadId: string; status: string }) {
   const [pending, start] = useTransition();
@@ -130,6 +130,34 @@ export function AnonymizeButton({ leadId }: { leadId: string }) {
         }}
       >
         {pending ? <Loader2 size={14} className="animate-spin" /> : <ShieldOff size={14} />} Anonimizar dados (LGPD)
+      </button>
+      {erro && <p className="field-error">{erro}</p>}
+    </div>
+  );
+}
+
+export function DeleteLeadButton({ leadId, nome }: { leadId: string; nome: string }) {
+  const [pending, start] = useTransition();
+  const [erro, setErro] = useState<string | null>(null);
+  return (
+    <div>
+      <button
+        type="button"
+        className="btn-danger"
+        disabled={pending}
+        onClick={() => {
+          if (!confirm(`Excluir o cadastro de "${nome}" de vez? Ele some da lista, junto com observações e histórico. Use para cadastros de teste.`)) return;
+          start(async () => {
+            try {
+              await excluirLead(leadId);
+            } catch (e) {
+              // redirect() do Next também passa por aqui; só mostra erros reais
+              if (e instanceof Error && !e.message.includes("NEXT_REDIRECT")) setErro(e.message);
+            }
+          });
+        }}
+      >
+        {pending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} Excluir cadastro
       </button>
       {erro && <p className="field-error">{erro}</p>}
     </div>

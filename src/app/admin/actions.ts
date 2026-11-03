@@ -293,6 +293,18 @@ export async function revelarCPF(leadId: string): Promise<{ cpf?: string; erro?:
   }
 }
 
+/** Exclui o lead de vez (ex.: cadastros de teste). Só para o papel "admin". */
+export async function excluirLead(leadId: string) {
+  const { supabase } = await assertAdmin(true);
+  if (!/^[0-9a-f-]{36}$/i.test(leadId)) throw new Error("Lead inválido.");
+  const { data, error } = await supabase.from("leads").delete().eq("id", leadId).select("id");
+  if (error) throw new Error(error.message);
+  if (!data?.length) throw new Error("Não foi possível excluir este cadastro.");
+  revalidatePath("/admin/leads");
+  revalidatePath("/admin");
+  redirect("/admin/leads");
+}
+
 /** LGPD: remove dados pessoais mantendo apenas números agregados para estatística. */
 export async function anonimizarLead(leadId: string) {
   const { supabase } = await assertAdmin(true);

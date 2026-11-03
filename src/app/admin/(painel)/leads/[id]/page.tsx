@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, MessageCircle } from "lucide-react";
-import { AnonymizeButton, NoteForm, ResponsavelSelect, RevealCPF, StatusSelect } from "@/components/admin/LeadControls";
+import { AnonymizeButton, DeleteLeadButton, NoteForm, ResponsavelSelect, RevealCPF, StatusSelect } from "@/components/admin/LeadControls";
 import {
   ESTADOS_CIVIS,
   PRAZOS_COMPRA,
@@ -272,9 +272,10 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
               Consentimento em {formatDate(l.consentimento_em, true)} (política v{l.consentimento_versao}). Marketing:{" "}
               {simNao(l.aceita_marketing)}.
             </p>
-            {papel === "admin" && !anonimizado && (
-              <div className="mt-3">
-                <AnonymizeButton leadId={l.id} />
+            {papel === "admin" && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {!anonimizado && <AnonymizeButton leadId={l.id} />}
+                <DeleteLeadButton leadId={l.id} nome={l.nome} />
               </div>
             )}
           </Bloco>
