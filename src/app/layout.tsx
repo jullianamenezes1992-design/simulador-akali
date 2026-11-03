@@ -21,7 +21,8 @@ export async function generateMetadata(): Promise<Metadata> {
       siteName: s.empresa_nome,
       title: `${s.empresa_nome} — Simulador Minha Casa, Minha Vida`,
       description: "Faça uma pré-simulação gratuita e veja os empreendimentos em São Paulo que combinam com o seu perfil.",
-      images: [{ url: "/og.jpg?v=1", width: 1200, height: 630, alt: "Simulador Minha Casa, Minha Vida — Akali Imóveis" }],
+      // quadrada primeiro: o WhatsApp mostra a miniatura recortada em quadrado
+      images: [{ url: "/og-quadrado.jpg?v=2", width: 800, height: 800, alt: "Simulador Minha Casa, Minha Vida — Akali Imóveis" }],
     },
     twitter: { card: "summary_large_image", images: ["/og.jpg?v=1"] },
   };
