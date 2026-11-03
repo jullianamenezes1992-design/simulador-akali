@@ -9,7 +9,7 @@ import WhatsAppButton from "@/components/site/WhatsAppButton";
 import { areaTexto } from "@/components/site/DevelopmentCard";
 import { getPublicDevelopment } from "@/lib/data";
 import { regiaoLabel, statusObraLabel } from "@/lib/constants";
-import { formatBRL } from "@/lib/format";
+import { formatBRL, formatPreco } from "@/lib/format";
 import { embedUrl, isVideoFile } from "@/lib/video";
 
 type Params = Promise<{ slug: string }>;
@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   if (!d) return { title: "Empreendimento não encontrado" };
   return {
     title: d.nome,
-    description: `${d.nome} — ${d.bairro ?? regiaoLabel(d.regiao)}, a partir de ${formatBRL(d.preco_min)}. ${d.dormitorios.join(" e ")} dormitório(s).`,
+    description: `${d.nome} — ${d.bairro ?? regiaoLabel(d.regiao)}, ${d.preco_min == null ? "preço sob consulta" : `a partir de ${formatBRL(d.preco_min)}`}. ${d.dormitorios.join(" e ")} dormitório(s).`,
     openGraph: d.capa_url && /^https?:/.test(d.capa_url) ? { images: [d.capa_url] } : undefined,
   };
 }
@@ -36,7 +36,8 @@ export default async function EmpreendimentoPage({ params }: { params: Params })
   const plantas = media.filter((m) => m.tipo === "planta");
   const videos = [...media.filter((m) => m.tipo === "video").map((m) => m.url), ...(d.video_url ? [d.video_url] : [])];
   const area = areaTexto(d);
-  const local = [d.endereco, d.bairro, d.cidade, d.uf].filter(Boolean).join(", ");
+  const contem = (t: string | null) => !!t && !!d.endereco && d.endereco.toLowerCase().includes(t.toLowerCase());
+  const local = [d.endereco, contem(d.bairro) ? null : d.bairro, contem(d.cidade) ? null : d.cidade, d.uf].filter(Boolean).join(", ");
   const mapaQ = d.latitude != null && d.longitude != null ? `${d.latitude},${d.longitude}` : local;
   const indisponivel = !d.disponivel || d.unidades_disponiveis === 0;
 
@@ -169,9 +170,10 @@ export default async function EmpreendimentoPage({ params }: { params: Params })
           {/* Lateral */}
           <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
             <div className="card p-5">
-              <p className="text-xs text-ink-soft">A partir de</p>
-              <p className="text-3xl font-extrabold text-caixa">{formatBRL(d.preco_min)}</p>
-              {d.preco_max && d.preco_max > d.preco_min && (
+              <p className="text-xs text-ink-soft">{d.preco_min == null ? "Preço" : "A partir de"}</p>
+              <p className="text-3xl font-extrabold text-caixa">{formatPreco(d.preco_min)}</p>
+              {d.preco_min == null && <p className="text-sm text-ink-soft">Fale com o corretor para receber a tabela atualizada.</p>}
+              {d.preco_max && d.preco_min != null && d.preco_max > d.preco_min && (
                 <p className="text-sm text-ink-soft">Unidades até {formatBRL(d.preco_max)}</p>
               )}
               <p className="mt-3 flex items-center gap-1.5 text-sm">
@@ -196,7 +198,7 @@ export default async function EmpreendimentoPage({ params }: { params: Params })
               </Link>
             </div>
             <p className="px-1 text-xs text-ink-soft">
-              Valores, disponibilidade e condições sujeitos a alteração sem aviso. Imagens ilustrativas. A aprovação do
+              Valores, disponibilidade e condições sujeitos a alteração sem aviso. Imagens ilustrativas{d.construtora ? `, fornecidas pela ${d.construtora}` : ""}. A aprovação do
               financiamento depende de análise do agente financeiro.
             </p>
           </aside>
@@ -207,8 +209,8 @@ export default async function EmpreendimentoPage({ params }: { params: Params })
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white p-3 lg:hidden">
         <div className="flex items-center gap-3">
           <div className="shrink-0">
-            <p className="text-[11px] text-ink-soft">A partir de</p>
-            <p className="text-lg font-extrabold text-caixa">{formatBRL(d.preco_min)}</p>
+            <p className="text-[11px] text-ink-soft">{d.preco_min == null ? "Preço" : "A partir de"}</p>
+            <p className="text-lg font-extrabold text-caixa">{formatPreco(d.preco_min)}</p>
           </div>
           <WhatsAppButton developmentId={d.id} developmentNome={d.nome} label="Tenho interesse" className="flex-1" pagina="empreendimento" />
         </div>

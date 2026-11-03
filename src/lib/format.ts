@@ -4,6 +4,9 @@ const brlCents = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "
 export const formatBRL = (v: number | null | undefined, cents = false) =>
   v == null || Number.isNaN(v) ? "—" : (cents ? brlCents : brl).format(v);
 
+/** Preço "a partir de" ou "Sob consulta" quando não informado. */
+export const formatPreco = (v: number | null | undefined) => (v == null ? "Sob consulta" : formatBRL(v));
+
 export const formatDate = (iso: string | null | undefined, withTime = false) => {
   if (!iso) return "—";
   const d = new Date(iso);

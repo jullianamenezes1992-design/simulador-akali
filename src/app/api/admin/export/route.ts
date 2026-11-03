@@ -149,7 +149,7 @@ export async function GET(req: NextRequest) {
       "Bairro": seguro(d.bairro),
       "Cidade": seguro(d.cidade),
       "Região": regiaoLabel(d.regiao),
-      "Preço a partir de": Number(d.preco_min),
+      "Preço a partir de": d.preco_min != null ? Number(d.preco_min) : "Sob consulta",
       "Preço até": d.preco_max != null ? Number(d.preco_max) : null,
       "Faixas": (d.faixas ?? []).join(", "),
       "Dormitórios": (d.dormitorios ?? []).join(", "),

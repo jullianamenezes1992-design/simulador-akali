@@ -93,9 +93,10 @@ export default function DevelopmentForm({ dev }: { dev?: Development }) {
       <section className="card grid gap-4 p-4 sm:grid-cols-2">
         <h2 className="font-bold sm:col-span-2">Valores e perfil</h2>
         <div>
-          <label className="label" htmlFor="preco_min">Preço a partir de *</label>
+          <label className="label" htmlFor="preco_min">Preço a partir de</label>
           <input id="preco_min" name="preco_min" inputMode="numeric" defaultValue={moneyDefault(dev?.preco_min)} onInput={onMoney} className="input" />
           {err("preco_min")}
+          <p className="hint">Deixe vazio para exibir &ldquo;Sob consulta&rdquo;.</p>
         </div>
         <div>
           <label className="label" htmlFor="preco_max">Preço até</label>

@@ -57,7 +57,7 @@ export interface Development {
   regiao: string;
   latitude: number | null;
   longitude: number | null;
-  preco_min: number;
+  preco_min: number | null;
   preco_max: number | null;
   faixas: number[];
   renda_minima: number | null;
@@ -74,6 +74,7 @@ export interface Development {
   oferta_destaque: boolean;
   oferta_texto: string | null;
   video_url: string | null;
+  fonte_url?: string | null;
   capa_url: string | null;
   ativo: boolean;
   is_demo: boolean;
@@ -102,7 +103,7 @@ export function normalizeDev<T extends Partial<Development>>(d: T): T {
   const n = (v: unknown) => (v == null ? null : Number(v));
   return {
     ...d,
-    preco_min: Number(d.preco_min),
+    preco_min: n(d.preco_min),
     preco_max: n(d.preco_max),
     renda_minima: n(d.renda_minima),
     area_min: n(d.area_min),
@@ -149,7 +150,7 @@ export async function listPublicDevelopments(f: CatalogFilters = {}): Promise<De
     .select("*, development_media(*)")
     .eq("ativo", true)
     .order("oferta_destaque", { ascending: false })
-    .order("preco_min", { ascending: true });
+    .order("preco_min", { ascending: true, nullsFirst: false });
   if (f.regiao) q = q.eq("regiao", f.regiao);
   if (f.precoMax) q = q.lte("preco_min", f.precoMax);
   if (f.dormitorios) q = q.contains("dormitorios", [f.dormitorios]);

@@ -40,6 +40,7 @@ Papéis: `admin` (tudo) e `corretor` (leads e empreendimentos).
 2. Em **SQL Editor**, execute **em ordem**:
    - `supabase/migrations/20261103000001_schema.sql` (tabelas, RLS, auditoria, bucket de mídias)
    - `supabase/migrations/20261103000002_seed.sql` (configurações, parâmetros v1 e **empreendimentos de exemplo**)
+   - `supabase/migrations/20261103000003_preco_sob_consulta.sql` (preço sob consulta e região Interior)
    (Com a Supabase CLI: `supabase link` e `supabase db push`.)
 3. Em **Authentication → Users → Add user**, crie seu usuário (marque *Auto Confirm*).
 4. Edite e execute `supabase/criar_admin.sql` para liberar o acesso ao painel.
@@ -57,9 +58,24 @@ npm run dev        # http://localhost:3000
 ### 4. Publicar (Vercel)
 Importe o repositório na Vercel, cadastre as mesmas variáveis e publique. Depois, em Supabase → Authentication → URL Configuration, coloque o domínio do site em *Site URL*.
 
-### 5. Antes de divulgar
+### 5. Importar o catálogo Plano&Plano
+No SQL Editor, rode `supabase/migrations/20261103000003_preco_sob_consulta.sql` (se ainda não rodou) e depois
+`supabase/import/plano-plano-2026-11-03.sql`. Ele:
+- cadastra **133 empreendimentos/fases** (127 ativos; 6 "futuros lançamentos" sem fotos ficam inativos);
+- usa as fotos, plantas e vídeos publicados pela Plano&Plano (links diretos para o site da construtora);
+- deixa **"Sob consulta"** os 81 que não têm preço publicado — preencha no painel quando tiver a tabela;
+- sugere as faixas do MCMV pelo preço (até R$ 275 mil → F1 a F4; até R$ 400 mil → F3/F4; até R$ 600 mil → F4);
+- marca vaga de garagem como "não" (a construtora não informa por unidade) — ajuste no painel;
+- desativa os empreendimentos de EXEMPLO.
+
+Pode rodar de novo sem duplicar: preços, fotos e textos são atualizados e quem você desativou continua desativado.
+Para atualizar no futuro, gere um novo JSON e rode `node scripts/gerar-import-plano-plano.mjs <arquivo.json>`.
+
+Empreendimentos comerciais (Inspire Business, Time Center Campinas, apartamentos comerciais do Estação Mooca) não foram importados.
+
+### 6. Antes de divulgar
 - [ ] Painel → **Configurações**: número do WhatsApp, CRECI, e-mail, encarregado de dados, IDs de rastreamento.
-- [ ] Painel → **Empreendimentos**: desative/exclua os 7 itens **[EXEMPLO]** e cadastre os reais.
+- [ ] Painel → **Empreendimentos**: confira os importados (preços "sob consulta", vagas e faixas). Os itens **[EXEMPLO]** já ficam desativados pela importação.
 - [ ] Painel → **Parâmetros**: confira os valores com o correspondente Caixa (ver abaixo).
 - [ ] Revise a **Política de Privacidade** (`src/app/(site)/privacidade/page.tsx`) com o jurídico.
 

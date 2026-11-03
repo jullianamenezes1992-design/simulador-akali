@@ -3,7 +3,7 @@ import Link from "next/link";
 import { BedDouble, Car, MapPin, Ruler } from "lucide-react";
 import type { Development } from "@/lib/data";
 import { regiaoLabel, statusObraLabel } from "@/lib/constants";
-import { formatBRL } from "@/lib/format";
+import { formatPreco } from "@/lib/format";
 
 interface Props {
   d: Development;
@@ -67,8 +67,8 @@ export default function DevelopmentCard({ d, href, destaque, children }: Props) 
           )}
         </div>
         <div className="mt-auto pt-4">
-          <p className="text-xs text-ink-soft">A partir de</p>
-          <p className="text-xl font-extrabold text-caixa">{formatBRL(d.preco_min)}</p>
+          <p className="text-xs text-ink-soft">{d.preco_min == null ? "Preço" : "A partir de"}</p>
+          <p className="text-xl font-extrabold text-caixa">{formatPreco(d.preco_min)}</p>
           {d.faixas.length > 0 && (
             <p className="mt-0.5 text-xs text-ink-soft">MCMV {d.faixas.map((f) => `Faixa ${f}`).join(", ")}</p>
           )}

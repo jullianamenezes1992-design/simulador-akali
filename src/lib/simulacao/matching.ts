@@ -38,11 +38,14 @@ export function avaliarCompatibilidade(
     atencao.push(`Empreendimento voltado a outras faixas do programa (${dev.faixas.map((f) => `F${f}`).join(", ") || "não informado"})`);
   }
 
-  // 2. Valor x capacidade
-  const tetoOk = sim.tetoImovel == null || preco <= sim.tetoImovel;
-  const cabeSem = preco <= sim.capacidadeSemSubsidio;
-  const cabeCom = preco <= sim.capacidadeComSubsidio;
-  if (cabeSem) {
+  // 2. Valor x capacidade (preço "sob consulta" não pode ser confirmado)
+  const semPreco = preco == null;
+  const tetoOk = semPreco || sim.tetoImovel == null || preco <= sim.tetoImovel;
+  const cabeSem = !semPreco && preco <= sim.capacidadeSemSubsidio;
+  const cabeCom = !semPreco && preco <= sim.capacidadeComSubsidio;
+  if (semPreco) {
+    atencao.push("Preço sob consulta: o corretor confirma se cabe no seu orçamento");
+  } else if (cabeSem) {
     score += PESOS.capacidade;
     motivos.push(`Valor a partir de ${formatBRL(preco)} dentro da capacidade estimada`);
   } else if (cabeCom) {
@@ -55,10 +58,12 @@ export function avaliarCompatibilidade(
 
   // 3. Entrada: diferença entre o preço e (financiamento + FGTS [+ subsídio])
   const financ = sim.financiamentoMax;
-  const entradaSem = Math.max(0, preco - financ - sim.fgtsConsiderado);
+  const entradaSem = semPreco ? 0 : Math.max(0, preco - financ - sim.fgtsConsiderado);
   const entradaCom = Math.max(0, entradaSem - sim.subsidioPotencial);
   const entradaEstimada = entradaSem;
-  if (sim.entrada >= entradaSem) {
+  if (semPreco) {
+    // sem como estimar
+  } else if (sim.entrada >= entradaSem) {
     score += PESOS.entrada;
     if (entradaSem > 0) motivos.push("Sua entrada disponível cobre a diferença estimada");
   } else if (sim.entrada >= entradaCom) {
@@ -77,9 +82,9 @@ export function avaliarCompatibilidade(
 
   // 5. Dormitórios
   const maxDorm = Math.max(0, ...dev.dormitorios);
-  if (prefs.dormitoriosMin == null || maxDorm >= prefs.dormitoriosMin) {
+  if (prefs.dormitoriosMin == null || dev.dormitorios.length === 0 || maxDorm >= prefs.dormitoriosMin) {
     score += PESOS.dormitorios;
-    if (prefs.dormitoriosMin != null) motivos.push(`Opções com ${dev.dormitorios.join(" ou ")} dormitório(s)`);
+    if (prefs.dormitoriosMin != null && dev.dormitorios.length) motivos.push(`Opções com ${dev.dormitorios.join(" ou ")} dormitório(s)`);
   } else {
     atencao.push(`Até ${maxDorm} dormitório(s)`);
   }
@@ -122,7 +127,7 @@ export function ranquear(devs: DevelopmentForMatch[], sim: SimulationResult, pre
   avaliados.sort((a, b) => {
     if (a.match.compativel !== b.match.compativel) return a.match.compativel ? -1 : 1;
     if (b.match.score !== a.match.score) return b.match.score - a.match.score;
-    return a.dev.preco_min - b.dev.preco_min;
+    return (a.dev.preco_min ?? Infinity) - (b.dev.preco_min ?? Infinity);
   });
   return {
     compativeis: avaliados.filter((a) => a.match.compativel),

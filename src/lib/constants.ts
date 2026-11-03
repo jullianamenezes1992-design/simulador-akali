@@ -5,6 +5,7 @@ export const REGIOES = [
   { value: "zona_oeste", label: "Zona Oeste" },
   { value: "centro", label: "Centro" },
   { value: "grande_sp", label: "Grande São Paulo" },
+  { value: "interior", label: "Interior" },
 ] as const;
 
 export type Regiao = (typeof REGIOES)[number]["value"];

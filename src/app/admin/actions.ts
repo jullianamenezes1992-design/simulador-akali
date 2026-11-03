@@ -61,7 +61,7 @@ const devSchema = z
     regiao: z.enum(valores(REGIOES), { error: "Selecione a região" }),
     latitude: z.number().min(-90).max(90).nullable(),
     longitude: z.number().min(-180).max(180).nullable(),
-    preco_min: z.number({ error: "Informe o preço inicial" }).positive("Informe o preço inicial"),
+    preco_min: z.number().positive("Preço inválido").nullable(),
     preco_max: z.number().positive().nullable(),
     faixas: z.array(z.number().int().min(1).max(4)),
     renda_minima: z.number().min(0).nullable(),
@@ -81,7 +81,7 @@ const devSchema = z
     capa_url: z.string().max(1000).nullable(),
     ativo: z.boolean(),
   })
-  .refine((d) => d.preco_max == null || d.preco_max >= d.preco_min, { path: ["preco_max"], message: "Deve ser maior que o preço inicial" })
+  .refine((d) => d.preco_max == null || d.preco_min == null || d.preco_max >= d.preco_min, { path: ["preco_max"], message: "Deve ser maior que o preço inicial" })
   .refine((d) => d.area_max == null || d.area_min == null || d.area_max >= d.area_min, { path: ["area_max"], message: "Deve ser maior que a área mínima" });
 
 function lerEmpreendimento(fd: FormData) {
@@ -96,7 +96,7 @@ function lerEmpreendimento(fd: FormData) {
     regiao: String(fd.get("regiao") ?? ""),
     latitude: numOuNull(fd.get("latitude")),
     longitude: numOuNull(fd.get("longitude")),
-    preco_min: moneyOuNull(fd.get("preco_min")) ?? NaN,
+    preco_min: moneyOuNull(fd.get("preco_min")),
     preco_max: moneyOuNull(fd.get("preco_max")),
     faixas: fd.getAll("faixas").map(Number).sort(),
     renda_minima: moneyOuNull(fd.get("renda_minima")),

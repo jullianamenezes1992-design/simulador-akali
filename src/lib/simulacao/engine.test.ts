@@ -170,3 +170,16 @@ describe("compatibilidade", () => {
     expect(compativeis).toHaveLength(0);
   });
 });
+
+describe("preço sob consulta", () => {
+  it("não é marcado como compatível, mas aparece com ponto de atenção", () => {
+    const sim = simular(base, params);
+    const dev: DevelopmentForMatch = {
+      id: "sc", slug: "sc", nome: "sc", regiao: "zona_leste", preco_min: null, preco_max: null,
+      faixas: [1, 2], dormitorios: [2], vagas: false, disponivel: true, unidades_disponiveis: null, status_obra: "lancamento",
+    };
+    const { compativeis, demais } = ranquear([dev], sim, { regioes: [], dormitoriosMin: null, precisaVaga: false, preferenciaObra: "indiferente" });
+    expect(compativeis).toHaveLength(0);
+    expect(demais[0].match.atencao.join(" ")).toMatch(/sob consulta/i);
+  });
+});

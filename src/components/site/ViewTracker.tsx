@@ -5,9 +5,9 @@ import { trackEvent } from "@/lib/tracking";
 import { tokenSalvo } from "./WhatsAppButton";
 
 /** Registra a visualização do empreendimento (analytics + histórico do lead, se houver simulação). */
-export default function ViewTracker({ developmentId, nome, preco }: { developmentId: string; nome: string; preco: number }) {
+export default function ViewTracker({ developmentId, nome, preco }: { developmentId: string; nome: string; preco: number | null }) {
   useEffect(() => {
-    trackEvent("view_development", { content_name: nome, value: preco, currency: "BRL" });
+    trackEvent("view_development", { content_name: nome, value: preco ?? undefined, currency: "BRL" });
     const token = tokenSalvo();
     if (token) {
       fetch("/api/eventos", {

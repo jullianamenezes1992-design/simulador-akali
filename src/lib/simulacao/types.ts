@@ -80,7 +80,8 @@ export interface DevelopmentForMatch {
   slug: string;
   nome: string;
   regiao: string;
-  preco_min: number;
+  /** null = preço sob consulta */
+  preco_min: number | null;
   preco_max: number | null;
   faixas: number[];
   dormitorios: number[];

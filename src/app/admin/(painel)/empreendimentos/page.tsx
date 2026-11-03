@@ -5,7 +5,7 @@ import { Download, Plus } from "lucide-react";
 import { PageHeader } from "@/components/admin/ui";
 import ToggleAtivo from "@/components/admin/ToggleAtivo";
 import { regiaoLabel, statusObraLabel } from "@/lib/constants";
-import { formatBRL, formatDate } from "@/lib/format";
+import { formatDate, formatPreco } from "@/lib/format";
 import { requireAdmin } from "@/lib/server/auth";
 
 export const metadata: Metadata = { title: "Empreendimentos" };
@@ -55,8 +55,8 @@ export default async function EmpreendimentosAdmin({ searchParams }: { searchPar
                 {(!d.disponivel || d.unidades_disponiveis === 0) && <span className="chip bg-slate-200 text-slate-700">Sem unidades</span>}
               </div>
               <p className="mt-0.5 text-sm text-ink-soft">
-                {[d.bairro, regiaoLabel(d.regiao)].filter(Boolean).join(" • ")} • {statusObraLabel(d.status_obra)} • a partir de{" "}
-                {formatBRL(Number(d.preco_min))} • {d.faixas.length ? d.faixas.map((f: number) => `F${f}`).join(", ") : "sem faixa"}
+                {[d.bairro, regiaoLabel(d.regiao)].filter(Boolean).join(" • ")} • {statusObraLabel(d.status_obra)} • {d.preco_min == null ? "preço" : "a partir de"}{" "}
+                {formatPreco(d.preco_min == null ? null : Number(d.preco_min))} • {d.faixas.length ? d.faixas.map((f: number) => `F${f}`).join(", ") : "sem faixa"}
               </p>
               <p className="text-xs text-ink-soft">Atualizado em {formatDate(d.updated_at, true)}</p>
             </div>
