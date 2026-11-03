@@ -1,0 +1,66 @@
+Em Obras;ZN;Alto Cantareira;R$ 237K;32m²;2;0;dez/27;1
+Em Obras;ZS;Alto Morumbi;R$ 256K;26-35m²;1-2;0;ago/28;242
+Lançado;ZS;Ares do Horto - Aroeira;R$ 295K;32-55m²;2-3;1;dez/29;195
+Lançado;ZS;Ares do Horto - Cajueiro;R$ 289K;34-36m²;2;1;set/29;279
+Lançado;ZS;Ares do Horto - Ipê Amarelo;R$ 277K;31-39m²;2;1;jul/29;256
+Lançado;ZS;Ares do Horto - Pau Brasil;R$ 286K;31-36m²;2;1;mai/29;114
+Em Obras;Centro;Barão de Campinas - Plano & Plano;R$ 340K;34m²;2;0-1;out/28;93
+Lançado;ZL;Bosque do Carmo - Embaúba;R$ 245K;32-35m²;2;0;nov/29;460
+Lançado;ZL;Bosque do Carmo - Eucalipto;R$ 246K;32-42m²;2;0;fev/29;261
+Em Obras;ZL;Bosque do Carmo - Seringueira;R$ 260K;32-35m²;2;0;set/29;213
+Em Obras;ZL;Boulevard Mooca - Acácia;R$ 255K;34-49m²;1-2;0;mai/28;365
+Em Obras;ZL;Boulevard Mooca - Jacarandá;R$ 255K;25-50m²;1-2;0;mai/28;362
+Lançado;ZN;Caminhos do Jaçanã;R$ 252K;31-65m²;2-3;1;jul/29;257
+Lançamento;Centro;Campos Elísios;Valores em breve;-;1-2;-;-;318
+Lançado;ZN;Duetto São Domingos;R$ 222K;28-37m²;1-2;0;mai/29;287
+Lançado;ZO;Essencia Life;R$ 209K;31-35m²;2;1;jun/29;580
+Lançamento;ZO;Essência Club;R$ 206K;31-34m²;2;0-1;ago/29;954
+Em Obras;ZL;Estação Mooca - residencial e NR;R$ 220K;24-44m²;1-2;0;fev/28;273
+Entregue;Grande SP;Inspire Mauá Sonhos;R$ 508K;43m²;2;1;nov/18;4
+Em Obras;ZL;Itaquera - Amoreira;R$ 246K;31-35m²;2;0-1;abr/29;47
+Em Obras;ZL;Itaquera - Ipê;R$ 231K;31-35m²;2;0-1;ago/28;191
+Em Obras;ZN;Jaçanã;R$ 269K;33-36m²;2;0-1;set/28;361
+Lançado;ZL;Jd. das Origens - Pq. Aruá;R$ 208K;32-36m²;2;0;abr/30;321
+Novidade;ZL;Jd. das Origens - Pq. Mariá - Abertura espelho 05/11;Valores em breve;32-35m²;2;0;abr/30;-
+Lançado;ZO;Mais B. Funda - Marquês de São Vicente;R$ 224K;26-35m²;1-2;-;set/29;164
+Lançado;ZO;Mais B. Funda - Thomas Edison;R$ 229K;26-35m²;1-2;-;out/29;304
+Em Obras;ZL;Mais Belém;R$ 225K;26-36m²;1-2;0-1;jan/28;171
+Em Obras;ZO;Mais Butantã;R$ 219K;24-35m²;1-2;0;dez/28;584
+Em Obras;ZS;Mais Interlagos - Refúgio;R$ 252K;32-35m²;2;0;jul/28;202
+Em Obras;ZS;Mais Interlagos - Reserva;R$ 255K;26-35m²;1-2;0;jul/28;154
+Em Obras;ZL;Mais Penha;R$ 286K;34-36m²;2;0-1;jul/28;7
+Entregue;ZS;Mistá Tupinás - Residencial e NR;R$ 297K;30m²;1;0-221;jan/26;27
+Entregue;ZS;Mistá Ubiatans - Residencial e NR;R$ 307K;27-30m²;1;0;mar/26;22
+Em Obras;ZS;Mundo Park - Alvorada;R$ 252K;27-35m²;1-2;0;fev/28;438
+Em Obras;ZS;Mundo Park - Aurora;R$ 245K;27-35m²;1-2;0;abr/28;312
+Em Obras;ZS;Mundo Park - Sólis;R$ 251K;29-35m²;1-2;0-1;set/28;520
+Em Obras;Grande SP;Nid Alphaville;R$ 826K;75-154m²;2-4;1-2;nov/28;430
+Entregue;ZS;Oriz - residencial e NR;R$ 393K;28-45m²;0-2;0-1;mai/26;123
+Lançado;ZS;Park Santo Amaro;R$ 244K;26-37m²;1-2;0;jan/29;336
+Em Obras;ZL;Parque do Carmo - Ipê;R$ 240K;32m²;2;0;out/27;1
+Lançamento;ZN;Parque Pirituba - Arbore;Valores em breve;-;-;-;-;734
+Lançamento;ZL;Penha Parque - Gabriela Mistral;Valores em breve;-;-;-;-;1.481
+Lançamento;ZS;Plano Laguna;Valores em breve;-;-;-;-;1.032
+Lançamento;ZN;Plano Mogeiro;Valores em breve;-;-;-;-;2.257
+Lançamento;ZL;Plano Visconde de Parnaiba;Valores em breve;-;-;-;-;1.139
+Lançamento;ZS;Plano Vista Sto. Amaro;Valores em breve;-;-;-;-;1.828
+Novidade;Centro;Polo Paulista -  LANÇAMENTO NOVEMBRO;R$ 355K;22-25m²;1;0;-;502
+Lançado;ZN;Praça  Pirituba - Flora;R$ 278K;32-36m²;2;0;ago/29;166
+Lançado;ZS;Raizes das Mercês - Marques de Lages;R$ 228K;26-35m²;1-2;0;fev/29;185
+Lançamento;ZS;Raizes das Mercês - Romão Puigari;Valores em breve;27-34m²;1-2;0-1;-;513
+Em Obras;ZL;Reserva da Mooca;R$ 307K;29m²;1;0;mai/27;4
+Em Obras;Centro;Santa Cecilia - Plano&Plano;R$ 275K;26-37m²;1-2;0;set/27;169
+Entregue;ZS;Sphera Panamby - Club;R$ 504K;68m²;3;1;mai/26;3
+Entregue;ZS;Sphera Panamby - Park;R$ 363K;43-45m²;2;0;mar/26;3
+Em Obras;ZS;Sphera Panamby - Urban;R$ 524K;68m²;3;1;fev/27;1
+Em Obras;Grande SP;Start Joy;R$ 360K;42-55m²;1-2;1;jul/28;235
+Lançado;ZL;Tikoá Origem;R$ 248K;31-36m²;2;1;ago/29;204
+Em Obras;Centro;Unni Brás Residences;R$ 327K;33-63m²;1-2;1;jun/28;215
+Entregue;ZN;Unni Limão - Felicitá;R$ 542K;59m²;3;1-2;ago/26;31
+Entregue;ZN;Unni Limão - Harmoni;R$ 426K;47-61m²;2-3;0-2;set/26;67
+Em Obras;ZL;Vila Ema;R$ 245K;26-39m²;1-2;0;mar/28;71
+Em Obras;ZO;Vila Leopoldina - Carlos Weber;R$ 244K;27-28m²;1;0;ago/28;69
+Em Obras;ZO;Vila Leopoldina - Sebastião Bach;R$ 238K;25-33m²;1-2;0;jan/29;280
+Entregue;ZS;Viz;R$ 320K;28-30m²;1;0;mai/26;20
+Esgotado;ZL;Parque do Carmo - Figueira;;-;-;-;jan/28;1
+Esgotado;Centro;MAPP Rio Branco;;-;-;-;fev/25;1
