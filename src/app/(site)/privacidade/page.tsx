@@ -29,7 +29,7 @@ export default async function Privacidade() {
         <h2>2. Dados que coletamos</h2>
         <ul>
           <li>Identificação e contato: nome, data de nascimento, estado civil, telefone/WhatsApp e e-mail.</li>
-          <li>Informações financeiras declaradas: profissão, tipo e valor de renda, composição de renda, saldo de FGTS, situação de imóvel, financiamento e restrição cadastral.</li>
+          <li>Informações financeiras declaradas: profissão, tipo e valor de renda, composição de renda, saldo de FGTS e restrição cadastral.</li>
           <li>Preferências de imóvel: regiões, dormitórios, vaga e prazo de compra.</li>
           <li>Navegação: empreendimentos visualizados, cliques no WhatsApp, origem da visita (parâmetros de campanha) e, com o seu consentimento, cookies de medição do Google e da Meta.</li>
         </ul>

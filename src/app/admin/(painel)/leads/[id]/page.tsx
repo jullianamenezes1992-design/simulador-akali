@@ -128,11 +128,7 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
                 ["Dependentes", l.dependentes],
                 ["Saldo FGTS", formatBRL(Number(l.fgts_saldo))],
                 ["3 anos de FGTS", simNao(l.fgts_tres_anos)],
-                ["Possui imóvel", simNao(l.possui_imovel)],
-                ["Financiamento ativo", simNao(l.financiamento_ativo)],
-                ["Já beneficiado", simNao(l.ja_beneficiado)],
                 ["Restrição no nome", { nao: "Não", sim: "Sim", nao_sei: "Não sabe" }[l.restricao_credito as string] ?? "—"],
-                ["Entrada disponível", formatBRL(Number(l.entrada_disponivel))],
                 ["Prazo de compra", labelOf(PRAZOS_COMPRA, l.prazo_compra)],
               ]}
             />

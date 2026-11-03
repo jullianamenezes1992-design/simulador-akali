@@ -51,9 +51,6 @@ export const etapaFamilia = z
 export const etapaFgts = z.object({
   fgts_saldo: dinheiro,
   fgts_tres_anos: z.boolean({ error: "Selecione uma opção" }),
-  possui_imovel: z.boolean({ error: "Selecione uma opção" }),
-  financiamento_ativo: z.boolean({ error: "Selecione uma opção" }),
-  ja_beneficiado: z.boolean({ error: "Selecione uma opção" }),
   restricao_credito: z.enum(["nao", "sim", "nao_sei"], { error: "Selecione uma opção" }),
 });
 

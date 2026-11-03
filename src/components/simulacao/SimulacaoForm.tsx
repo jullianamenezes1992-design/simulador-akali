@@ -38,9 +38,6 @@ interface FormState {
   tem_fgts: boolean | null;
   fgts_saldo: string;
   fgts_tres_anos: boolean | null;
-  possui_imovel: boolean | null;
-  financiamento_ativo: boolean | null;
-  ja_beneficiado: boolean | null;
   restricao_credito: string;
   regioes: string[];
   dormitorios_min: string;
@@ -68,9 +65,6 @@ const INICIAL: FormState = {
   tem_fgts: null,
   fgts_saldo: "",
   fgts_tres_anos: null,
-  possui_imovel: null,
-  financiamento_ativo: null,
-  ja_beneficiado: null,
   restricao_credito: "",
   regioes: [],
   dormitorios_min: "",
@@ -100,9 +94,6 @@ function toPayload(f: FormState) {
     idade_composicao: f.compor_renda ? num(f.idade_composicao) : null,
     fgts_saldo: f.tem_fgts ? parseMoney(f.fgts_saldo) : 0,
     fgts_tres_anos: f.tem_fgts ? f.fgts_tres_anos : false,
-    possui_imovel: f.possui_imovel,
-    financiamento_ativo: f.financiamento_ativo,
-    ja_beneficiado: f.ja_beneficiado,
     restricao_credito: f.restricao_credito || undefined,
     regioes: f.regioes,
     dormitorios_min: num(f.dormitorios_min),
@@ -454,9 +445,6 @@ export default function SimulacaoForm() {
                   />
                 </div>
               )}
-              <YesNo label="Você ou quem vai comprar com você já possui imóvel residencial?" name="possui_imovel" value={form.possui_imovel} onChange={(v) => set("possui_imovel", v)} error={e.possui_imovel} />
-              <YesNo label="Tem algum financiamento habitacional ativo?" name="financiamento_ativo" value={form.financiamento_ativo} onChange={(v) => set("financiamento_ativo", v)} error={e.financiamento_ativo} />
-              <YesNo label="Já recebeu algum benefício habitacional do governo?" name="ja_beneficiado" value={form.ja_beneficiado} onChange={(v) => set("ja_beneficiado", v)} error={e.ja_beneficiado} />
               <RadioGroup
                 label="Possui restrição no nome (SPC/Serasa)?"
                 name="restricao_credito"
