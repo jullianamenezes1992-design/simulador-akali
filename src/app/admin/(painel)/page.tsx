@@ -11,16 +11,17 @@ export default async function Dashboard() {
   const d7 = diasAtras(7);
   const d30 = diasAtras(30);
 
-  const [total, semana, mes, cliquesMes, devsAtivos, recentes, statusRows, escolhidos, params] = await Promise.all([
+  const [total, semana, mes, cliquesMes, devsAtivos, recentes, statusRows, escolhidos, params, incompletas] = await Promise.all([
     supabase.from("leads").select("id", { count: "exact", head: true }),
     supabase.from("leads").select("id", { count: "exact", head: true }).gte("created_at", d7),
-    supabase.from("leads").select("id", { count: "exact", head: true }).gte("created_at", d30),
+    supabase.from("leads").select("id", { count: "exact", head: true }).gte("created_at", d30).eq("simulacao_completa", true),
     supabase.from("lead_events").select("lead_id").eq("tipo", "clique_whatsapp").gte("created_at", d30).not("lead_id", "is", null),
     supabase.from("developments").select("id", { count: "exact", head: true }).eq("ativo", true),
     supabase.from("leads").select("id, codigo, nome, renda_total, status, origem, created_at").order("created_at", { ascending: false }).limit(8),
     supabase.from("leads").select("status").is("anonimizado_em", null).limit(10000),
     supabase.from("leads").select("escolhido_id, developments:escolhido_id(nome)").not("escolhido_id", "is", null).gte("created_at", d30).limit(5000),
     supabase.from("simulation_params").select("versao, descricao, created_at").eq("ativo", true).maybeSingle(),
+    supabase.from("leads").select("id", { count: "exact", head: true }).eq("simulacao_completa", false),
   ]);
 
   const porStatus = new Map<string, number>();
@@ -41,7 +42,7 @@ export default async function Dashboard() {
       <PageHeader titulo="Visão geral" descricao="Resumo do funil de simulações e atendimento." />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Leads (total)" valor={total.count ?? 0} />
+        <StatCard label="Leads (total)" valor={total.count ?? 0} sub={`${incompletas.count ?? 0} com simulação incompleta`} />
         <StatCard label="Últimos 7 dias" valor={semana.count ?? 0} />
         <StatCard label="Simulação → WhatsApp (30d)" valor={`${conversao}%`} sub={`${leadsComClique} de ${mes.count ?? 0} leads`} />
         <StatCard label="Empreendimentos ativos" valor={devsAtivos.count ?? 0} />

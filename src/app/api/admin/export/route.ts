@@ -64,6 +64,7 @@ export async function GET(req: NextRequest) {
       .limit(20000);
     const status = sp.get("status");
     if (status && LEAD_STATUS.some((s) => s.value === status)) q = q.eq("status", status);
+    if (sp.get("inc") === "1") q = q.eq("simulacao_completa", false);
     const busca = (sp.get("q") ?? "").replace(/[%,()]/g, " ").trim();
     if (busca) q = q.or(`nome.ilike.%${busca}%,codigo.ilike.%${busca}%,email.ilike.%${busca}%`);
     const de = sp.get("de");
@@ -97,6 +98,7 @@ export async function GET(req: NextRequest) {
       return {
         "Código": l.codigo,
         "Data do cadastro": dataBR(l.created_at),
+        "Simulação": l.simulacao_completa === false ? `Incompleta${l.etapa_parou ? ` (parou na etapa ${l.etapa_parou})` : ""}` : "Concluída",
         "Nome": seguro(l.nome),
         "Telefone": l.telefone,
         "E-mail": seguro(l.email),
@@ -106,7 +108,7 @@ export async function GET(req: NextRequest) {
         "Renda composição": Number(l.renda_composicao),
         "Renda familiar": Number(l.renda_total),
         "Dependentes": l.dependentes,
-        "Faixa": sim?.faixa?.nome ?? "Fora do programa",
+        "Faixa": l.simulacao_completa === false ? "" : sim?.faixa?.nome ?? "Fora do programa",
         "Saldo FGTS": Number(l.fgts_saldo),
         "FGTS 3 anos": simNao(l.fgts_tres_anos),
         "Restrição no nome": { nao: "Não", sim: "Sim", nao_sei: "Não sabe" }[l.restricao_credito as string] ?? "",

@@ -41,6 +41,7 @@ function Linhas({ itens }: { itens: [string, React.ReactNode][] }) {
 }
 
 const TIPO_EVENTO: Record<string, string> = {
+  simulacao_iniciada: "Iniciou a simulação (preencheu nome e WhatsApp)",
   simulacao_concluida: "Concluiu a simulação",
   visualizou_empreendimento: "Visualizou empreendimento",
   escolheu_empreendimento: "Escolheu empreendimento",
@@ -88,6 +89,11 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
           <h1 className="text-2xl font-extrabold">{l.nome}</h1>
           <p className="mt-1 text-sm text-ink-soft">
             {l.codigo} • cadastrado em {formatDate(l.created_at, true)} • <span className={`chip ${st.cor}`}>{st.label}</span>
+            {!l.simulacao_completa && (
+              <span className="chip ml-1 bg-sol-50 text-ink">
+                Simulação incompleta{l.etapa_parou ? ` • parou na etapa ${l.etapa_parou} de 6` : ""}
+              </span>
+            )}
           </p>
         </div>
         {!anonimizado && (

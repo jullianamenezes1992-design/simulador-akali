@@ -19,6 +19,8 @@ import { ETAPAS, errosPorCampo } from "@/lib/validation/simulacao";
 import { RadioGroup, SelectInput, TextInput, YesNo } from "./fields";
 
 const DRAFT_KEY = "akali_sim_rascunho";
+/** token do cadastro parcial salvo no servidor após a 1ª etapa */
+const PARCIAL_KEY = "akali_sim_parcial";
 
 
 interface FormState {
@@ -177,8 +179,29 @@ export default function SimulacaoForm() {
 
   const rolarTopo = () => topoRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
+  // Salva no servidor o que já foi preenchido (a partir da 1ª etapa), para a corretora retomar o contato
+  const filaParcial = useRef<Promise<void>>(Promise.resolve());
+  const salvarParcial = (etapaConcluida: number) => {
+    const dados = payload;
+    // em fila, para a 2ª chamada já usar o token devolvido pela 1ª (evita cadastro duplicado)
+    filaParcial.current = filaParcial.current.then(async () => {
+      try {
+        const token = localStorage.getItem(PARCIAL_KEY);
+        const r = await fetch("/api/simulacao/parcial", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          keepalive: true,
+          body: JSON.stringify({ token, etapa: etapaConcluida, dados, rastreamento: getUtms() ?? undefined, website: honeypot }),
+        });
+        const j = r.ok ? ((await r.json()) as { token?: string }) : null;
+        if (j?.token) localStorage.setItem(PARCIAL_KEY, j.token);
+      } catch {}
+    });
+  };
+
   const avancar = () => {
     if (!validarEtapa(step)) return;
+    salvarParcial(step + 1);
     trackEvent("simulation_step", { etapa: step + 1 });
     setStep((s) => s + 1);
     rolarTopo();
@@ -192,6 +215,7 @@ export default function SimulacaoForm() {
 
   const recomecar = () => {
     localStorage.removeItem(DRAFT_KEY);
+    localStorage.removeItem(PARCIAL_KEY);
     setForm(INICIAL);
     setStep(0);
     setErrors({});
@@ -211,11 +235,23 @@ export default function SimulacaoForm() {
     }
     setEnviando(true);
     setErroGeral(null);
+    await filaParcial.current;
     try {
       const res = await fetch("/api/simulacao", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...payload, rastreamento: getUtms() ?? undefined, website: honeypot }),
+        body: JSON.stringify({
+          ...payload,
+          rastreamento: getUtms() ?? undefined,
+          website: honeypot,
+          parcial_token: (() => {
+            try {
+              return localStorage.getItem(PARCIAL_KEY);
+            } catch {
+              return null;
+            }
+          })(),
+        }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -229,6 +265,7 @@ export default function SimulacaoForm() {
         return;
       }
       localStorage.removeItem(DRAFT_KEY);
+      localStorage.removeItem(PARCIAL_KEY);
       localStorage.setItem(RESULT_KEY, JSON.stringify({ token: json.token, codigo: json.codigo }));
       trackEvent("simulation_complete", { faixa: json.faixa ?? undefined });
       router.push(`/resultado/${json.token}`);
@@ -546,6 +583,17 @@ export default function SimulacaoForm() {
             </>
           )}
         </div>
+
+        {step === 0 && (
+          <p className="mt-5 text-xs text-ink-soft">
+            Ao continuar, você autoriza a corretora a entrar em contato pelo WhatsApp informado para ajudar na simulação,
+            conforme a{" "}
+            <Link href="/privacidade" target="_blank" className="font-semibold text-caixa underline">
+              Política de Privacidade
+            </Link>
+            .
+          </p>
+        )}
 
         {erroGeral && (
           <p className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700" role="alert">

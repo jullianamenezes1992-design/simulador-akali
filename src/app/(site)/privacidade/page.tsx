@@ -38,6 +38,10 @@ export default async function Privacidade() {
         <ul>
           <li>Calcular a pré-simulação e indicar empreendimentos compatíveis com o seu perfil.</li>
           <li>Entrar em contato para o atendimento que você solicitar e acompanhar o processo de compra.</li>
+          <li>
+            Se você começar a simulação e não concluir, guardamos os dados já preenchidos (a partir de nome e WhatsApp) para
+            entrar em contato e ajudar a finalizar, conforme autorizado na primeira etapa.
+          </li>
           <li>Enviar novidades e ofertas, apenas se você autorizar.</li>
           <li>Medir o desempenho do site e das campanhas, apenas com o seu consentimento de cookies.</li>
         </ul>

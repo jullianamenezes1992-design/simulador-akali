@@ -69,9 +69,19 @@ export async function POST(req: NextRequest) {
 
   const r = d.rastreamento ?? {};
   const db = createAdminClient();
-  const { data: lead, error } = await db
-    .from("leads")
-    .insert({
+  const origemCampos = {
+    origem: inferirOrigem(r),
+    utm_source: r.utm_source,
+    utm_medium: r.utm_medium,
+    utm_campaign: r.utm_campaign,
+    utm_term: r.utm_term,
+    utm_content: r.utm_content,
+    gclid: r.gclid,
+    fbclid: r.fbclid,
+    landing_page: r.landing_page,
+    referrer: r.referrer,
+  };
+  const dadosLead = {
       nome: d.nome,
       email: d.email || null,
       telefone: d.telefone,
@@ -97,22 +107,35 @@ export async function POST(req: NextRequest) {
       simulacao: resultado,
       params_versao: ativo.versao,
       recomendados,
-      origem: inferirOrigem(r),
-      utm_source: r.utm_source,
-      utm_medium: r.utm_medium,
-      utm_campaign: r.utm_campaign,
-      utm_term: r.utm_term,
-      utm_content: r.utm_content,
-      gclid: r.gclid,
-      fbclid: r.fbclid,
-      landing_page: r.landing_page,
-      referrer: r.referrer,
       consentimento_em: new Date().toISOString(),
       consentimento_versao: CONSENT_VERSION,
       aceita_marketing: d.aceita_marketing,
-    })
-    .select("id, codigo, access_token")
-    .single();
+      simulacao_completa: true,
+      etapa_parou: null,
+  };
+
+  // Se o cliente já tinha um cadastro parcial (salvo na 1ª etapa), completa o mesmo registro
+  const parcialToken = (body as { parcial_token?: unknown }).parcial_token;
+  let lead: { id: string; codigo: string; access_token: string } | null = null;
+  let error: unknown = null;
+  if (typeof parcialToken === "string" && /^[0-9a-f-]{36}$/i.test(parcialToken)) {
+    // mantém a origem/campanha registrada quando o cadastro começou
+    const res = await db
+      .from("leads")
+      .update(dadosLead)
+      .eq("access_token", parcialToken)
+      .eq("simulacao_completa", false)
+      .is("anonimizado_em", null)
+      .select("id, codigo, access_token")
+      .maybeSingle();
+    lead = res.data;
+    error = res.error;
+  }
+  if (!lead) {
+    const res = await db.from("leads").insert({ ...dadosLead, ...origemCampos }).select("id, codigo, access_token").single();
+    lead = res.data;
+    error = res.error;
+  }
 
   if (error || !lead) {
     console.error("Erro ao gravar lead", error);

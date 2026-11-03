@@ -20,15 +20,17 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
   const de = /^\d{4}-\d{2}-\d{2}$/.test(sp.de ?? "") ? sp.de! : "";
   const ate = /^\d{4}-\d{2}-\d{2}$/.test(sp.ate ?? "") ? sp.ate! : "";
   const pagina = Math.max(1, Number(sp.p) || 1);
+  const incompletas = sp.inc === "1";
 
   let query = supabase
     .from("leads")
-    .select("id, codigo, nome, telefone, renda_total, simulacao, status, origem, utm_campaign, created_at, escolhido:escolhido_id(nome)", {
+    .select("id, codigo, nome, telefone, renda_total, simulacao, simulacao_completa, etapa_parou, status, origem, utm_campaign, created_at, escolhido:escolhido_id(nome)", {
       count: "exact",
     })
     .order("created_at", { ascending: false })
     .range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1);
   if (status) query = query.eq("status", status);
+  if (incompletas) query = query.eq("simulacao_completa", false);
   if (q) {
     const dig = q.replace(/\D/g, "");
     query = query.or(
@@ -40,14 +42,16 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
   if (de) query = query.gte("created_at", `${de}T00:00:00-03:00`);
   if (ate) query = query.lte("created_at", `${ate}T23:59:59-03:00`);
 
-  const contagens = await Promise.all(
-    LEAD_STATUS.map((s) => supabase.from("leads").select("id", { count: "exact", head: true }).eq("status", s.value))
-  );
+  const [contagens, totalIncompletas] = await Promise.all([
+    Promise.all(LEAD_STATUS.map((s) => supabase.from("leads").select("id", { count: "exact", head: true }).eq("status", s.value))),
+    supabase.from("leads").select("id", { count: "exact", head: true }).eq("simulacao_completa", false),
+  ]);
   const { data: leads, count } = await query;
   const totalPaginas = Math.max(1, Math.ceil((count ?? 0) / POR_PAGINA));
 
   const params = new URLSearchParams();
   if (status) params.set("status", status);
+  if (incompletas) params.set("inc", "1");
   if (q) params.set("q", q);
   if (de) params.set("de", de);
   if (ate) params.set("ate", ate);
@@ -71,8 +75,14 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
 
       {/* Etapas comerciais */}
       <div className="-mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1 pb-1">
-        <Link href={link({ status: null, p: null })} className={`chip shrink-0 px-3 py-1.5 ${!status ? "bg-caixa text-white" : "bg-white text-ink"}`}>
+        <Link href={link({ status: null, inc: null, p: null })} className={`chip shrink-0 px-3 py-1.5 ${!status && !incompletas ? "bg-caixa text-white" : "bg-white text-ink"}`}>
           Todos
+        </Link>
+        <Link
+          href={link({ status: null, inc: incompletas ? null : "1", p: null })}
+          className={`chip shrink-0 px-3 py-1.5 ${incompletas ? "bg-sol text-ink" : "bg-sol-50 text-ink"}`}
+        >
+          Simulação incompleta <span className="ml-1 opacity-70">{totalIncompletas.count ?? 0}</span>
         </Link>
         {LEAD_STATUS.map((s, i) => (
           <Link
@@ -87,6 +97,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
 
       <form method="get" className="card mb-4 grid gap-3 p-3 sm:grid-cols-[1fr_auto_auto_auto]">
         {status && <input type="hidden" name="status" value={status} />}
+        {incompletas && <input type="hidden" name="inc" value="1" />}
         <input name="q" defaultValue={q} placeholder="Buscar por nome, código, e-mail ou telefone" className="input" />
         <input type="date" name="de" defaultValue={de} className="input" aria-label="Data inicial" />
         <input type="date" name="ate" defaultValue={ate} className="input" aria-label="Data final" />
@@ -109,7 +120,9 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
             <tbody className="divide-y divide-line">
               {(leads ?? []).map((l) => {
                 const st = leadStatusInfo(l.status);
-                const faixa = (l.simulacao as { faixa?: { nome: string } | null } | null)?.faixa?.nome ?? "Fora do programa";
+                const faixa = !l.simulacao_completa
+                  ? "Ainda sem simulação"
+                  : (l.simulacao as { faixa?: { nome: string } | null } | null)?.faixa?.nome ?? "Fora do programa";
                 return (
                   <tr key={l.id} className="hover:bg-mist/60">
                     <td className="px-4 py-3">
@@ -121,7 +134,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
                       </p>
                     </td>
                     <td className="px-4 py-3">
-                      {formatBRL(Number(l.renda_total))}
+                      {Number(l.renda_total) > 0 ? formatBRL(Number(l.renda_total)) : "—"}
                       <p className="text-xs text-ink-soft">{faixa}</p>
                     </td>
                     <td className="px-4 py-3">{(l.escolhido as unknown as { nome: string } | null)?.nome ?? "—"}</td>
@@ -132,6 +145,11 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
                     <td className="px-4 py-3 whitespace-nowrap">{formatDate(l.created_at, true)}</td>
                     <td className="px-4 py-3">
                       <span className={`chip ${st.cor}`}>{st.label}</span>
+                      {!l.simulacao_completa && (
+                        <span className="chip mt-1 block w-fit bg-sol-50 text-ink">
+                          Incompleta{l.etapa_parou ? ` • parou na etapa ${l.etapa_parou}` : ""}
+                        </span>
+                      )}
                     </td>
                   </tr>
                 );
