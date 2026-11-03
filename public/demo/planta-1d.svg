@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 760" width="900" height="760">
+<rect width="900" height="760" fill="#f3f6f9"/>
+<rect x="60" y="60" width="780" height="580" fill="none" stroke="#263746" stroke-width="12"/>
+<rect x="60" y="60" width="420" height="280" fill="#ffffff" stroke="#263746" stroke-width="6"/><text x="270.0" y="200.0" font-family="Arial" font-size="24" fill="#263746" text-anchor="middle">Dormitório</text><rect x="480" y="60" width="360" height="180" fill="#ffffff" stroke="#263746" stroke-width="6"/><text x="660.0" y="150.0" font-family="Arial" font-size="24" fill="#263746" text-anchor="middle">Banho</text><rect x="60" y="340" width="520" height="300" fill="#ffffff" stroke="#263746" stroke-width="6"/><text x="320.0" y="490.0" font-family="Arial" font-size="24" fill="#263746" text-anchor="middle">Sala de estar / jantar</text><rect x="580" y="240" width="260" height="400" fill="#ffffff" stroke="#263746" stroke-width="6"/><text x="710.0" y="440.0" font-family="Arial" font-size="24" fill="#263746" text-anchor="middle">Cozinha / Serviço</text>
+<text x="450" y="705" font-family="Arial" font-size="24" font-weight="700" fill="#c0392b" text-anchor="middle">PLANTA ILUSTRATIVA DE EXEMPLO — 1 DORMITÓRIO(S)</text>
+</svg>
