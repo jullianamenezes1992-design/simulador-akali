@@ -4,6 +4,7 @@ import { getSettings } from "@/lib/data";
 import { supabaseConfigurado } from "@/lib/supabase/env";
 import TrackingScripts from "@/components/tracking/TrackingScripts";
 import CookieConsent from "@/components/tracking/CookieConsent";
+import WhatsAppFlutuante from "@/components/site/WhatsAppFlutuante";
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
   const s = await getSettings();
@@ -17,6 +18,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       <Header empresa={s.empresa_nome} />
       <main>{children}</main>
       <Footer s={s} />
+      {s.whatsapp_numero && <WhatsAppFlutuante />}
       {/* Rastreamento e aviso de cookies apenas na área pública (não no painel) */}
       <CookieConsent />
       <TrackingScripts
