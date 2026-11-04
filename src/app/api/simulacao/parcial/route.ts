@@ -1,6 +1,7 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 import { CONSENT_VERSION } from "@/lib/constants";
 import { inferirOrigem, rateLimit } from "@/lib/server/leads";
+import { notificarLead } from "@/lib/server/notificacoes";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ETAPAS, etapaDadosPessoais, rastreamentoSchema } from "@/lib/validation/simulacao";
 
@@ -99,12 +100,13 @@ export async function POST(req: NextRequest) {
       consentimento_em: new Date().toISOString(),
       consentimento_versao: `${CONSENT_VERSION}-contato`,
     })
-    .select("id, access_token")
+    .select("id, codigo, access_token, nome, telefone, email, origem, utm_campaign, etapa_parou")
     .single();
   if (error || !lead) {
     console.error("Erro ao gravar simulação parcial", error);
     return NextResponse.json({ erro: "Não foi possível salvar." }, { status: 500 });
   }
   await db.from("lead_events").insert({ lead_id: lead.id, tipo: "simulacao_iniciada", dados: {} });
+  after(() => notificarLead("iniciada", lead));
   return NextResponse.json({ token: lead.access_token });
 }

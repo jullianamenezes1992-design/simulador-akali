@@ -445,3 +445,54 @@ export async function salvarConfiguracoes(_prev: ActionState, fd: FormData): Pro
     return { erro: msg(e) };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Avisos de novos cadastros (e-mail e WhatsApp)
+// ---------------------------------------------------------------------------
+
+export async function salvarNotificacoes(_prev: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const { supabase } = await assertAdmin(true);
+    const tel = String(fd.get("whatsapp_numero") ?? "").replace(/\D/g, "");
+    const email = textoOuNull(fd.get("email_destino"));
+    const campos: Record<string, string> = {};
+    if (email && !z.email().safeParse(email).success) campos.email_destino = "E-mail inválido";
+    if (tel && !/^55\d{10,11}$/.test(tel)) campos.whatsapp_numero = "Use DDI 55 + DDD + número (ex.: 5511999999999)";
+    if (Object.keys(campos).length) return { erro: "Revise os campos destacados.", campos };
+
+    const dados: Record<string, unknown> = {
+      email_ativo: fd.get("email_ativo") === "on",
+      email_destino: email,
+      whatsapp_ativo: fd.get("whatsapp_ativo") === "on",
+      whatsapp_numero: tel || null,
+      notificar_incompletas: fd.get("notificar_incompletas") === "on",
+      updated_at: new Date().toISOString(),
+    };
+    // Chaves: campo vazio mantém a que já está salva
+    const resend = textoOuNull(fd.get("resend_api_key"));
+    const callmebot = textoOuNull(fd.get("callmebot_api_key"));
+    if (resend) dados.resend_api_key = resend.slice(0, 200);
+    if (callmebot) dados.callmebot_api_key = callmebot.replace(/\s/g, "").slice(0, 100);
+
+    const { error } = await supabase.from("notification_settings").upsert({ id: 1, ...dados });
+    if (error) throw new Error(error.message);
+    await supabase.rpc("registrar_auditoria", { p_tabela: "notification_settings", p_registro: "1", p_acao: "alterou_avisos", p_dados: null });
+    revalidatePath("/admin/configuracoes");
+    return { ok: true, mensagem: "Avisos salvos." };
+  } catch (e) {
+    return { erro: msg(e) };
+  }
+}
+
+export async function testarNotificacoes(): Promise<{ email?: string; whatsapp?: string }> {
+  await assertAdmin(true);
+  const { lerConfigNotificacoes, enviarEmail, enviarWhatsApp } = await import("@/lib/server/notificacoes");
+  const cfg = await lerConfigNotificacoes();
+  if (!cfg) return { email: "Salve as configurações primeiro.", whatsapp: "Salve as configurações primeiro." };
+  const lead = { id: "", codigo: "AKL-TESTE", nome: "Cliente de Teste", telefone: "11900000000", email: "teste@exemplo.com", renda_total: 4000, faixa: "Faixa 2", origem: "Teste" };
+  const [e, w] = await Promise.all([
+    cfg.email_ativo ? enviarEmail(cfg, "teste", lead).catch((x) => msg(x)) : Promise.resolve("desativado"),
+    cfg.whatsapp_ativo ? enviarWhatsApp(cfg, "teste", lead).catch((x) => msg(x)) : Promise.resolve("desativado"),
+  ]);
+  return { email: e ?? "ok", whatsapp: w ?? "ok" };
+}

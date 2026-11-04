@@ -1,10 +1,11 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 import { CONSENT_VERSION } from "@/lib/constants";
 import { getActiveParams } from "@/lib/data";
 import { idadeEmMeses } from "@/lib/format";
 import { inferirOrigem, listarAtivosParaMatch, rateLimit, ranquearDevs } from "@/lib/server/leads";
 import { simular } from "@/lib/simulacao/engine";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notificarLead } from "@/lib/server/notificacoes";
 import { errosPorCampo, etapaFamilia, simulacaoSchema } from "@/lib/validation/simulacao";
 
 export async function POST(req: NextRequest) {
@@ -146,6 +147,22 @@ export async function POST(req: NextRequest) {
     lead_id: lead.id,
     tipo: "simulacao_concluida",
     dados: { faixa: resultado.faixa?.id ?? null, compativeis: recomendados.length, params_versao: ativo.versao },
+  });
+
+  const leadAviso = lead;
+  after(async () => {
+    const { data: l } = await db.from("leads").select("origem, utm_campaign").eq("id", leadAviso.id).maybeSingle();
+    await notificarLead("concluida", {
+      id: leadAviso.id,
+      codigo: leadAviso.codigo,
+      nome: d.nome,
+      telefone: d.telefone,
+      email: d.email || null,
+      renda_total: resultado.rendaTotal,
+      faixa: resultado.faixa?.nome ?? "Fora do programa",
+      origem: l?.origem ?? null,
+      utm_campaign: l?.utm_campaign ?? null,
+    });
   });
 
   return NextResponse.json({ token: lead.access_token, codigo: lead.codigo, faixa: resultado.faixa?.id ?? null });
