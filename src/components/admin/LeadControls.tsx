@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
-import { Eye, Loader2, ShieldOff, Trash2 } from "lucide-react";
+import { Check, ClipboardCopy, Eye, Loader2, ShieldOff, Trash2 } from "lucide-react";
 import { LEAD_STATUS } from "@/lib/constants";
 import { adicionarNota, anonimizarLead, excluirLead, atribuirResponsavel, atualizarStatusLead, revelarCPF, type ActionState } from "@/app/admin/actions";
 
@@ -161,5 +161,32 @@ export function DeleteLeadButton({ leadId, nome }: { leadId: string; nome: strin
       </button>
       {erro && <p className="field-error">{erro}</p>}
     </div>
+  );
+}
+
+export function CopiarAtendimentoButton({ texto }: { texto: string }) {
+  const [copiado, setCopiado] = useState(false);
+  return (
+    <button
+      type="button"
+      className="btn-secondary"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(texto);
+        } catch {
+          // navegadores antigos: seleciona o texto num campo temporário
+          const t = document.createElement("textarea");
+          t.value = texto;
+          document.body.appendChild(t);
+          t.select();
+          document.execCommand("copy");
+          t.remove();
+        }
+        setCopiado(true);
+        setTimeout(() => setCopiado(false), 2500);
+      }}
+    >
+      {copiado ? <Check size={16} /> : <ClipboardCopy size={16} />} {copiado ? "Copiado!" : "Copiar para atendimento"}
+    </button>
   );
 }

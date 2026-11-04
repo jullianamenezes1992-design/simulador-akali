@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, MessageCircle } from "lucide-react";
-import { AnonymizeButton, DeleteLeadButton, NoteForm, ResponsavelSelect, RevealCPF, StatusSelect } from "@/components/admin/LeadControls";
+import { AnonymizeButton, CopiarAtendimentoButton, DeleteLeadButton, NoteForm, ResponsavelSelect, RevealCPF, StatusSelect } from "@/components/admin/LeadControls";
 import {
   ESTADOS_CIVIS,
   PRAZOS_COMPRA,
@@ -12,7 +12,7 @@ import {
   leadStatusInfo,
   regiaoLabel,
 } from "@/lib/constants";
-import { formatBRL, formatDate, maskPhone } from "@/lib/format";
+import { formatBRL, formatDate, idadeEmMeses, maskPhone } from "@/lib/format";
 import { requireAdmin } from "@/lib/server/auth";
 import type { SimulationResult } from "@/lib/simulacao/types";
 
@@ -78,6 +78,57 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
   const recOrdenados = (l.recomendados as string[]).map((rid) => (recomendados.data ?? []).find((d) => d.id === rid)).filter(Boolean) as { id: string; nome: string; slug: string }[];
   const anonimizado = !!l.anonimizado_em;
 
+  // Resumo em texto para colar no projeto "Atendimento Akali" do Claude
+  const idade = l.data_nascimento ? Math.floor(idadeEmMeses(l.data_nascimento) / 12) : null;
+  const txt = (v: unknown) => (v == null || v === "" ? "—" : String(v));
+  const resumoAtendimento = [
+    `CLIENTE: ${l.nome} (código ${l.codigo})`,
+    `Cadastro: ${formatDate(l.created_at, true)} • Status: ${st.label}${l.simulacao_completa ? "" : ` • Simulação incompleta (parou na etapa ${l.etapa_parou ?? "?"} de 6)`}`,
+    `WhatsApp: ${maskPhone(l.telefone)}${l.email ? ` • E-mail: ${l.email}` : ""}`,
+    `Idade: ${idade ?? "—"} anos • Estado civil: ${labelOf(ESTADOS_CIVIS, l.estado_civil)} • Dependentes: ${txt(l.dependentes)}`,
+    "",
+    "RENDA",
+    `Profissão: ${txt(l.profissao)} • Tipo de renda: ${labelOf(TIPOS_RENDA, l.tipo_renda)}`,
+    `Renda principal: ${formatBRL(Number(l.renda_principal ?? 0))}`,
+    l.compor_renda
+      ? `Compõe renda com: ${labelOf(RELACOES_COMPOSICAO, l.relacao_composicao)} • Renda: ${formatBRL(Number(l.renda_composicao ?? 0))} • Idade: ${txt(l.idade_composicao)}`
+      : "Não compõe renda",
+    `Renda familiar total: ${formatBRL(Number(l.renda_total ?? 0))}`,
+    `FGTS: ${formatBRL(Number(l.fgts_saldo ?? 0))} • 3 anos de trabalho registrado: ${simNao(l.fgts_tres_anos)}`,
+    `Restrição no nome: ${({ nao: "Não", sim: "Sim", nao_sei: "Não sabe" } as Record<string, string>)[l.restricao_credito as string] ?? "—"}`,
+    "",
+    "PREFERÊNCIAS",
+    `Regiões: ${(l.regioes as string[] | null)?.map(regiaoLabel).join(", ") || "Qualquer"}`,
+    `Dormitórios (mín.): ${txt(l.dormitorios_min)} • Precisa de vaga: ${simNao(l.precisa_vaga)} • Obra: ${labelOf(PREFERENCIAS_OBRA, l.preferencia_obra)}`,
+    `Prazo para comprar: ${labelOf(PRAZOS_COMPRA, l.prazo_compra)}`,
+    "",
+    "SIMULAÇÃO (estimativa do site)",
+    sim
+      ? [
+          `Faixa: ${sim.faixa?.nome ?? "Fora do programa"}`,
+          `Financiamento estimado: ${formatBRL(sim.financiamentoMax)} • Parcela até ${formatBRL(sim.parcelaMax)} • ${sim.prazoMeses} meses${sim.taxaAnual != null ? ` • ${sim.taxaAnual}% a.a. (${sim.sistema})` : ""}`,
+          `Imóvel até (financiamento + FGTS): ${formatBRL(sim.capacidadeSemSubsidio)}${sim.subsidioPotencial > 0 ? ` • com subsídio máx.: ${formatBRL(sim.capacidadeComSubsidio)}` : ""}`,
+          sim.entradaParcelada ? `Entrada parcelada na obra: até ${formatBRL(sim.entradaParcelada.parcelaMensalMax)}/mês, limite ${Math.round(sim.entradaParcelada.pctMax * 100)}% do preço` : null,
+          sim.impedimentos.length ? `Impedimentos: ${sim.impedimentos.join("; ")}` : null,
+          sim.alertas.length ? `Alertas: ${sim.alertas.join("; ")}` : null,
+        ]
+          .filter(Boolean)
+          .join("\n")
+      : "Ainda sem simulação.",
+    "",
+    "EMPREENDIMENTOS",
+    `Escolhido: ${escolhido?.nome ?? "—"}`,
+    `Recomendados pelo site: ${recOrdenados.map((d) => d.nome).join(", ") || "—"}`,
+    `Visualizados: ${visualizados.map((e) => e.development!.nome).join(", ") || "—"}`,
+    "",
+    `Origem: ${[l.origem, l.utm_source, l.utm_medium, l.utm_campaign].filter(Boolean).join(" / ") || "Direto"}`,
+    (notas.data ?? []).length
+      ? `\nOBSERVAÇÕES\n${(notas.data ?? []).map((n) => `- ${formatDate(n.created_at)}: ${n.texto}`).join("\n")}`
+      : null,
+  ]
+    .filter((x) => x !== null)
+    .join("\n");
+
   return (
     <>
       <Link href="/admin/leads" className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-caixa hover:underline">
@@ -97,9 +148,12 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
           </p>
         </div>
         {!anonimizado && (
-          <a href={`https://wa.me/55${l.telefone}`} target="_blank" rel="noreferrer" className="btn-whatsapp">
-            <MessageCircle size={16} /> Chamar {maskPhone(l.telefone)}
-          </a>
+          <div className="flex flex-wrap gap-2">
+            <CopiarAtendimentoButton texto={resumoAtendimento} />
+            <a href={`https://wa.me/55${l.telefone}`} target="_blank" rel="noreferrer" className="btn-whatsapp">
+              <MessageCircle size={16} /> Chamar {maskPhone(l.telefone)}
+            </a>
+          </div>
         )}
       </div>
 
