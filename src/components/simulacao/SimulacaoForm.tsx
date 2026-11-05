@@ -132,6 +132,12 @@ export default function SimulacaoForm() {
         setStep(Math.min(Math.max(0, d.step ?? 0), ETAPAS.length - 1));
         setRestaurado(true);
         iniciado.current = true;
+      } else {
+        // Renda digitada na calculadora da página inicial (?renda=4500)
+        const renda = Number(new URLSearchParams(window.location.search).get("renda"));
+        if (renda > 0 && renda < 1_000_000) {
+          setForm((f) => ({ ...f, renda_principal: maskMoney(String(Math.round(renda * 100))) }));
+        }
       }
     } catch {}
     carregado.current = true;

@@ -13,7 +13,8 @@
   --color-ink-soft: #55697b;
   --color-line: #e2e8ef;
   --color-mist: #f3f6f9;
-  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--font-gabarito), var(--font-inter), system-ui, sans-serif;
+  --font-sans: var(--font-inter), "Inter", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
   --radius-xl: 0.875rem;
 }
 
@@ -92,4 +93,12 @@ body {
 
 @utility option {
     @apply flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm font-medium transition hover:border-caixa has-[:checked]:border-caixa has-[:checked]:bg-caixa-50 has-[:checked]:text-caixa-dark;
+}
+
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
 }
