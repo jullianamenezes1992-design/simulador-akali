@@ -99,9 +99,9 @@ export default async function Home() {
                   <p className="font-display text-xl font-bold">{heroDev.nome}</p>
                 </div>
               </Link>
-              <div className="absolute left-0 top-10 rounded-2xl bg-sol px-5 py-4 text-ink shadow-xl">
-                <p className="text-sm font-semibold">Apartamentos a partir de</p>
-                <p className="font-display text-3xl font-black">{formatBRL(Number(heroDev.preco_min))}</p>
+              <div className="absolute left-0 top-10 rounded-2xl bg-sol px-6 py-4 text-[#14202b] shadow-xl ring-4 ring-white/25">
+                <p className="text-[15px] font-bold">Apartamentos a partir de</p>
+                <p className="font-display text-[2.6rem] font-black leading-none tracking-tight">{formatBRL(Number(heroDev.preco_min))}</p>
               </div>
               {heroDev2 && (
                 <Link href={`/empreendimentos/${heroDev2.slug}`} className="absolute bottom-0 left-4 block h-40 w-56 overflow-hidden rounded-3xl border-4 border-caixa shadow-2xl">
