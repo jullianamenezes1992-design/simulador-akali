@@ -91,8 +91,8 @@ export default function PerfilCorretoraForm({ nome, foto }: { nome: string | nul
       </div>
       <div className="flex flex-wrap items-end gap-2">
         <div className="min-w-60 flex-1">
-          <label className="label" htmlFor="corretora_nome">Seu nome (como o cliente vai ver)</label>
-          <input id="corretora_nome" value={valorNome} onChange={(e) => setValorNome(e.target.value)} maxLength={80} className="input" placeholder="Ex.: Julliana Menezes" />
+          <label className="label" htmlFor="corretora_nome">Como você se apresenta ao cliente</label>
+          <input id="corretora_nome" value={valorNome} onChange={(e) => setValorNome(e.target.value)} maxLength={80} className="input" placeholder="Ex.: Corretora Akali" />
         </div>
         <button
           type="button"

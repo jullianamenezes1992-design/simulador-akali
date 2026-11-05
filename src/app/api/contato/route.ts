@@ -9,7 +9,7 @@ export async function GET() {
   const linhas = [
     "BEGIN:VCARD",
     "VERSION:3.0",
-    `FN:${esc(`${nome} – ${s.empresa_nome}`)}`,
+    `FN:${esc(nome)}`,
     `N:${esc(nome)};;;;`,
     `ORG:${esc(s.empresa_nome)}`,
     `TITLE:${esc(["Corretora de imóveis", s.creci].filter(Boolean).join(" · "))}`,

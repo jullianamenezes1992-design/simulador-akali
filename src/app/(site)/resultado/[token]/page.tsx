@@ -37,7 +37,6 @@ export default async function ResultadoPage({ params }: { params: Promise<{ toke
   const sim = lead.simulacao;
   const [devs, s] = await Promise.all([listarAtivosParaMatch(), getSettings()]);
   const corretora = s.corretora_nome || s.empresa_nome;
-  const primeiroNomeCorretora = firstName(corretora);
   const telCorretora = s.whatsapp_numero ? maskPhone(s.whatsapp_numero.replace(/^55/, "")) : null;
   const { compativeis, demais } = ranquearDevs(devs, sim, prefsDoLead(lead));
   const nome = firstName(lead.nome);
@@ -68,10 +67,10 @@ export default async function ResultadoPage({ params }: { params: Promise<{ toke
           </div>
           <div className="min-w-0 flex-1">
             <p className="font-display text-lg font-bold">
-              {nome}, em breve a {primeiroNomeCorretora}, da {s.empresa_nome}, vai entrar em contato com você
+              {nome}, em breve a {corretora} vai entrar em contato com você
             </p>
             <p className="mt-1 text-sm text-ink-soft">
-              {corretora}
+              {s.empresa_nome}
               {s.creci ? ` · ${s.creci}` : ""}
               {telCorretora ? ` · WhatsApp ${telCorretora}` : ""}. Salve o contato para reconhecer a mensagem quando ela chegar.
             </p>
