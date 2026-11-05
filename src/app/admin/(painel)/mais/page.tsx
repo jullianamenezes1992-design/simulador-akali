@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRight, ExternalLink, History, LogOut, Settings, SlidersHorizontal } from "lucide-react";
 import AppCelular from "@/components/admin/AppCelular";
+import Backups from "@/components/admin/Backups";
+import { listarBackups } from "@/lib/server/backup";
 import { PageHeader } from "@/components/admin/ui";
 import { requireAdmin } from "@/lib/server/auth";
 import { obterChavesVapid } from "@/lib/server/push";
@@ -17,12 +19,16 @@ const LINKS = [
 
 export default async function MaisPage() {
   const adm = await requireAdmin();
-  const chaves = await obterChavesVapid().catch(() => null);
+  const [chaves, backups] = await Promise.all([
+    obterChavesVapid().catch(() => null),
+    adm.papel === "admin" ? listarBackups().catch(() => []) : Promise.resolve([]),
+  ]);
   return (
     <>
       <PageHeader titulo="Mais" descricao={`${adm.nome} · ${adm.email ?? ""}`} />
       <div className="space-y-4">
         <AppCelular vapidPublic={chaves?.publicKey ?? null} />
+        {adm.papel === "admin" && <Backups arquivos={backups} podeGerar />}
         <nav className="card divide-y divide-line">
           {LINKS.map(({ href, label, desc, icon: Icon }) => (
             <Link key={href} href={href} className="flex items-center gap-3 px-4 py-3.5 hover:bg-mist">

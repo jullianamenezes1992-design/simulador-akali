@@ -23,7 +23,7 @@ const ITENS = [
   { href: "/admin/parametros", label: "Parâmetros", icon: SlidersHorizontal },
   { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
   { href: "/admin/historico", label: "Histórico", icon: History },
-  { href: "/admin/mais", label: "App no celular", icon: Smartphone },
+  { href: "/admin/mais", label: "App e backups", icon: Smartphone },
 ];
 
 // Menu de baixo no celular (estilo app)

@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { diaSP, horaAtualSP, horaSP, tipoTarefaLabel } from "@/lib/agenda";
 import { maskPhone } from "@/lib/format";
 import { enviarPush, temAparelhosPush } from "@/lib/server/push";
+import { salvarBackup } from "@/lib/server/backup";
+import { somarDias } from "@/lib/agenda";
 import { enviarEmailLivre, enviarWhatsAppLivre, esc, lerConfigNotificacoes, siteUrl } from "@/lib/server/notificacoes";
 
 export const dynamic = "force-dynamic";
@@ -40,7 +42,7 @@ export async function POST(req: NextRequest) {
   const temCanal = cfg.email_ativo || cfg.whatsapp_ativo || (await temAparelhosPush());
   const db = createAdminClient();
   const agora = Date.now();
-  const resultado = { lembretes: 0, resumo: false };
+  const resultado = { lembretes: 0, resumo: false, backup: false };
 
   const enviar = async (assunto: string, texto: string, html: string, push?: { title: string; body: string; url: string; tag?: string }) => {
     const r = await Promise.allSettled([
@@ -154,6 +156,42 @@ ${agenda ? `<p><a href="${agenda}" style="color:#005CA9;font-weight:bold">Abrir 
           tag: `resumo-${hoje}`,
         });
         resultado.resumo = true;
+      }
+    }
+  }
+
+  // 3) Backup semanal (a partir das 7h, a cada 7 dias; o primeiro sai logo)
+  const hojeB = diaSP();
+  const venceu = !cfg.ultimo_backup_em || somarDias(cfg.ultimo_backup_em, 7) <= hojeB;
+  if (cfg.backup_semanal !== false && venceu && horaAtualSP() >= 7) {
+    const { data: marcado } = await db
+      .from("notification_settings")
+      .update({ ultimo_backup_em: hojeB })
+      .eq("id", 1)
+      .or(`ultimo_backup_em.is.null,ultimo_backup_em.lte.${somarDias(hojeB, -7)}`)
+      .select("id")
+      .maybeSingle();
+    if (marcado) {
+      try {
+        const b = await salvarBackup();
+        const html = `<div style="font-family:Arial,sans-serif;color:#263746;max-width:520px">
+<h2 style="color:#005CA9;margin:0 0 8px">Backup semanal do Simulador Akali</h2>
+<p>Em anexo está a planilha com <strong>${b.clientes} cliente(s)</strong>, a agenda, as observações e os empreendimentos.</p>
+<p>Guarde este e-mail: ele é a sua cópia de segurança. As últimas 12 cópias também ficam no painel, em <strong>Mais → Cópias de segurança</strong>.</p>
+</div>`;
+        await Promise.allSettled([
+          cfg.email_ativo
+            ? enviarEmailLivre(cfg, `Backup semanal Akali – ${hojeB.split("-").reverse().join("/")}`, html, [
+                { filename: b.nome, content: b.buffer.toString("base64") },
+              ])
+            : Promise.resolve(null),
+          enviarPush({ title: "💾 Backup semanal pronto", body: `${b.clientes} cliente(s) salvos. Toque para baixar.`, url: "/admin/mais#backups", tag: `backup-${hojeB}` }),
+        ]);
+        resultado.backup = true;
+      } catch (e) {
+        console.error("Backup falhou", e);
+        // libera para tentar de novo na próxima rodada
+        await db.from("notification_settings").update({ ultimo_backup_em: cfg.ultimo_backup_em ?? null }).eq("id", 1);
       }
     }
   }

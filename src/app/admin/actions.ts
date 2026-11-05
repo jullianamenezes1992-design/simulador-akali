@@ -595,3 +595,21 @@ export async function testarPush(): Promise<number> {
   const { enviarPush } = await import("@/lib/server/push");
   return enviarPush({ title: "🎉 Notificações ativadas", body: "Você vai receber aqui os novos clientes e os lembretes da agenda.", url: "/admin/agenda", tag: "teste" }, userId);
 }
+
+// ---------------------------------------------------------------------------
+// Cópias de segurança (backup)
+// ---------------------------------------------------------------------------
+
+export async function fazerBackupAgora(): Promise<{ nome: string; clientes: number }> {
+  await assertAdmin(true);
+  const { salvarBackup } = await import("@/lib/server/backup");
+  const b = await salvarBackup();
+  revalidatePath("/admin/mais");
+  return { nome: b.nome, clientes: b.clientes };
+}
+
+export async function linkDownloadBackup(nome: string): Promise<string> {
+  await assertAdmin(true);
+  const { linkBackup } = await import("@/lib/server/backup");
+  return linkBackup(nome);
+}

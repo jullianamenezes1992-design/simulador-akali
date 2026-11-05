@@ -12,6 +12,8 @@ import { enviarPush } from "./push";
  */
 
 export interface NotificacaoConfig {
+  backup_semanal?: boolean;
+  ultimo_backup_em?: string | null;
   lembretes_ativos?: boolean;
   resumo_diario?: boolean;
   resumo_hora?: number;
@@ -124,12 +126,17 @@ export async function enviarEmail(cfg: NotificacaoConfig, tipo: Tipo, l: LeadAvi
   return enviarEmailLivre(cfg, `${titulo(tipo)}: ${l.nome}`, htmlEmail(tipo, l));
 }
 
-export async function enviarEmailLivre(cfg: NotificacaoConfig, assunto: string, html: string): Promise<string | null> {
+export async function enviarEmailLivre(
+  cfg: NotificacaoConfig,
+  assunto: string,
+  html: string,
+  anexos?: { filename: string; content: string }[]
+): Promise<string | null> {
   if (!cfg.resend_api_key || !cfg.email_destino) return "E-mail ou chave do Resend não preenchidos.";
   const res = await comTimeout("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${cfg.resend_api_key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: "Simulador Akali <onboarding@resend.dev>", to: [cfg.email_destino], subject: assunto, html }),
+    body: JSON.stringify({ from: "Simulador Akali <onboarding@resend.dev>", to: [cfg.email_destino], subject: assunto, html, ...(anexos?.length ? { attachments: anexos } : {}) }),
   });
   if (res.ok) return null;
   const body = await res.text().catch(() => "");
