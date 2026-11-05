@@ -40,6 +40,10 @@ export interface SimulationParams {
     comprometimento: number;
     meses_lancamento: number;
     meses_obras: number;
+    /** parcelas após a entrega das chaves (0/ausente = não considerar), ex.: 48 */
+    meses_pos_chaves?: number;
+    /** parcela máxima pós-chaves (parte da renda). Ausente = mesmo valor de "comprometimento". */
+    comprometimento_pos?: number;
   } | null;
   faixas: FaixaParam[];
   fontes?: { descricao: string; url: string }[];
@@ -89,6 +93,8 @@ export interface SimulationResult {
     parcelaMensalMax: number;
     mesesLancamento: number;
     mesesObras: number;
+    mesesPosChaves?: number;
+    parcelaPosMax?: number;
   } | null;
   paramsVersao?: number;
   calculadoEm: string;
@@ -126,5 +132,5 @@ export interface MatchResult {
   atencao: string[];
   entradaEstimada: number;
   /** quando o imóvel só cabe com entrada parcelada na obra: valor e parcelas estimadas */
-  entradaParcelada?: { valor: number; meses: number; parcela: number } | null;
+  entradaParcelada?: { valor: number; meses: number; parcela: number; mesesPos?: number; parcelaPos?: number } | null;
 }

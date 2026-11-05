@@ -134,6 +134,8 @@ export function simular(input: SimulationInput, params: SimulationParams, params
           parcelaMensalMax: round(rendaTotal * ep.comprometimento),
           mesesLancamento: ep.meses_lancamento,
           mesesObras: ep.meses_obras,
+          mesesPosChaves: Math.max(0, ep.meses_pos_chaves ?? 0),
+          parcelaPosMax: round(rendaTotal * (ep.comprometimento_pos ?? ep.comprometimento)),
         }
       : null;
 
@@ -194,6 +196,10 @@ export function validarParametros(p: unknown): { ok: true; params: SimulationPar
       erros.push("Entrada parcelada: meses (lançamento) inválido.");
     if (!num(ep.meses_obras) || ep.meses_obras < 0 || ep.meses_obras > 72)
       erros.push("Entrada parcelada: meses (em obras) inválido.");
+    if (ep.meses_pos_chaves != null && (!num(ep.meses_pos_chaves) || ep.meses_pos_chaves < 0 || ep.meses_pos_chaves > 120))
+      erros.push("Entrada parcelada: parcelas pós-chaves devem estar entre 0 e 120.");
+    if (ep.comprometimento_pos != null && (!num(ep.comprometimento_pos) || ep.comprometimento_pos < 0 || ep.comprometimento_pos > 1))
+      erros.push("Entrada parcelada: parcela pós-chaves deve estar entre 0 e 100% da renda.");
   }
   if (!Array.isArray(x.faixas) || x.faixas.length === 0) erros.push("Cadastre ao menos uma faixa.");
   else {
@@ -247,11 +253,28 @@ export function entradaParcelavel(
   dev: { status_obra: string; previsao_entrega?: string | null },
   sim: Pick<SimulationResult, "entradaParcelada">,
   hoje = new Date()
-): { valorMax: number; meses: number } {
+): { valorMax: number; meses: number; mesesPos: number } {
   const ep = sim.entradaParcelada;
-  if (!ep || dev.status_obra === "pronto") return { valorMax: 0, meses: 0 };
+  if (!ep || dev.status_obra === "pronto") return { valorMax: 0, meses: 0, mesesPos: 0 };
   const padrao = dev.status_obra === "lancamento" ? ep.mesesLancamento : ep.mesesObras;
-  const meses = mesesAteEntrega(dev.previsao_entrega, hoje) ?? padrao;
-  if (meses <= 0) return { valorMax: 0, meses: 0 };
-  return { valorMax: Math.min(preco * ep.pctMax, ep.parcelaMensalMax * meses), meses };
+  const meses = Math.max(0, mesesAteEntrega(dev.previsao_entrega, hoje) ?? padrao);
+  const mesesPos = Math.max(0, ep.mesesPosChaves ?? 0);
+  const capacidade = ep.parcelaMensalMax * meses + (ep.parcelaPosMax ?? ep.parcelaMensalMax) * mesesPos;
+  if (capacidade <= 0) return { valorMax: 0, meses: 0, mesesPos: 0 };
+  return { valorMax: Math.min(preco * ep.pctMax, capacidade), meses, mesesPos };
+}
+
+/**
+ * Divide a entrada entre parcelas durante a obra (até a parcela máxima) e o restante após as chaves.
+ */
+export function dividirEntrada(valor: number, meses: number, mesesPos: number, parcelaObra: number, parcelaPos: number) {
+  const naObra = Math.min(valor, parcelaObra * meses);
+  const resto = Math.max(0, valor - naObra);
+  const nPos = resto > 0 && parcelaPos > 0 ? Math.min(mesesPos, Math.ceil(resto / parcelaPos)) : 0;
+  return {
+    meses,
+    parcela: meses > 0 ? Math.round(naObra / meses) : 0,
+    mesesPos: nPos,
+    parcelaPos: nPos > 0 ? Math.round(resto / nPos) : 0,
+  };
 }

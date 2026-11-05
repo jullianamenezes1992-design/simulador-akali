@@ -1,4 +1,4 @@
-import { entradaParcelavel } from "./engine";
+import { dividirEntrada, entradaParcelavel } from "./engine";
 import { regiaoLabel } from "../constants";
 import { formatBRL } from "../format";
 import type { DevelopmentForMatch, MatchPreferences, MatchResult, SimulationResult } from "./types";
@@ -48,14 +48,16 @@ export function avaliarCompatibilidade(
   let entradaParcelada: MatchResult["entradaParcelada"] = null;
   let cabeParcelando = false;
   if (!semPreco && !cabeCom) {
-    const { valorMax, meses } = entradaParcelavel(preco, dev, sim);
+    const { valorMax, meses, mesesPos } = entradaParcelavel(preco, dev, sim);
     const falta = preco - sim.capacidadeComSubsidio;
     const faltaSemSub = preco - sim.capacidadeSemSubsidio;
     if (valorMax > 0 && falta <= valorMax) {
       cabeParcelando = true;
       // valor exibido: o necessário sem contar subsídio, se couber; senão o necessário com subsídio
       const valor = faltaSemSub <= valorMax ? faltaSemSub : falta;
-      entradaParcelada = { valor: Math.round(valor), meses, parcela: Math.round(valor / meses) };
+      const ep = sim.entradaParcelada!;
+      const div = dividirEntrada(valor, meses, mesesPos, ep.parcelaMensalMax, ep.parcelaPosMax ?? ep.parcelaMensalMax);
+      entradaParcelada = { valor: Math.round(valor), ...div };
     }
   }
 
@@ -70,7 +72,12 @@ export function avaliarCompatibilidade(
   } else if (cabeParcelando && entradaParcelada) {
     score += PESOS.capacidade * 0.5;
     motivos.push(
-      `Pode caber com entrada de cerca de ${formatBRL(entradaParcelada.valor)} parcelada na obra (≈ ${entradaParcelada.meses}x de ${formatBRL(entradaParcelada.parcela)}), sujeito à aprovação da construtora`
+      `Pode caber com entrada de cerca de ${formatBRL(entradaParcelada.valor)} parcelada: ${[
+        entradaParcelada.meses > 0 && entradaParcelada.parcela > 0 ? `≈ ${entradaParcelada.meses}x de ${formatBRL(entradaParcelada.parcela)} na obra` : null,
+        entradaParcelada.mesesPos ? `${entradaParcelada.mesesPos}x de ${formatBRL(entradaParcelada.parcelaPos ?? 0)} após as chaves` : null,
+      ]
+        .filter(Boolean)
+        .join(" + ")}, sujeito à aprovação da construtora`
     );
   } else {
     atencao.push(`Valor a partir de ${formatBRL(preco)} acima da capacidade estimada (${formatBRL(sim.capacidadeComSubsidio)})`);

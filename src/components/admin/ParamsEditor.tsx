@@ -155,6 +155,18 @@ export default function ParamsEditor({ inicial }: { inicial: SimulationParams })
             onChange={(e) => setEp("meses_obras", N(e.target.value))} className="input" />
           <p className="hint">Usado quando o empreendimento não tem previsão de entrega cadastrada.</p>
         </div>
+        <div>
+          <label className="label" htmlFor="ep_pos">Parcelas após as chaves</label>
+          <input id="ep_pos" inputMode="numeric" value={Number.isFinite(ep.meses_pos_chaves ?? 0) ? (ep.meses_pos_chaves ?? 0) : ""}
+            onChange={(e) => setEp("meses_pos_chaves", N(e.target.value))} className="input" />
+          <p className="hint">Ex.: 48. Use 0 para não considerar.</p>
+        </div>
+        <div>
+          <label className="label" htmlFor="ep_pos_comp">Parcela pós-chaves máx. (% da renda)</label>
+          <input id="ep_pos_comp" inputMode="decimal" value={pct(ep.comprometimento_pos ?? ep.comprometimento)}
+            onChange={(e) => setEp("comprometimento_pos", N(e.target.value) / 100)} className="input" />
+          <p className="hint">Depois das chaves o cliente também paga o financiamento.</p>
+        </div>
       </section>
 
       <section className="card p-4">
@@ -268,7 +280,8 @@ export default function ParamsEditor({ inicial }: { inicial: SimulationParams })
             {formatBRL(previa.parcelaMax)} • imóvel até {formatBRL(previa.capacidadeSemSubsidio)} (com subsídio máx.:{" "}
             {formatBRL(previa.capacidadeComSubsidio)})
             {previa.entradaParcelada && (
-              <> • entrada parcelada na obra: até {formatBRL(previa.entradaParcelada.parcelaMensalMax)}/mês, limitada a{" "}
+              <> • entrada parcelada: até {formatBRL(previa.entradaParcelada.parcelaMensalMax)}/mês na obra
+                {previa.entradaParcelada.mesesPosChaves ? ` + até ${previa.entradaParcelada.mesesPosChaves}x de ${formatBRL(previa.entradaParcelada.parcelaPosMax ?? 0)} após as chaves` : ""}, limitada a{" "}
                 {Math.round(previa.entradaParcelada.pctMax * 100)}% do preço</>
             )}
           </p>

@@ -114,7 +114,7 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
           `Faixa: ${sim.faixa?.nome ?? "Fora do programa"}`,
           `Financiamento estimado: ${formatBRL(sim.financiamentoMax)} • Parcela até ${formatBRL(sim.parcelaMax)} • ${sim.prazoMeses} meses${sim.taxaAnual != null ? ` • ${sim.taxaAnual}% a.a. (${sim.sistema})` : ""}`,
           `Imóvel até (financiamento + FGTS): ${formatBRL(sim.capacidadeSemSubsidio)}${sim.subsidioPotencial > 0 ? ` • com subsídio máx.: ${formatBRL(sim.capacidadeComSubsidio)}` : ""}`,
-          sim.entradaParcelada ? `Entrada parcelada na obra: até ${formatBRL(sim.entradaParcelada.parcelaMensalMax)}/mês, limite ${Math.round(sim.entradaParcelada.pctMax * 100)}% do preço` : null,
+          sim.entradaParcelada ? `Entrada parcelada: até ${formatBRL(sim.entradaParcelada.parcelaMensalMax)}/mês na obra${sim.entradaParcelada.mesesPosChaves ? ` + até ${sim.entradaParcelada.mesesPosChaves}x após as chaves` : ""}, limite ${Math.round(sim.entradaParcelada.pctMax * 100)}% do preço` : null,
           sim.impedimentos.length ? `Impedimentos: ${sim.impedimentos.join("; ")}` : null,
           sim.alertas.length ? `Alertas: ${sim.alertas.join("; ")}` : null,
         ]

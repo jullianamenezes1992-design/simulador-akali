@@ -221,8 +221,29 @@ describe("entrada parcelada na obra", () => {
     const r = ranquear([d], comEp, prefs).compativeis;
     expect(r).toHaveLength(1);
     expect(r[0].match.entradaParcelada?.meses).toBe(30);
-    expect(r[0].match.motivos.join(" ")).toMatch(/parcelada na obra/);
+    expect(r[0].match.motivos.join(" ")).toMatch(/na obra/);
     // imóvel pronto não ganha parcelamento
     expect(ranquear([{ ...d, status_obra: "pronto" }], comEp, prefs).compativeis).toHaveLength(0);
+  });
+});
+
+describe("entrada parcelada com parcelas após as chaves", () => {
+  it("soma obra + pós-chaves, limitado ao % do preço, e divide as parcelas", async () => {
+    const { dividirEntrada } = await import("./engine");
+    const pPos: SimulationParams = {
+      ...params,
+      entrada_parcelada: { pct_max: 0.2, comprometimento: 0.3, meses_lancamento: 10, meses_obras: 6, meses_pos_chaves: 48 },
+    };
+    const sim = simular({ ...base, entrada: 0 }, pPos); // renda 3000 → 900/mês
+    const dev = { status_obra: "em_obras", previsao_entrega: null };
+    // 900×6 + 900×48 = 48.600, mas o limite é 20% de 200 mil = 40 mil
+    expect(entradaParcelavel(200000, dev, sim).valorMax).toBe(40000);
+    // sem pós-chaves seria só 900×6
+    const semPos = simular({ ...base, entrada: 0 }, { ...pPos, entrada_parcelada: { ...pPos.entrada_parcelada!, meses_pos_chaves: 0 } });
+    expect(entradaParcelavel(200000, dev, semPos).valorMax).toBe(5400);
+    const d = dividirEntrada(10000, 6, 48, 900, 900);
+    expect(d.parcela).toBe(900);
+    expect(d.mesesPos).toBe(6); // 4.600 restantes em parcelas de até 900
+    expect(d.parcelaPos).toBe(767);
   });
 });

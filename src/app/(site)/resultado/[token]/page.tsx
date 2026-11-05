@@ -135,13 +135,14 @@ export default async function ResultadoPage({ params }: { params: Promise<{ toke
 
         {sim.entradaParcelada && (
           <div className="mt-3 rounded-2xl bg-white p-4 text-sm">
-            <p className="font-bold">Entrada parcelada durante a obra</p>
+            <p className="font-bold">Entrada parcelada</p>
             <p className="mt-1 text-ink-soft">
-              Em imóveis na planta ou em construção, a construtora costuma permitir parcelar parte do valor (até{" "}
-              {Math.round(sim.entradaParcelada.pctMax * 100)}% do imóvel) até a entrega das chaves. Pela sua renda,
-              estimamos parcelas de até <strong className="text-ink">{formatBRL(sim.entradaParcelada.parcelaMensalMax)}</strong>{" "}
-              por mês. Por isso alguns imóveis acima do valor estimado aparecem como compatíveis. As condições dependem de
-              cada construtora.
+              Em imóveis na planta ou em construção, a construtora costuma permitir parcelar a entrada (até{" "}
+              {Math.round(sim.entradaParcelada.pctMax * 100)}% do imóvel) durante a obra
+              {sim.entradaParcelada.mesesPosChaves ? ` e, conforme o projeto, em até ${sim.entradaParcelada.mesesPosChaves}x depois da entrega das chaves` : ""}.
+              Pela sua renda, estimamos parcelas de até{" "}
+              <strong className="text-ink">{formatBRL(sim.entradaParcelada.parcelaMensalMax)}</strong> por mês. Por isso alguns imóveis acima
+              do valor estimado aparecem como compatíveis. As condições dependem de cada construtora e da análise do seu perfil.
             </p>
           </div>
         )}
