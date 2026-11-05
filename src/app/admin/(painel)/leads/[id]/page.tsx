@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, MessageCircle } from "lucide-react";
-import { AnonymizeButton, CopiarAtendimentoButton, DeleteLeadButton, NoteForm, ResponsavelSelect, RevealCPF, StatusSelect } from "@/components/admin/LeadControls";
+import { AnonymizeButton, CopiarAtendimentoButton, DeleteLeadButton, OrigemEditor, NoteForm, ResponsavelSelect, RevealCPF, StatusSelect } from "@/components/admin/LeadControls";
 import {
   ESTADOS_CIVIS,
   PRAZOS_COMPRA,
@@ -44,6 +44,7 @@ function Linhas({ itens }: { itens: [string, React.ReactNode][] }) {
 
 const TIPO_EVENTO: Record<string, string> = {
   compromisso_agendado: "Compromisso agendado",
+  origem_alterada: "Origem alterada",
   compromisso_concluido: "Compromisso concluído",
   simulacao_iniciada: "Iniciou a simulação (preencheu nome e WhatsApp)",
   simulacao_concluida: "Concluiu a simulação",
@@ -316,9 +317,9 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
           </Bloco>
 
           <Bloco titulo="Origem e campanha">
+            {!anonimizado && <OrigemEditor leadId={l.id} atual={l.origem} />}
             <Linhas
               itens={[
-                ["Origem", l.origem ?? "—"],
                 ["utm_source", l.utm_source ?? "—"],
                 ["utm_medium", l.utm_medium ?? "—"],
                 ["utm_campaign", l.utm_campaign ?? "—"],

@@ -613,3 +613,15 @@ export async function linkDownloadBackup(nome: string): Promise<string> {
   const { linkBackup } = await import("@/lib/server/backup");
   return linkBackup(nome);
 }
+
+export async function atualizarOrigem(leadId: string, origem: string) {
+  const { supabase } = await assertAdmin();
+  if (!UUID_RE.test(leadId)) throw new Error("Cliente inválido.");
+  const valor = origem.trim().slice(0, 60);
+  if (!valor) throw new Error("Informe a origem.");
+  const { error } = await supabase.from("leads").update({ origem: valor }).eq("id", leadId);
+  if (error) throw new Error(error.message);
+  await supabase.from("lead_events").insert({ lead_id: leadId, tipo: "origem_alterada", dados: { origem: valor } });
+  revalidatePath(`/admin/leads/${leadId}`);
+  revalidatePath("/admin/leads");
+}

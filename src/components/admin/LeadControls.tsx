@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { Check, ClipboardCopy, Eye, Loader2, ShieldOff, Trash2 } from "lucide-react";
 import { LEAD_STATUS } from "@/lib/constants";
-import { adicionarNota, anonimizarLead, excluirLead, atribuirResponsavel, atualizarStatusLead, revelarCPF, type ActionState } from "@/app/admin/actions";
+import { adicionarNota, anonimizarLead, atualizarOrigem, excluirLead, atribuirResponsavel, atualizarStatusLead, revelarCPF, type ActionState } from "@/app/admin/actions";
 
 export function StatusSelect({ leadId, status }: { leadId: string; status: string }) {
   const [pending, start] = useTransition();
@@ -188,5 +188,53 @@ export function CopiarAtendimentoButton({ texto }: { texto: string }) {
     >
       {copiado ? <Check size={16} /> : <ClipboardCopy size={16} />} {copiado ? "Copiado!" : "Copiar para atendimento"}
     </button>
+  );
+}
+
+const ORIGENS = ["TikTok", "Instagram", "Facebook", "WhatsApp", "Google Ads", "Google (orgânico)", "Meta Ads", "Indicação", "Plantão / stand", "Direto"];
+
+export function OrigemEditor({ leadId, atual }: { leadId: string; atual: string | null }) {
+  const lista = atual && !ORIGENS.includes(atual) ? [atual, ...ORIGENS] : ORIGENS;
+  const [valor, setValor] = useState(atual ?? "Direto");
+  const [outra, setOutra] = useState("");
+  const [pending, start] = useTransition();
+  const [msg, setMsg] = useState<string | null>(null);
+  const final = valor === "__outra" ? outra : valor;
+  const mudou = final.trim() !== "" && final !== (atual ?? "");
+  return (
+    <div className="mb-3">
+      <label className="label" htmlFor="origem_lead">Origem do cliente</label>
+      <div className="flex flex-wrap gap-2">
+        <select id="origem_lead" value={valor} onChange={(e) => { setValor(e.target.value); setMsg(null); }} className="input w-auto min-w-44">
+          {lista.map((o) => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+          <option value="__outra">Outra…</option>
+        </select>
+        {valor === "__outra" && (
+          <input value={outra} onChange={(e) => setOutra(e.target.value)} maxLength={60} placeholder="Ex.: Feirão, panfleto" className="input w-auto min-w-44" aria-label="Outra origem" />
+        )}
+        {mudou && (
+          <button
+            type="button"
+            className="btn-primary"
+            disabled={pending}
+            onClick={() =>
+              start(async () => {
+                try {
+                  await atualizarOrigem(leadId, final);
+                  setMsg("Origem salva.");
+                } catch (e) {
+                  setMsg(e instanceof Error ? e.message : "Erro ao salvar.");
+                }
+              })
+            }
+          >
+            {pending ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Salvar
+          </button>
+        )}
+      </div>
+      {msg && <p className="mt-1 text-xs text-ink-soft">{msg}</p>}
+    </div>
   );
 }
