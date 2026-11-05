@@ -294,16 +294,34 @@ export async function revelarCPF(leadId: string): Promise<{ cpf?: string; erro?:
   }
 }
 
-/** Exclui o lead de vez (ex.: cadastros de teste). Só para o papel "admin". */
+/** Move o lead para a lixeira (fica 30 dias e pode ser restaurado). Só para o papel "admin". */
 export async function excluirLead(leadId: string) {
   const { supabase } = await assertAdmin(true);
   if (!/^[0-9a-f-]{36}$/i.test(leadId)) throw new Error("Lead inválido.");
-  const { data, error } = await supabase.from("leads").delete().eq("id", leadId).select("id");
+  const { error } = await supabase.rpc("lixeira_mover", { p_id: leadId });
   if (error) throw new Error(error.message);
-  if (!data?.length) throw new Error("Não foi possível excluir este cadastro.");
   revalidatePath("/admin/leads");
   revalidatePath("/admin");
-  redirect("/admin/leads");
+  redirect("/admin/leads?lixeira=1");
+}
+
+export async function restaurarLead(leadId: string) {
+  const { supabase } = await assertAdmin(true);
+  if (!/^[0-9a-f-]{36}$/i.test(leadId)) throw new Error("Lead inválido.");
+  const { error } = await supabase.rpc("lixeira_restaurar", { p_id: leadId });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/leads");
+  revalidatePath("/admin/leads/lixeira");
+  revalidatePath("/admin");
+}
+
+/** Apaga de vez um lead que já está na lixeira (não tem volta). */
+export async function excluirLeadDefinitivo(leadId: string) {
+  const { supabase } = await assertAdmin(true);
+  if (!/^[0-9a-f-]{36}$/i.test(leadId)) throw new Error("Lead inválido.");
+  const { error } = await supabase.rpc("lixeira_excluir", { p_id: leadId });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/leads/lixeira");
 }
 
 /** LGPD: remove dados pessoais mantendo apenas números agregados para estatística. */

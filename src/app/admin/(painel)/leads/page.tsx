@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Download } from "lucide-react";
+import { Download, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/admin/ui";
 import { LEAD_STATUS, leadStatusInfo } from "@/lib/constants";
 import { formatBRL, formatDate, maskPhone } from "@/lib/format";
@@ -71,7 +71,15 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
         <a href={exportar("csv")} className="btn-secondary">
           <Download size={16} /> CSV
         </a>
+        <Link href="/admin/leads/lixeira" className="btn-secondary">
+          <Trash2 size={16} /> Lixeira
+        </Link>
       </PageHeader>
+      {sp.lixeira === "1" && (
+        <p className="mb-4 rounded-xl bg-caixa-50 px-4 py-3 text-sm">
+          Cliente movido para a lixeira. Para desfazer, abra a <Link href="/admin/leads/lixeira" className="font-semibold text-caixa underline">Lixeira</Link> e toque em Restaurar.
+        </p>
+      )}
 
       {/* Etapas comerciais */}
       <div className="-mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1 pb-1">

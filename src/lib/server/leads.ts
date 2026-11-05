@@ -43,6 +43,7 @@ export async function getLeadPorToken(token: string): Promise<LeadPublico | null
     .from("leads")
     .select("id, codigo, nome, simulacao, regioes, dormitorios_min, precisa_vaga, preferencia_obra, escolhido_id, created_at, anonimizado_em")
     .eq("access_token", token)
+    .is("excluido_em", null)
     .maybeSingle();
   if (!data || data.anonimizado_em) return null;
   return data as LeadPublico;

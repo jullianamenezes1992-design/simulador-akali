@@ -1,9 +1,9 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
-import { Check, ClipboardCopy, Eye, Loader2, ShieldOff, Trash2 } from "lucide-react";
+import { Check, ClipboardCopy, Eye, Loader2, RotateCcw, ShieldOff, Trash2 } from "lucide-react";
 import { LEAD_STATUS } from "@/lib/constants";
-import { adicionarNota, anonimizarLead, atualizarOrigem, excluirLead, atribuirResponsavel, atualizarStatusLead, revelarCPF, type ActionState } from "@/app/admin/actions";
+import { adicionarNota, anonimizarLead, atualizarOrigem, excluirLead, excluirLeadDefinitivo, restaurarLead, atribuirResponsavel, atualizarStatusLead, revelarCPF, type ActionState } from "@/app/admin/actions";
 
 export function StatusSelect({ leadId, status }: { leadId: string; status: string }) {
   const [pending, start] = useTransition();
@@ -146,7 +146,7 @@ export function DeleteLeadButton({ leadId, nome }: { leadId: string; nome: strin
         className="btn-danger"
         disabled={pending}
         onClick={() => {
-          if (!confirm(`Excluir o cadastro de "${nome}" de vez? Ele some da lista, junto com observações e histórico. Use para cadastros de teste.`)) return;
+          if (!confirm(`Mover "${nome}" para a lixeira? Ele sai da lista, mas pode ser restaurado em até 30 dias em Leads → Lixeira.`)) return;
           start(async () => {
             try {
               await excluirLead(leadId);
@@ -157,7 +157,7 @@ export function DeleteLeadButton({ leadId, nome }: { leadId: string; nome: strin
           });
         }}
       >
-        {pending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} Excluir cadastro
+        {pending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} Mover para a lixeira
       </button>
       {erro && <p className="field-error">{erro}</p>}
     </div>
@@ -236,5 +236,46 @@ export function OrigemEditor({ leadId, atual }: { leadId: string; atual: string 
       </div>
       {msg && <p className="mt-1 text-xs text-ink-soft">{msg}</p>}
     </div>
+  );
+}
+
+export function LixeiraItem({ id, nome, detalhe }: { id: string; nome: string; detalhe: string }) {
+  const [pending, start] = useTransition();
+  const [feito, setFeito] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  if (feito) return <li className="px-4 py-3 text-sm text-ink-soft">{feito}</li>;
+  const run = (fn: () => Promise<void>, msg: string) =>
+    start(async () => {
+      try {
+        await fn();
+        setFeito(msg);
+      } catch (e) {
+        setErro(e instanceof Error ? e.message : "Erro.");
+      }
+    });
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+      <div className="min-w-0">
+        <p className="font-semibold">{nome}</p>
+        <p className="text-xs text-ink-soft">{detalhe}</p>
+        {erro && <p className="field-error">{erro}</p>}
+      </div>
+      <div className="flex gap-2">
+        <button type="button" className="btn-primary" disabled={pending} onClick={() => run(() => restaurarLead(id), `${nome} foi restaurado(a) e voltou para a lista de Leads.`)}>
+          {pending ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />} Restaurar
+        </button>
+        <button
+          type="button"
+          className="btn-secondary text-red-700"
+          disabled={pending}
+          onClick={() => {
+            if (!confirm(`Apagar "${nome}" de vez? Isso não tem volta.`)) return;
+            run(() => excluirLeadDefinitivo(id), `${nome} foi apagado(a) de vez.`);
+          }}
+        >
+          <Trash2 size={14} /> Apagar de vez
+        </button>
+      </div>
+    </li>
   );
 }

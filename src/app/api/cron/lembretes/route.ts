@@ -61,7 +61,8 @@ export async function POST(req: NextRequest) {
   if (temCanal && cfg.lembretes_ativos !== false) {
     const { data } = await db
       .from("lead_tasks")
-      .select("id, tipo, quando, descricao, lembrar_min, lead:lead_id(id, nome, codigo, telefone)")
+      .select("id, tipo, quando, descricao, lembrar_min, lead:lead_id!inner(id, nome, codigo, telefone, excluido_em)")
+      .is("lead.excluido_em", null)
       .eq("status", "pendente")
       .is("lembrete_enviado_em", null)
       .not("lembrar_min", "is", null)
@@ -121,7 +122,8 @@ ${t.lead && linkLead(t.lead.id) ? `<p><a href="${linkLead(t.lead.id)}" style="co
       const fim = new Date(`${hoje}T23:59:59-03:00`).toISOString();
       const { data } = await db
         .from("lead_tasks")
-        .select("id, tipo, quando, descricao, lembrar_min, lead:lead_id(id, nome, codigo, telefone)")
+        .select("id, tipo, quando, descricao, lembrar_min, lead:lead_id!inner(id, nome, codigo, telefone, excluido_em)")
+        .is("lead.excluido_em", null)
         .eq("status", "pendente")
         .lte("quando", fim)
         .order("quando", { ascending: true })
@@ -159,6 +161,9 @@ ${agenda ? `<p><a href="${agenda}" style="color:#005CA9;font-weight:bold">Abrir 
       }
     }
   }
+
+  // Lixeira: apaga de vez o que está lá há mais de 30 dias
+  await db.from("leads").delete().not("excluido_em", "is", null).lt("excluido_em", new Date(agora - 30 * 86400000).toISOString());
 
   // 3) Backup semanal (a partir das 7h, a cada 7 dias; o primeiro sai logo)
   const hojeB = diaSP();
