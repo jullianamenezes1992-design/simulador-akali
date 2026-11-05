@@ -29,6 +29,8 @@ export interface SiteSettings {
   google_ads_label_simulacao: string | null;
   google_ads_label_whatsapp: string | null;
   meta_pixel_id: string | null;
+  corretora_nome?: string | null;
+  corretora_foto_url?: string | null;
   landing_conteudo: LandingConteudo;
   politica_versao: string;
   updated_at?: string;

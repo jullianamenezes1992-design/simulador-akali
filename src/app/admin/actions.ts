@@ -625,3 +625,17 @@ export async function atualizarOrigem(leadId: string, origem: string) {
   revalidatePath(`/admin/leads/${leadId}`);
   revalidatePath("/admin/leads");
 }
+
+export async function salvarPerfilCorretora(dados: { nome: string | null; fotoUrl?: string | null }) {
+  const { supabase } = await assertAdmin(true);
+  const nome = dados.nome?.trim().slice(0, 80) || null;
+  const upd: Record<string, unknown> = { corretora_nome: nome };
+  if (dados.fotoUrl !== undefined) {
+    if (dados.fotoUrl && !/^https:\/\/[a-z0-9.-]+\.supabase\.co\/storage\/v1\/object\/public\/empreendimentos\/perfil\//.test(dados.fotoUrl))
+      throw new Error("Foto inválida.");
+    upd.corretora_foto_url = dados.fotoUrl;
+  }
+  const { error } = await supabase.from("site_settings").update(upd).eq("id", 1);
+  if (error) throw new Error(error.message);
+  revalidatePath("/", "layout");
+}

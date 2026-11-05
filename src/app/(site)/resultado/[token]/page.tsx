@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AlertTriangle, CheckCircle2, Info, Sparkles } from "lucide-react";
+/* eslint-disable @next/next/no-img-element -- foto da corretora vem do Storage */
+import { AlertTriangle, CheckCircle2, Info, Sparkles, UserPlus, UserRound } from "lucide-react";
+import { getSettings } from "@/lib/data";
 import DevelopmentCard from "@/components/site/DevelopmentCard";
 import WhatsAppButton from "@/components/site/WhatsAppButton";
 import ResultadoTracker from "@/components/simulacao/ResultadoTracker";
-import { formatBRL, formatDate, firstName } from "@/lib/format";
+import { formatBRL, formatDate, firstName, maskPhone } from "@/lib/format";
 import { getLeadPorToken, listarAtivosParaMatch, prefsDoLead, ranquearDevs } from "@/lib/server/leads";
 import { supabaseConfigurado } from "@/lib/supabase/env";
 
@@ -33,7 +35,10 @@ export default async function ResultadoPage({ params }: { params: Promise<{ toke
   if (!lead || !lead.simulacao) notFound();
 
   const sim = lead.simulacao;
-  const devs = await listarAtivosParaMatch();
+  const [devs, s] = await Promise.all([listarAtivosParaMatch(), getSettings()]);
+  const corretora = s.corretora_nome || s.empresa_nome;
+  const primeiroNomeCorretora = firstName(corretora);
+  const telCorretora = s.whatsapp_numero ? maskPhone(s.whatsapp_numero.replace(/^55/, "")) : null;
   const { compativeis, demais } = ranquearDevs(devs, sim, prefsDoLead(lead));
   const nome = firstName(lead.nome);
 
@@ -51,6 +56,30 @@ export default async function ResultadoPage({ params }: { params: Promise<{ toke
           </div>
           <WhatsAppButton token={token} label="Falar com um corretor" className="w-full sm:w-auto" pagina="resultado" />
         </div>
+
+        {/* Apresentação da corretora: o cliente reconhece quando ela entrar em contato */}
+        <section className="mt-6 flex flex-col gap-4 rounded-3xl bg-white p-5 shadow-sm sm:flex-row sm:items-center">
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-caixa-50 ring-4 ring-sol/60">
+            {s.corretora_foto_url ? (
+              <img src={s.corretora_foto_url} alt={`Foto de ${corretora}`} className="h-full w-full object-cover" />
+            ) : (
+              <UserRound size={36} className="text-caixa" aria-hidden />
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-display text-lg font-bold">
+              {nome}, em breve a {primeiroNomeCorretora}, da {s.empresa_nome}, vai entrar em contato com você
+            </p>
+            <p className="mt-1 text-sm text-ink-soft">
+              {corretora}
+              {s.creci ? ` · ${s.creci}` : ""}
+              {telCorretora ? ` · WhatsApp ${telCorretora}` : ""}. Salve o contato para reconhecer a mensagem quando ela chegar.
+            </p>
+          </div>
+          <a href="/api/contato" className="btn-secondary shrink-0">
+            <UserPlus size={16} aria-hidden /> Salvar contato
+          </a>
+        </section>
 
         {/* Ressalva obrigatória */}
         <div className="mt-6 flex gap-3 rounded-2xl border border-sol/50 bg-sol-50 p-4 text-sm">
