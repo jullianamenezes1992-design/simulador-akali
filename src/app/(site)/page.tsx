@@ -1,6 +1,6 @@
 /* eslint-disable @next/next/no-img-element -- fotos vêm das construtoras/Storage */
 import Link from "next/link";
-import { ArrowRight, BadgePercent, ChevronDown, HandCoins, Lock, MessageCircle, PiggyBank, ShieldCheck, Clock } from "lucide-react";
+import { ArrowRight, BadgePercent, ChevronDown, HandCoins, MessageCircle, PiggyBank, ShieldCheck, Clock } from "lucide-react";
 import { getActiveParams, getSettings, listPublicDevelopments } from "@/lib/data";
 import { formatBRL, formatDate } from "@/lib/format";
 import { REGIOES } from "@/lib/constants";
@@ -72,30 +72,27 @@ export default async function Home() {
         <svg aria-hidden className="pointer-events-none absolute -right-40 top-10 h-[520px] w-[520px] text-white/[0.06]" viewBox="0 0 34 34">
           <path d="M8 18.5 17 10l9 8.5V26a1 1 0 0 1-1 1h-5.5v-5.5h-5V27H9a1 1 0 0 1-1-1z" fill="currentColor" />
         </svg>
-        <div className="container-page relative grid gap-10 pb-14 pt-10 sm:pb-20 sm:pt-14 lg:grid-cols-[1fr_0.95fr] lg:items-center lg:gap-14">
+        <div className="container-page relative grid gap-8 pb-10 pt-7 sm:pb-12 sm:pt-9 lg:grid-cols-[1fr_0.95fr] lg:items-center lg:gap-12">
           <div>
             <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-sm font-medium text-white/90">
               <span className="h-2 w-2 rounded-full bg-sol" aria-hidden /> Minha Casa, Minha Vida em São Paulo
             </p>
-            <h1 className="mt-4 text-[2.5rem] font-black leading-[1.02] sm:text-6xl">
+            <h1 className="mt-3 text-[2.1rem] font-black leading-[1.05] sm:text-5xl">
               {c.hero_titulo ?? "Saia do aluguel e conquiste a sua casa própria"}
             </h1>
-            <p className="mt-4 max-w-xl text-base text-white/85 sm:text-lg">
+            <p className="mt-3 max-w-xl text-base text-white/85">
               {c.hero_subtitulo ??
-                "Descubra em poucos minutos quanto você pode financiar e veja os apartamentos que cabem no seu bolso, com parcelas que podem ficar parecidas com um aluguel."}
+                "Descubra quanto você pode financiar e veja os apartamentos que cabem no seu bolso."}
             </p>
-            <div className="mt-7 max-w-xl">
+            <div className="mt-5 max-w-lg">
               <CalculadoraRenda faixas={faixasResumo} />
             </div>
-            <p className="mt-4 flex items-center gap-2 text-xs text-white/70">
-              <Lock size={14} aria-hidden /> Seus dados ficam protegidos. Não pedimos CPF na simulação.
-            </p>
           </div>
 
           {/* Fotos reais de empreendimentos */}
           {heroDev && (
-            <div className="relative hidden min-h-[520px] lg:block">
-              <Link href={`/empreendimentos/${heroDev.slug}`} className="group absolute right-0 top-0 block h-[440px] w-[86%] overflow-hidden rounded-[2rem] shadow-2xl">
+            <div className="relative hidden min-h-[430px] lg:block">
+              <Link href={`/empreendimentos/${heroDev.slug}`} className="group absolute right-0 top-0 block h-[370px] w-[86%] overflow-hidden rounded-[2rem] shadow-2xl">
                 <img src={capaDe(heroDev)!} alt={heroDev.nome} className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]" />
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-5 pt-16">
                   <p className="text-sm text-white/80">{heroDev.bairro}</p>
@@ -107,7 +104,7 @@ export default async function Home() {
                 <p className="font-display text-3xl font-black">{formatBRL(Number(heroDev.preco_min))}</p>
               </div>
               {heroDev2 && (
-                <Link href={`/empreendimentos/${heroDev2.slug}`} className="absolute bottom-0 left-4 block h-48 w-64 overflow-hidden rounded-3xl border-4 border-caixa shadow-2xl">
+                <Link href={`/empreendimentos/${heroDev2.slug}`} className="absolute bottom-0 left-4 block h-40 w-56 overflow-hidden rounded-3xl border-4 border-caixa shadow-2xl">
                   <img src={capaDe(heroDev2)!} alt={heroDev2.nome} className="h-full w-full object-cover" />
                 </Link>
               )}
