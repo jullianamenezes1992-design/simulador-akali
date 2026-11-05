@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { LEAD_STATUS, REGIOES, STATUS_OBRA } from "@/lib/constants";
+import { LEAD_STATUS, REGIOES, STATUS_OBRA, TIPOS_TAREFA } from "@/lib/constants";
+import { isoDeDataHoraSP, tipoTarefaLabel } from "@/lib/agenda";
 import { decryptCPF } from "@/lib/crypto";
 import { parseMoney, slugify } from "@/lib/format";
 import { assertAdmin } from "@/lib/server/auth";
@@ -466,6 +467,9 @@ export async function salvarNotificacoes(_prev: ActionState, fd: FormData): Prom
       whatsapp_ativo: fd.get("whatsapp_ativo") === "on",
       whatsapp_numero: tel || null,
       notificar_incompletas: fd.get("notificar_incompletas") === "on",
+      lembretes_ativos: fd.get("lembretes_ativos") === "on",
+      resumo_diario: fd.get("resumo_diario") === "on",
+      resumo_hora: Math.min(23, Math.max(0, Number(fd.get("resumo_hora") ?? 8) || 8)),
       updated_at: new Date().toISOString(),
     };
     // Chaves: campo vazio mantém a que já está salva
@@ -495,4 +499,75 @@ export async function testarNotificacoes(): Promise<{ email?: string; whatsapp?:
     cfg.whatsapp_ativo ? enviarWhatsApp(cfg, "teste", lead).catch((x) => msg(x)) : Promise.resolve("desativado"),
   ]);
   return { email: e ?? "ok", whatsapp: w ?? "ok" };
+}
+
+// ---------------------------------------------------------------------------
+// Agenda (compromissos e lembretes por cliente)
+// ---------------------------------------------------------------------------
+
+const UUID_RE = /^[0-9a-f-]{36}$/i;
+const STATUS_ANTES_DA_VISITA = ["novo", "em_atendimento", "documentacao", "analise_credito", "aprovado"];
+
+function revalidarAgenda(leadId?: string) {
+  revalidatePath("/admin/agenda");
+  revalidatePath("/admin");
+  if (leadId) revalidatePath(`/admin/leads/${leadId}`);
+}
+
+export async function criarTarefa(_prev: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const { supabase } = await assertAdmin();
+    const leadId = String(fd.get("lead_id") ?? "");
+    if (!UUID_RE.test(leadId)) throw new Error("Cliente inválido.");
+    const tipo = String(fd.get("tipo") ?? "");
+    const campos: Record<string, string> = {};
+    if (!TIPOS_TAREFA.some((t) => t.value === tipo)) campos.tipo = "Escolha o tipo";
+    const quando = isoDeDataHoraSP(String(fd.get("data") ?? ""), String(fd.get("hora") ?? ""));
+    if (!quando) campos.data = "Informe data e hora";
+    if (Object.keys(campos).length) return { erro: "Revise os campos destacados.", campos };
+    const lembrarTxt = String(fd.get("lembrar_min") ?? "");
+    const lembrar = lembrarTxt === "" ? null : Math.max(0, Math.min(10080, Number(lembrarTxt) || 0));
+    const descricao = textoOuNull(fd.get("descricao"))?.slice(0, 1000) ?? null;
+
+    const { error } = await supabase.from("lead_tasks").insert({ lead_id: leadId, tipo, quando, descricao, lembrar_min: lembrar });
+    if (error) throw new Error(error.message);
+    await supabase.from("lead_events").insert({ lead_id: leadId, tipo: "compromisso_agendado", dados: { tipo, quando } });
+
+    // Visita agendada: avança a etapa do cliente, se ele ainda estiver antes dela
+    if (tipo === "visita" && fd.get("mudar_etapa") === "on") {
+      await supabase.from("leads").update({ status: "visita" }).eq("id", leadId).in("status", STATUS_ANTES_DA_VISITA);
+    }
+    revalidarAgenda(leadId);
+    return { ok: true, mensagem: `${tipoTarefaLabel(tipo)} agendado(a).` };
+  } catch (e) {
+    return { erro: msg(e) };
+  }
+}
+
+export async function atualizarTarefa(id: string, status: "pendente" | "feito" | "cancelado") {
+  const { supabase } = await assertAdmin();
+  if (!UUID_RE.test(id) || !["pendente", "feito", "cancelado"].includes(status)) throw new Error("Pedido inválido.");
+  const { data, error } = await supabase
+    .from("lead_tasks")
+    .update({ status, concluido_em: status === "pendente" ? null : new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select("lead_id, tipo")
+    .single();
+  if (error) throw new Error(error.message);
+  if (status === "feito") await supabase.from("lead_events").insert({ lead_id: data.lead_id, tipo: "compromisso_concluido", dados: { tipo: data.tipo } });
+  revalidarAgenda(data.lead_id);
+}
+
+export async function remarcarTarefa(id: string, dataDia: string, hora: string) {
+  const { supabase } = await assertAdmin();
+  const quando = isoDeDataHoraSP(dataDia, hora);
+  if (!UUID_RE.test(id) || !quando) throw new Error("Data ou hora inválida.");
+  const { data, error } = await supabase
+    .from("lead_tasks")
+    .update({ quando, status: "pendente", lembrete_enviado_em: null, concluido_em: null, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select("lead_id")
+    .single();
+  if (error) throw new Error(error.message);
+  revalidarAgenda(data.lead_id);
 }

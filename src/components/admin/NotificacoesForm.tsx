@@ -13,6 +13,9 @@ export interface NotificacoesView {
   whatsapp_numero: string | null;
   tem_callmebot: boolean;
   notificar_incompletas: boolean;
+  lembretes_ativos: boolean;
+  resumo_diario: boolean;
+  resumo_hora: number;
 }
 
 export default function NotificacoesForm({ n }: { n: NotificacoesView }) {
@@ -37,6 +40,26 @@ export default function NotificacoesForm({ n }: { n: NotificacoesView }) {
         <input type="checkbox" name="notificar_incompletas" defaultChecked={n.notificar_incompletas} className="accent-caixa" />
         Avisar também quem começou e ainda não terminou a simulação
       </label>
+
+      <fieldset className="grid gap-3 rounded-xl border border-line p-4">
+        <legend className="px-1 font-semibold">Agenda</legend>
+        <label className="option w-fit">
+          <input type="checkbox" name="lembretes_ativos" defaultChecked={n.lembretes_ativos} className="accent-caixa" />
+          Avisar antes de cada compromisso (no tempo escolhido ao agendar)
+        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="option w-fit">
+            <input type="checkbox" name="resumo_diario" defaultChecked={n.resumo_diario} className="accent-caixa" />
+            Mandar o resumo do dia às
+          </label>
+          <select name="resumo_hora" defaultValue={String(n.resumo_hora)} className="input w-auto" aria-label="Hora do resumo do dia">
+            {Array.from({ length: 17 }, (_, i) => i + 5).map((h) => (
+              <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
+            ))}
+          </select>
+        </div>
+        <p className="hint">Os lembretes usam os mesmos canais abaixo (e-mail e/ou WhatsApp).</p>
+      </fieldset>
 
       <fieldset className="grid gap-4 rounded-xl border border-line p-4 sm:grid-cols-2">
         <legend className="px-1 font-semibold">E-mail</legend>

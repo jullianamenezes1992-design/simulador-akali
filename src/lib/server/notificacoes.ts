@@ -11,6 +11,11 @@ import { formatBRL, maskPhone } from "@/lib/format";
  */
 
 export interface NotificacaoConfig {
+  lembretes_ativos?: boolean;
+  resumo_diario?: boolean;
+  resumo_hora?: number;
+  ultimo_resumo_em?: string | null;
+  cron_token?: string;
   email_ativo: boolean;
   email_destino: string | null;
   resend_api_key: string | null;
@@ -37,7 +42,7 @@ type Tipo = "iniciada" | "concluida" | "teste";
 
 const TIMEOUT = 8000;
 
-function siteUrl() {
+export function siteUrl() {
   if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "");
   if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
   return "";
@@ -70,7 +75,7 @@ function textoWhatsApp(tipo: Tipo, l: LeadAviso) {
     .join("\n");
 }
 
-const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+export const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
 function htmlEmail(tipo: Tipo, l: LeadAviso) {
   const link = siteUrl() && l.id ? `${siteUrl()}/admin/leads/${l.id}` : null;
@@ -115,16 +120,15 @@ async function comTimeout(url: string, init: RequestInit) {
 }
 
 export async function enviarEmail(cfg: NotificacaoConfig, tipo: Tipo, l: LeadAviso): Promise<string | null> {
+  return enviarEmailLivre(cfg, `${titulo(tipo)}: ${l.nome}`, htmlEmail(tipo, l));
+}
+
+export async function enviarEmailLivre(cfg: NotificacaoConfig, assunto: string, html: string): Promise<string | null> {
   if (!cfg.resend_api_key || !cfg.email_destino) return "E-mail ou chave do Resend não preenchidos.";
   const res = await comTimeout("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${cfg.resend_api_key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from: "Simulador Akali <onboarding@resend.dev>",
-      to: [cfg.email_destino],
-      subject: `${titulo(tipo)}: ${l.nome}`,
-      html: htmlEmail(tipo, l),
-    }),
+    body: JSON.stringify({ from: "Simulador Akali <onboarding@resend.dev>", to: [cfg.email_destino], subject: assunto, html }),
   });
   if (res.ok) return null;
   const body = await res.text().catch(() => "");
@@ -132,9 +136,13 @@ export async function enviarEmail(cfg: NotificacaoConfig, tipo: Tipo, l: LeadAvi
 }
 
 export async function enviarWhatsApp(cfg: NotificacaoConfig, tipo: Tipo, l: LeadAviso): Promise<string | null> {
+  return enviarWhatsAppLivre(cfg, textoWhatsApp(tipo, l));
+}
+
+export async function enviarWhatsAppLivre(cfg: NotificacaoConfig, texto: string): Promise<string | null> {
   const tel = (cfg.whatsapp_numero ?? "").replace(/\D/g, "");
   if (!cfg.callmebot_api_key || tel.length < 12) return "Número ou chave do CallMeBot não preenchidos.";
-  const url = `https://api.callmebot.com/whatsapp.php?phone=${tel}&apikey=${encodeURIComponent(cfg.callmebot_api_key)}&text=${encodeURIComponent(textoWhatsApp(tipo, l))}`;
+  const url = `https://api.callmebot.com/whatsapp.php?phone=${tel}&apikey=${encodeURIComponent(cfg.callmebot_api_key)}&text=${encodeURIComponent(texto)}`;
   const res = await comTimeout(url, { method: "GET" });
   const body = await res.text().catch(() => "");
   if (res.ok && !/error|invalid|not/i.test(body.slice(0, 300))) return null;

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { PageHeader, StatCard } from "@/components/admin/ui";
+import { agoraMs, diaSP } from "@/lib/agenda";
+import { CalendarDays } from "lucide-react";
 import { LEAD_STATUS, leadStatusInfo } from "@/lib/constants";
 import { formatBRL, formatDate } from "@/lib/format";
 import { requireAdmin } from "@/lib/server/auth";
@@ -11,7 +13,8 @@ export default async function Dashboard() {
   const d7 = diasAtras(7);
   const d30 = diasAtras(30);
 
-  const [total, semana, mes, cliquesMes, devsAtivos, recentes, statusRows, escolhidos, params, incompletas] = await Promise.all([
+  const fimHoje = new Date(`${diaSP()}T23:59:59-03:00`).toISOString();
+  const [total, semana, mes, cliquesMes, devsAtivos, recentes, statusRows, escolhidos, params, incompletas, agendaHoje, agendaAtrasada] = await Promise.all([
     supabase.from("leads").select("id", { count: "exact", head: true }),
     supabase.from("leads").select("id", { count: "exact", head: true }).gte("created_at", d7),
     supabase.from("leads").select("id", { count: "exact", head: true }).gte("created_at", d30).eq("simulacao_completa", true),
@@ -22,6 +25,8 @@ export default async function Dashboard() {
     supabase.from("leads").select("escolhido_id, developments:escolhido_id(nome)").not("escolhido_id", "is", null).gte("created_at", d30).limit(5000),
     supabase.from("simulation_params").select("versao, descricao, created_at").eq("ativo", true).maybeSingle(),
     supabase.from("leads").select("id", { count: "exact", head: true }).eq("simulacao_completa", false),
+    supabase.from("lead_tasks").select("id", { count: "exact", head: true }).eq("status", "pendente").lte("quando", fimHoje).gte("quando", new Date(`${diaSP()}T00:00:00-03:00`).toISOString()),
+    supabase.from("lead_tasks").select("id", { count: "exact", head: true }).eq("status", "pendente").lt("quando", new Date(agoraMs() - 60_000).toISOString()),
   ]);
 
   const porStatus = new Map<string, number>();
@@ -41,6 +46,17 @@ export default async function Dashboard() {
     <>
       <PageHeader titulo="Visão geral" descricao="Resumo do funil de simulações e atendimento." />
 
+      <Link
+        href="/admin/agenda"
+        className={`mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl px-4 py-3 text-sm font-semibold ${(agendaAtrasada.count ?? 0) > 0 ? "bg-red-50 text-red-800" : "bg-caixa-50 text-caixa"}`}
+      >
+        <span className="flex items-center gap-2">
+          <CalendarDays size={18} aria-hidden />
+          {(agendaHoje.count ?? 0) === 0 ? "Nenhum compromisso para hoje" : `Você tem ${agendaHoje.count} compromisso(s) hoje`}
+          {(agendaAtrasada.count ?? 0) > 0 && ` · ${agendaAtrasada.count} atrasado(s)`}
+        </span>
+        <span className="underline">Abrir agenda</span>
+      </Link>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Leads (total)" valor={total.count ?? 0} sub={`${incompletas.count ?? 0} com simulação incompleta`} />
         <StatCard label="Últimos 7 dias" valor={semana.count ?? 0} />

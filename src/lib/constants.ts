@@ -84,3 +84,25 @@ export const CONSENT_VERSION = "2026-11";
 
 /** Chave do navegador que guarda o token da última simulação (somente o token, sem dados pessoais). */
 export const RESULT_KEY = "akali_resultado";
+
+// Agenda do CRM
+export const TIPOS_TAREFA = [
+  { value: "ligacao", label: "Ligação" },
+  { value: "whatsapp", label: "Mensagem no WhatsApp" },
+  { value: "visita", label: "Visita ao decorado/stand" },
+  { value: "reuniao", label: "Reunião" },
+  { value: "documentos", label: "Enviar/receber documentos" },
+  { value: "lembrete", label: "Lembrete" },
+] as const;
+
+export const LEMBRAR_OPCOES = [
+  { value: "", label: "Sem aviso" },
+  { value: "0", label: "Na hora" },
+  { value: "15", label: "15 minutos antes" },
+  { value: "30", label: "30 minutos antes" },
+  { value: "60", label: "1 hora antes" },
+  { value: "120", label: "2 horas antes" },
+  { value: "1440", label: "1 dia antes" },
+] as const;
+
+export const TZ = "America/Sao_Paulo";

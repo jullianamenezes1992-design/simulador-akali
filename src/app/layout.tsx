@@ -22,9 +22,10 @@ export async function generateMetadata(): Promise<Metadata> {
       title: `${s.empresa_nome} — Simulador Minha Casa, Minha Vida`,
       description: "Faça uma pré-simulação gratuita e veja os empreendimentos em São Paulo que combinam com o seu perfil.",
       // quadrada primeiro: o WhatsApp mostra a miniatura recortada em quadrado
-      images: [{ url: "/og-quadrado.jpg?v=2", width: 800, height: 800, alt: "Simulador Minha Casa, Minha Vida — Akali Imóveis" }],
+      // imagem pequena (menos de 300 px): o WhatsApp mostra miniatura ao lado do texto, sem o "banner" grande
+      images: [{ url: "/og-mini.jpg?v=3", width: 240, height: 240, alt: "Simulador Minha Casa, Minha Vida — Akali Imóveis" }],
     },
-    twitter: { card: "summary_large_image", images: ["/og.jpg?v=1"] },
+    twitter: { card: "summary", images: ["/og-mini.jpg?v=3"] },
   };
 }
 

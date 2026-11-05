@@ -15,6 +15,8 @@ import {
 import { formatBRL, formatDate, idadeEmMeses, maskPhone } from "@/lib/format";
 import { requireAdmin } from "@/lib/server/auth";
 import type { SimulationResult } from "@/lib/simulacao/types";
+import { NovaTarefaForm, TarefaItem } from "@/components/admin/Agenda";
+import { agoraMs, diaSP, type Tarefa } from "@/lib/agenda";
 
 const simNao = (v: boolean | null | undefined) => (v == null ? "—" : v ? "Sim" : "Não");
 
@@ -41,6 +43,8 @@ function Linhas({ itens }: { itens: [string, React.ReactNode][] }) {
 }
 
 const TIPO_EVENTO: Record<string, string> = {
+  compromisso_agendado: "Compromisso agendado",
+  compromisso_concluido: "Compromisso concluído",
   simulacao_iniciada: "Iniciou a simulação (preencheu nome e WhatsApp)",
   simulacao_concluida: "Concluiu a simulação",
   visualizou_empreendimento: "Visualizou empreendimento",
@@ -58,7 +62,7 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
   const { data: l } = await supabase.from("leads").select("*, escolhido:escolhido_id(id, nome, slug)").eq("id", id).maybeSingle();
   if (!l) notFound();
 
-  const [eventos, notas, equipe, auditoria, recomendados] = await Promise.all([
+  const [eventos, notas, equipe, auditoria, recomendados, tarefas] = await Promise.all([
     supabase.from("lead_events").select("id, tipo, dados, created_at, development:development_id(nome, slug)").eq("lead_id", id).order("created_at", { ascending: false }).limit(200),
     supabase.from("lead_notes").select("id, texto, created_at, autor:autor_id(nome)").eq("lead_id", id).order("created_at", { ascending: false }),
     supabase.from("admin_users").select("user_id, nome").order("nome"),
@@ -66,6 +70,7 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
     l.recomendados?.length
       ? supabase.from("developments").select("id, nome, slug").in("id", l.recomendados)
       : Promise.resolve({ data: [] as { id: string; nome: string; slug: string }[] }),
+    supabase.from("lead_tasks").select("*").eq("lead_id", id).order("quando", { ascending: false }).limit(50),
   ]);
 
   const nomesEquipe = new Map((equipe.data ?? []).map((p) => [p.user_id, p.nome]));
@@ -263,6 +268,37 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
               <StatusSelect leadId={l.id} status={l.status} />
               <ResponsavelSelect leadId={l.id} atual={l.responsavel_id} equipe={equipe.data ?? []} />
             </div>
+          </Bloco>
+
+          <Bloco titulo="Agenda do cliente">
+            <NovaTarefaForm leadId={l.id} />
+            {(() => {
+              const ts = (tarefas.data ?? []) as Tarefa[];
+              const pend = ts.filter((t) => t.status === "pendente").sort((a, b) => a.quando.localeCompare(b.quando));
+              const outros = ts.filter((t) => t.status !== "pendente").slice(0, 5);
+              const hoje = diaSP();
+              const agora = agoraMs();
+              return (
+                <>
+                  <ul className="mt-4 space-y-2">
+                    {pend.map((t) => (
+                      <TarefaItem key={t.id} t={{ ...t, lead: { id: l.id, nome: l.nome, codigo: l.codigo, telefone: l.telefone } }} hoje={hoje} agora={agora} />
+                    ))}
+                    {pend.length === 0 && <li className="text-sm text-ink-soft">Nenhum compromisso pendente.</li>}
+                  </ul>
+                  {outros.length > 0 && (
+                    <details className="mt-3 text-sm">
+                      <summary className="cursor-pointer font-semibold text-ink-soft">Concluídos e cancelados ({outros.length})</summary>
+                      <ul className="mt-2 space-y-2">
+                        {outros.map((t) => (
+                          <TarefaItem key={t.id} t={{ ...t, lead: { id: l.id, nome: l.nome, codigo: l.codigo, telefone: l.telefone } }} hoje={hoje} agora={agora} />
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                </>
+              );
+            })()}
           </Bloco>
 
           <Bloco titulo="Observações">

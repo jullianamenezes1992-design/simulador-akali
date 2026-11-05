@@ -32,6 +32,9 @@ export default async function ConfiguracoesPage() {
           whatsapp_numero: n?.whatsapp_numero ?? null,
           tem_callmebot: !!n?.callmebot_api_key,
           notificar_incompletas: n?.notificar_incompletas ?? true,
+          lembretes_ativos: n?.lembretes_ativos ?? true,
+          resumo_diario: n?.resumo_diario ?? true,
+          resumo_hora: n?.resumo_hora ?? 8,
         }}
       />
     </>

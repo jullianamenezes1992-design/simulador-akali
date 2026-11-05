@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, ExternalLink, History, LayoutDashboard, Settings, SlidersHorizontal, Users } from "lucide-react";
+import { Building2, CalendarDays, ExternalLink, History, LayoutDashboard, Settings, SlidersHorizontal, Users } from "lucide-react";
 
 const ITENS = [
   { href: "/admin", label: "Visão geral", icon: LayoutDashboard },
+  { href: "/admin/agenda", label: "Agenda", icon: CalendarDays },
   { href: "/admin/leads", label: "Leads", icon: Users },
   { href: "/admin/empreendimentos", label: "Empreendimentos", icon: Building2 },
   { href: "/admin/parametros", label: "Parâmetros", icon: SlidersHorizontal },
