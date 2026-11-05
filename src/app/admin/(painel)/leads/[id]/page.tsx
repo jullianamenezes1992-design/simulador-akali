@@ -318,18 +318,26 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
 
           <Bloco titulo="Origem e campanha">
             {!anonimizado && <OrigemEditor leadId={l.id} atual={l.origem} />}
-            <Linhas
-              itens={[
-                ["utm_source", l.utm_source ?? "—"],
-                ["utm_medium", l.utm_medium ?? "—"],
-                ["utm_campaign", l.utm_campaign ?? "—"],
-                ["utm_term", l.utm_term ?? "—"],
-                ["utm_content", l.utm_content ?? "—"],
-                ["gclid", l.gclid ? "sim" : "—"],
-                ["fbclid", l.fbclid ? "sim" : "—"],
-              ]}
-            />
-            {l.landing_page && <p className="mt-2 truncate text-xs text-ink-soft">Entrada: {l.landing_page}</p>}
+            {(() => {
+              // Só os nomes mudam (em português); os dados e o rastreamento das campanhas continuam os mesmos
+              const campanha = (
+                [
+                  ["Canal", l.utm_source],
+                  ["Tipo de divulgação", l.utm_medium],
+                  ["Campanha", l.utm_campaign],
+                  ["Palavra pesquisada", l.utm_term],
+                  ["Anúncio ou post", l.utm_content],
+                  ["Veio de anúncio do Google", l.gclid ? "Sim" : null],
+                  ["Veio do Facebook/Instagram", l.fbclid ? "Sim" : null],
+                ] as [string, string | null][]
+              ).filter(([, v]) => v);
+              return campanha.length ? (
+                <Linhas itens={campanha as [string, string][]} />
+              ) : (
+                <p className="text-sm text-ink-soft">Sem informações de campanha: o cliente entrou direto no site.</p>
+              );
+            })()}
+            {l.landing_page && <p className="mt-2 truncate text-xs text-ink-soft">Página de entrada: {l.landing_page}</p>}
           </Bloco>
 
           <Bloco titulo="Histórico">
