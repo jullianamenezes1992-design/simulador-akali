@@ -1,6 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatBRL, maskPhone } from "@/lib/format";
+import { enviarPush } from "./push";
 
 /**
  * Avisos para a corretora quando entra um cadastro no site.
@@ -158,6 +159,15 @@ export async function notificarLead(tipo: Exclude<Tipo, "teste">, l: LeadAviso) 
     const tarefas: Promise<string | null>[] = [];
     if (cfg.email_ativo) tarefas.push(enviarEmail(cfg, tipo, l));
     if (cfg.whatsapp_ativo) tarefas.push(enviarWhatsApp(cfg, tipo, l));
+    // Notificação no celular (app instalável)
+    tarefas.push(
+      enviarPush({
+        title: tipo === "iniciada" ? "Novo cadastro no site" : "Simulação concluída",
+        body: `${l.nome} · ${maskPhone(l.telefone)}${tipo === "iniciada" ? " · ainda não terminou" : l.faixa ? ` · ${l.faixa}` : ""}`,
+        url: l.id ? `/admin/leads/${l.id}` : "/admin/leads",
+        tag: `lead-${l.id}`,
+      }).then(() => null)
+    );
     const res = await Promise.allSettled(tarefas);
     res.forEach((r) => {
       if (r.status === "rejected") console.error("Aviso de lead falhou", r.reason);

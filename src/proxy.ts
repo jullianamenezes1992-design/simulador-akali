@@ -29,7 +29,9 @@ export async function proxy(request: NextRequest) {
   const logado = !!data?.claims?.sub;
   const { pathname } = request.nextUrl;
 
-  if (pathname.startsWith("/admin") && !pathname.startsWith("/admin/login") && !logado) {
+  // Arquivos do app instalável precisam abrir sem login (o navegador busca sem cookies)
+  const publicoDoApp = pathname === "/admin/manifest.webmanifest" || pathname === "/admin/sw.js";
+  if (pathname.startsWith("/admin") && !pathname.startsWith("/admin/login") && !publicoDoApp && !logado) {
     const login = request.nextUrl.clone();
     login.pathname = "/admin/login";
     login.search = `?next=${encodeURIComponent(pathname)}`;

@@ -3,6 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { diaSP, horaAtualSP, horaSP, tipoTarefaLabel } from "@/lib/agenda";
 import { maskPhone } from "@/lib/format";
+import { enviarPush, temAparelhosPush } from "@/lib/server/push";
 import { enviarEmailLivre, enviarWhatsAppLivre, esc, lerConfigNotificacoes, siteUrl } from "@/lib/server/notificacoes";
 
 export const dynamic = "force-dynamic";
@@ -36,13 +37,14 @@ export async function POST(req: NextRequest) {
   if (!cfg?.cron_token || !token || !igual(token, cfg.cron_token)) {
     return NextResponse.json({ erro: "não autorizado" }, { status: 401 });
   }
-  const temCanal = cfg.email_ativo || cfg.whatsapp_ativo;
+  const temCanal = cfg.email_ativo || cfg.whatsapp_ativo || (await temAparelhosPush());
   const db = createAdminClient();
   const agora = Date.now();
   const resultado = { lembretes: 0, resumo: false };
 
-  const enviar = async (assunto: string, texto: string, html: string) => {
+  const enviar = async (assunto: string, texto: string, html: string, push?: { title: string; body: string; url: string; tag?: string }) => {
     const r = await Promise.allSettled([
+      push ? enviarPush(push).then(() => null) : Promise.resolve(null),
       cfg.whatsapp_ativo ? enviarWhatsAppLivre(cfg, texto) : Promise.resolve(null),
       cfg.email_ativo ? enviarEmailLivre(cfg, assunto, html) : Promise.resolve(null),
     ]);
@@ -93,7 +95,12 @@ ${t.lead ? `<p style="margin:0 0 6px"><strong>WhatsApp:</strong> ${esc(maskPhone
 ${t.descricao ? `<p style="margin:0 0 6px"><strong>Obs.:</strong> ${esc(t.descricao)}</p>` : ""}
 ${t.lead && linkLead(t.lead.id) ? `<p><a href="${linkLead(t.lead.id)}" style="color:#005CA9;font-weight:bold">Abrir ficha no painel</a></p>` : ""}
 </div>`;
-      await enviar(`Lembrete: ${tipoTarefaLabel(t.tipo)} com ${nome} ${quando}`, texto, html);
+      await enviar(`Lembrete: ${tipoTarefaLabel(t.tipo)} com ${nome} ${quando}`, texto, html, {
+        title: `⏰ ${tipoTarefaLabel(t.tipo)} ${quando}`,
+        body: `${nome}${t.descricao ? ` · ${t.descricao}` : ""}`,
+        url: t.lead ? `/admin/leads/${t.lead.id}` : "/admin/agenda",
+        tag: `tarefa-${t.id}`,
+      });
       resultado.lembretes++;
     }
   }
@@ -140,7 +147,12 @@ ${deHoje.length ? lista(deHoje, linha) : "<p>Nenhum compromisso marcado para hoj
 ${atrasados.length ? `<h3 style="color:#b91c1c;margin:14px 0 4px">Atrasados (${atrasados.length})</h3>${lista(atrasados, linhaAtrasada)}` : ""}
 ${agenda ? `<p><a href="${agenda}" style="color:#005CA9;font-weight:bold">Abrir agenda no painel</a></p>` : ""}
 </div>`;
-        await enviar(`Agenda de hoje: ${deHoje.length} compromisso(s)${atrasados.length ? `, ${atrasados.length} atrasado(s)` : ""}`, texto, html);
+        await enviar(`Agenda de hoje: ${deHoje.length} compromisso(s)${atrasados.length ? `, ${atrasados.length} atrasado(s)` : ""}`, texto, html, {
+          title: "☀️ Sua agenda de hoje",
+          body: `${deHoje.length} compromisso(s) hoje${atrasados.length ? ` · ${atrasados.length} atrasado(s)` : ""}`,
+          url: "/admin/agenda",
+          tag: `resumo-${hoje}`,
+        });
         resultado.resumo = true;
       }
     }

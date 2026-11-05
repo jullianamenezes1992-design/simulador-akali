@@ -571,3 +571,27 @@ export async function remarcarTarefa(id: string, dataDia: string, hora: string) 
   if (error) throw new Error(error.message);
   revalidarAgenda(data.lead_id);
 }
+
+// ---------------------------------------------------------------------------
+// App instalável: notificações no celular (Web Push)
+// ---------------------------------------------------------------------------
+
+export async function salvarInscricaoPush(sub: { endpoint: string; p256dh: string; auth: string; aparelho?: string }) {
+  const { supabase } = await assertAdmin();
+  if (!/^https:\/\//.test(sub.endpoint) || sub.endpoint.length > 1000 || !sub.p256dh || !sub.auth) throw new Error("Inscrição inválida.");
+  const { error } = await supabase
+    .from("push_subscriptions")
+    .upsert({ endpoint: sub.endpoint, p256dh: sub.p256dh.slice(0, 200), auth: sub.auth.slice(0, 100), aparelho: sub.aparelho?.slice(0, 120) ?? null }, { onConflict: "endpoint" });
+  if (error) throw new Error(error.message);
+}
+
+export async function removerInscricaoPush(endpoint: string) {
+  const { supabase } = await assertAdmin();
+  await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint);
+}
+
+export async function testarPush(): Promise<number> {
+  const { userId } = await assertAdmin();
+  const { enviarPush } = await import("@/lib/server/push");
+  return enviarPush({ title: "🎉 Notificações ativadas", body: "Você vai receber aqui os novos clientes e os lembretes da agenda.", url: "/admin/agenda", tag: "teste" }, userId);
+}
