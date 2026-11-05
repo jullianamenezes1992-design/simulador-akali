@@ -24,7 +24,7 @@ export default async function EmpreendimentosAdmin({ searchParams }: { searchPar
   const devs = regiao ? todos.filter((d) => d.regiao === regiao) : todos;
   const demos = todos.filter((d) => d.is_demo && d.ativo).length;
   const contagem = (r: string) => todos.filter((d) => d.regiao === r && d.ativo).length;
-  const regioesComImoveis = REGIOES.filter((r) => todos.some((d) => d.regiao === r.value));
+  const regioesComImoveis = REGIOES.filter((r) => todos.some((d) => d.regiao === r.value && d.ativo));
 
   return (
     <>
