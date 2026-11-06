@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Download, Plus } from "lucide-react";
+import { Download, Plus, RefreshCw } from "lucide-react";
 import { PageHeader } from "@/components/admin/ui";
 import ToggleAtivo from "@/components/admin/ToggleAtivo";
 import CompartilharImovel from "@/components/admin/CompartilharImovel";
@@ -29,6 +29,9 @@ export default async function EmpreendimentosAdmin({ searchParams }: { searchPar
   return (
     <>
       <PageHeader titulo="Empreendimentos" descricao={`${todos.length} cadastrado(s) • ${todos.filter((d) => d.ativo).length} ativo(s) no site.`}>
+        <Link href="/admin/empreendimentos/tabelao" className="btn-secondary">
+          <RefreshCw size={16} /> Tabelão
+        </Link>
         <a href="/api/admin/export?tipo=empreendimentos&formato=xlsx" className="btn-secondary">
           <Download size={16} /> Exportar
         </a>

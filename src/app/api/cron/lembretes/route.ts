@@ -5,6 +5,7 @@ import { diaSP, horaAtualSP, horaSP, tipoTarefaLabel } from "@/lib/agenda";
 import { maskPhone } from "@/lib/format";
 import { enviarPush, temAparelhosPush } from "@/lib/server/push";
 import { salvarBackup } from "@/lib/server/backup";
+import { sincronizarTabelao } from "@/lib/server/tabelao";
 import { somarDias } from "@/lib/agenda";
 import { enviarEmailLivre, enviarWhatsAppLivre, esc, lerConfigNotificacoes, siteUrl } from "@/lib/server/notificacoes";
 
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
   const temCanal = cfg.email_ativo || cfg.whatsapp_ativo || (await temAparelhosPush());
   const db = createAdminClient();
   const agora = Date.now();
-  const resultado = { lembretes: 0, resumo: false, backup: false };
+  const resultado: { lembretes: number; resumo: boolean; backup: boolean; tabelao?: string } = { lembretes: 0, resumo: false, backup: false };
 
   const enviar = async (assunto: string, texto: string, html: string, push?: { title: string; body: string; url: string; tag?: string }) => {
     const r = await Promise.allSettled([
@@ -198,6 +199,33 @@ ${agenda ? `<p><a href="${agenda}" style="color:#005CA9;font-weight:bold">Abrir 
         // libera para tentar de novo na próxima rodada
         await db.from("notification_settings").update({ ultimo_backup_em: cfg.ultimo_backup_em ?? null }).eq("id", 1);
       }
+    }
+  }
+
+  // 4) Preços e estoque da Plano&Plano pelo tabelão (uma vez por dia, a partir das 6h)
+  if (cfg.tabelao_auto !== false && cfg.ultimo_tabelao_em !== hojeB && horaAtualSP() >= 6) {
+    const { data: marcado } = await db
+      .from("notification_settings")
+      .update({ ultimo_tabelao_em: hojeB })
+      .eq("id", 1)
+      .or(`ultimo_tabelao_em.is.null,ultimo_tabelao_em.neq.${hojeB}`)
+      .select("id")
+      .maybeSingle();
+    if (marcado) {
+      const t = await sincronizarTabelao("automatico");
+      resultado.tabelao = t.ok ? `${t.atualizados} atualizado(s)` : `erro: ${t.erro}`;
+      if (t.ok && (t.mudancas.some((m) => m.campo === "a partir de" || m.campo === "à venda") || t.novos.length)) {
+        const precos = t.mudancas.filter((m) => m.campo === "a partir de").length;
+        const vendas = t.mudancas.filter((m) => m.campo === "à venda").length;
+        await enviarPush({
+          title: "🏷️ Tabelão atualizado",
+          body: [precos && `${precos} preço(s) mudaram`, vendas && `${vendas} mudança(s) de estoque`, t.novos.length && `${t.novos.length} empreendimento(s) novo(s) no tabelão`].filter(Boolean).join(" · "),
+          url: "/admin/empreendimentos/tabelao",
+          tag: `tabelao-${hojeB}`,
+        }).catch(() => null);
+      }
+      if (!t.ok)
+        await enviarPush({ title: "⚠️ Tabelão não atualizou hoje", body: "Abra Imóveis → Tabelão para ver o motivo ou tentar de novo.", url: "/admin/empreendimentos/tabelao", tag: `tabelao-${hojeB}` }).catch(() => null);
     }
   }
 

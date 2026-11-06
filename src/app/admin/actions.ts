@@ -657,3 +657,25 @@ export async function salvarPerfilCorretora(dados: { nome: string | null; fotoUr
   if (error) throw new Error(error.message);
   revalidatePath("/", "layout");
 }
+
+// ---------------------------------------------------------------------------
+// Tabelão Plano&Plano (atualização automática de preços e estoque)
+// ---------------------------------------------------------------------------
+
+export async function atualizarTabelaoAgora() {
+  await assertAdmin(true);
+  const { sincronizarTabelao } = await import("@/lib/server/tabelao");
+  const r = await sincronizarTabelao("manual");
+  revalidatePath("/admin/empreendimentos");
+  revalidatePath("/admin/empreendimentos/tabelao");
+  revalidatePath("/", "layout");
+  return { ok: r.ok, atualizados: r.atualizados, erro: r.erro ?? null };
+}
+
+export async function salvarTabelaoAuto(ativo: boolean) {
+  await assertAdmin(true);
+  const db = createAdminClient();
+  const { error } = await db.from("notification_settings").update({ tabelao_auto: !!ativo }).eq("id", 1);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/empreendimentos/tabelao");
+}

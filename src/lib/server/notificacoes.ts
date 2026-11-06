@@ -13,6 +13,8 @@ import { enviarPush } from "./push";
 
 export interface NotificacaoConfig {
   backup_semanal?: boolean;
+  tabelao_auto?: boolean;
+  ultimo_tabelao_em?: string | null;
   ultimo_backup_em?: string | null;
   lembretes_ativos?: boolean;
   resumo_diario?: boolean;
