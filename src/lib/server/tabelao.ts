@@ -126,6 +126,7 @@ export async function sincronizarTabelao(origem: "automatico" | "manual" = "auto
     if (error) throw new Error(error.message);
     const porSlug = new Map((atuais ?? []).map((d) => [d.slug as string, d]));
     const vistos = new Set<string>();
+    const falhas: string[] = [];
 
     for (let i = 0; i < D.length; i++) {
       const d = D[i];
@@ -174,7 +175,9 @@ export async function sincronizarTabelao(origem: "automatico" | "manual" = "auto
         const pMin = Math.round(precoMin * 100) / 100;
         muda("preco_min", pMin, "a partir de");
         // lojas/NR deixam o "até" absurdo; só grava se for um teto plausível para apartamento
-        muda("preco_max", precoMax && precoMax >= pMin && precoMax <= pMin * 3 ? Math.round(precoMax * 100) / 100 : null);
+        const minFinal = Number((novo.preco_min as number | undefined) ?? atual.preco_min ?? pMin);
+        const pMax = precoMax ? Math.round(precoMax * 100) / 100 : null;
+        muda("preco_max", pMax && pMax >= minFinal && pMax <= minFinal * 3 ? pMax : null);
         muda("faixas", [...new Set(tetos.filter((t) => pMin <= t.teto).map((t) => t.id))].sort());
         const cond = (atual.condicoes_comerciais as string | null) ?? "";
         if (!cond || /tabel[aã]o Plano&Plano/i.test(cond)) muda("condicoes_comerciais", TEXTO_AUTO);
@@ -182,11 +185,15 @@ export async function sincronizarTabelao(origem: "automatico" | "manual" = "auto
 
       if (Object.keys(novo).length) {
         const { error: e } = await db.from("developments").update(novo).eq("id", atual.id);
-        if (e) throw new Error(`${atual.nome}: ${e.message}`);
-        res.atualizados++;
+        if (e) {
+          // um cadastro com problema não impede os outros de atualizar
+          falhas.push(`${atual.nome}: ${e.message}`);
+          res.mudancas = res.mudancas.filter((m) => m.nome !== atual.nome);
+        } else res.atualizados++;
       } else res.sem_mudanca++;
     }
     res.ok = true;
+    if (falhas.length) res.erro = `Não atualizou ${falhas.length}: ${falhas.join(" | ")}`.slice(0, 1000);
   } catch (e) {
     res.erro = e instanceof Error ? e.message : String(e);
   }

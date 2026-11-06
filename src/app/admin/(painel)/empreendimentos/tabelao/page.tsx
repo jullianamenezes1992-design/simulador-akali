@@ -49,7 +49,7 @@ export default async function TabelaoPage() {
           <p className={`rounded-xl px-3 py-2 text-sm ${ultima.ok ? "bg-emerald-50 text-emerald-900" : "bg-red-50 text-red-900"}`}>
             Última atualização: <strong>{dataHora(ultima.rodou_em)}</strong> ({ultima.origem === "manual" ? "manual" : "automática"}) —{" "}
             {ultima.ok
-              ? `${ultima.atualizados} empreendimento(s) com mudança, ${ultima.sem_mudanca} sem mudança, ${ultima.esgotados} sem unidades. Dados do tabelão de ${dataHora(ultima.dados_de)}.`
+              ? `${ultima.atualizados} empreendimento(s) com mudança, ${ultima.sem_mudanca} sem mudança, ${ultima.esgotados} sem unidades. Dados do tabelão de ${dataHora(ultima.dados_de)}.${ultima.erro ? ` Atenção: ${ultima.erro}` : ""}`
               : `não atualizou: ${ultima.erro}`}
           </p>
         )}
