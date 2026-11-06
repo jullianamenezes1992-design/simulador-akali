@@ -23,7 +23,7 @@ const TEXTO_AUTO =
 const MES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
 type LinhaD = [string, string, string, string, string, number | null, number | null, number | null, number | null, number | null, number | null, number | null, number | null, string | null, string | null, string | null, number | null, ...unknown[]];
-type Unidades = { geradoEm?: string; campos: string[]; consultados: number[]; rows: (number | string | null)[][] };
+type Unidades = { geradoEm?: string; blocos?: string[]; campos: string[]; consultados: number[]; rows: (number | string | null)[][] };
 
 export interface Mudanca {
   nome: string;
@@ -102,7 +102,10 @@ export async function sincronizarTabelao(origem: "automatico" | "manual" = "auto
     res.dados_de = uni.geradoEm ?? null;
     const C = uni.campos;
     const ix = (k: string) => C.indexOf(k);
-    const [iN, iArea, iValor, iTipo] = [ix("n"), ix("area"), ix("valor"), ix("tipo")];
+    const [iN, iArea, iValor, iTipo, iBloco, iUnid] = [ix("n"), ix("area"), ix("valor"), ix("tipo"), ix("bloco"), ix("unidade")];
+    // unidades não residenciais (NR, fachada ativa/lojas, garagem) não entram no MCMV nem no "a partir de"
+    const NAO_RESID = /\bNR|fachada|garagem|loja/i;
+    const blocos = uni.blocos ?? [];
     if ([iN, iArea, iValor].some((x) => x < 0)) throw new Error("Formato das unidades mudou; nada foi alterado.");
 
     // unidades residenciais válidas por empreendimento (ignora garagem, loja e valores quebrados)
@@ -113,6 +116,9 @@ export async function sincronizarTabelao(origem: "automatico" | "manual" = "auto
       const area = Number(r[iArea]);
       const tipo = iTipo >= 0 ? r[iTipo] : 0;
       if (!porEmp.has(n)) porEmp.set(n, []);
+      const bloco = iBloco >= 0 ? (typeof r[iBloco] === "number" ? (blocos[r[iBloco] as number] ?? "") : String(r[iBloco] ?? "")) : "";
+      const unid = iUnid >= 0 ? String(r[iUnid] ?? "") : "";
+      if (NAO_RESID.test(bloco) || NAO_RESID.test(unid)) continue;
       if ((tipo === 0 || tipo == null) && valor >= 80000 && valor <= 5000000 && area >= 20) porEmp.get(n)!.push(valor);
     }
     const consultados = new Set(uni.consultados.map(Number));
