@@ -39,6 +39,19 @@ export default function SettingsForm({ s }: { s: SiteSettings }) {
           <input id="email_contato" name="email_contato" type="email" defaultValue={s.email_contato ?? ""} className="input" />
           {err("email_contato")}
         </div>
+        {(
+          [
+            ["instagram", "Instagram", "@seuperfil"],
+            ["tiktok", "TikTok", "@seuperfil"],
+            ["facebook", "Facebook", "facebook.com/suapagina"],
+            ["youtube", "YouTube", "@seucanal"],
+          ] as const
+        ).map(([k, rotulo, ph]) => (
+          <div key={k}>
+            <label className="label" htmlFor={`rede_${k}`}>{rotulo} (aparece no rodapé do site)</label>
+            <input id={`rede_${k}`} name={`rede_${k}`} defaultValue={s.redes_sociais?.[k] ?? ""} placeholder={ph} className="input" />
+          </div>
+        ))}
         <div className="sm:col-span-2">
           <label className="label" htmlFor="encarregado_dados">Encarregado de dados (LGPD) — nome e contato</label>
           <input id="encarregado_dados" name="encarregado_dados" defaultValue={s.encarregado_dados ?? ""} className="input" />

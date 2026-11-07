@@ -18,6 +18,8 @@ export interface LandingConteudo {
   aviso_rodape?: string;
 }
 
+export type RedeSocial = "instagram" | "tiktok" | "facebook" | "youtube";
+
 export interface SiteSettings {
   empresa_nome: string;
   creci: string | null;
@@ -31,6 +33,8 @@ export interface SiteSettings {
   meta_pixel_id: string | null;
   corretora_nome?: string | null;
   corretora_foto_url?: string | null;
+  /** Perfis nas redes: { instagram: "@perfil", tiktok: "@perfil", facebook: "...", youtube: "..." } */
+  redes_sociais?: Partial<Record<RedeSocial, string>> | null;
   landing_conteudo: LandingConteudo;
   politica_versao: string;
   updated_at?: string;

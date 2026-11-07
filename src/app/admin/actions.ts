@@ -456,7 +456,12 @@ export async function salvarConfiguracoes(_prev: ActionState, fd: FormData): Pro
       parsed.error.issues.forEach((i) => (campos[i.path.join(".")] ??= i.message));
       return { erro: "Revise os campos destacados.", campos };
     }
-    const { error } = await supabase.from("site_settings").update({ ...parsed.data, updated_by: userId }).eq("id", 1);
+    const redes_sociais: Record<string, string> = {};
+    for (const k of ["instagram", "tiktok", "facebook", "youtube"]) {
+      const v = String(fd.get(`rede_${k}`) ?? "").trim().slice(0, 120);
+      if (v) redes_sociais[k] = v;
+    }
+    const { error } = await supabase.from("site_settings").update({ ...parsed.data, redes_sociais, updated_by: userId }).eq("id", 1);
     if (error) return { erro: error.message };
     revalidatePath("/", "layout");
     return { ok: true, mensagem: "Configurações salvas." };
