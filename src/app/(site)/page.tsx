@@ -1,4 +1,5 @@
 /* eslint-disable @next/next/no-img-element -- fotos vêm das construtoras/Storage */
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, BadgePercent, ChevronDown, HandCoins, MessageCircle, PiggyBank, ShieldCheck, Clock } from "lucide-react";
 import { getActiveParams, getSettings, listPublicDevelopments } from "@/lib/data";
@@ -6,6 +7,24 @@ import { formatBRL, formatDate } from "@/lib/format";
 import { REGIOES } from "@/lib/constants";
 import DevelopmentCard, { capaDe } from "@/components/site/DevelopmentCard";
 import CalculadoraRenda, { type FaixaResumo } from "@/components/site/CalculadoraRenda";
+
+// foto de um prédio na prévia do link da página inicial (WhatsApp/Facebook), no lugar da imagem azul
+export async function generateMetadata(): Promise<Metadata> {
+  const s = await getSettings();
+  const title = `${s.empresa_nome} — Simulador Minha Casa, Minha Vida`;
+  const description = "Faça uma pré-simulação gratuita e veja os empreendimentos em São Paulo que combinam com o seu perfil.";
+  return {
+    openGraph: {
+      type: "website",
+      locale: "pt_BR",
+      siteName: s.empresa_nome,
+      title,
+      description,
+      images: [{ url: "/api/og-regiao/todas?v=1", width: 1200, height: 630, alt: title }],
+    },
+    twitter: { card: "summary_large_image", images: ["/api/og-regiao/todas?v=1"] },
+  };
+}
 
 const ICONES = [BadgePercent, HandCoins, PiggyBank, Clock];
 const REGIOES_SP = ["zona_norte", "zona_leste", "zona_sul", "zona_oeste", "centro"] as const;

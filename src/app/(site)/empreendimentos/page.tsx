@@ -6,14 +6,27 @@ import { listPublicDevelopments } from "@/lib/data";
 import { REGIOES, STATUS_OBRA } from "@/lib/constants";
 import { formatBRL } from "@/lib/format";
 
-export const metadata: Metadata = {
-  title: "Empreendimentos Minha Casa, Minha Vida em São Paulo",
-  description: "Catálogo de empreendimentos do Minha Casa, Minha Vida em São Paulo e região, com filtros por região e preço.",
-};
+type SP = Promise<Record<string, string | string[] | undefined>>;
+
+export async function generateMetadata({ searchParams }: { searchParams: SP }): Promise<Metadata> {
+  const sp = await searchParams;
+  const r = REGIOES.find((x) => x.value === sp.regiao);
+  const em = r?.value === "interior" ? "no" : "na";
+  const title = r ? `Empreendimentos ${em} ${r.label}` : "Empreendimentos Minha Casa, Minha Vida em São Paulo";
+  const description = r
+    ? `Apartamentos do Minha Casa, Minha Vida ${em} ${r.label}. Veja as opções e faça sua simulação grátis.`
+    : "Catálogo de empreendimentos do Minha Casa, Minha Vida em São Paulo e região, com filtros por região e preço.";
+  // foto de um prédio da região na prévia do link (WhatsApp/Facebook)
+  const img = `/api/og-regiao/${r ? r.value : "todas"}?v=1`;
+  return {
+    title,
+    description,
+    openGraph: { title, description, images: [{ url: img, width: 1200, height: 630, alt: title }] },
+    twitter: { card: "summary_large_image", images: [img] },
+  };
+}
 
 const PRECOS = [220000, 250000, 275000, 300000, 350000, 400000, 500000, 600000];
-
-type SP = Promise<Record<string, string | string[] | undefined>>;
 
 export default async function Catalogo({ searchParams }: { searchParams: SP }) {
   const sp = await searchParams;
