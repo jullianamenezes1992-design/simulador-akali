@@ -21,7 +21,9 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   return {
     title: d.nome,
     description: `${d.nome} — ${d.bairro ?? regiaoLabel(d.regiao)}, ${d.preco_min == null ? "preço sob consulta" : `a partir de ${formatBRL(d.preco_min)}`}. ${d.dormitorios.join(" e ")} dormitório(s).`,
-    openGraph: d.capa_url && /^https?:/.test(d.capa_url) ? { images: [d.capa_url] } : undefined,
+    // foto do empreendimento redimensionada para o WhatsApp/Facebook mostrarem na prévia do link
+    openGraph: { images: [{ url: `/api/og/${d.slug}?v=1`, width: 1200, height: 630, alt: d.nome }] },
+    twitter: { card: "summary_large_image", images: [`/api/og/${d.slug}?v=1`] },
   };
 }
 
