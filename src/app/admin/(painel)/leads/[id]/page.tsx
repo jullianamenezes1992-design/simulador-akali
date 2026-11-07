@@ -57,6 +57,7 @@ const TIPO_EVENTO: Record<string, string> = {
   status_alterado: "Etapa alterada",
   nota: "Observação",
   mensagem_enviada: "Mensagem pronta enviada",
+  cadastro_manual: "Cadastrado pela corretora (redes sociais)",
 };
 
 export default async function LeadDetalhe({ params }: { params: Promise<{ id: string }> }) {
@@ -106,12 +107,13 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
   });
 
   // Resumo em texto para colar no projeto "Atendimento Akali" do Claude
-  const idade = l.data_nascimento ? Math.floor(idadeEmMeses(l.data_nascimento) / 12) : null;
+  const idade = l.data_nascimento ? Math.floor(idadeEmMeses(l.data_nascimento) / 12) : (l.idade_informada ?? null);
   const txt = (v: unknown) => (v == null || v === "" ? "—" : String(v));
   const resumoAtendimento = [
     `CLIENTE: ${l.nome} (código ${l.codigo})`,
     `Cadastro: ${formatDate(l.created_at, true)} • Status: ${st.label}${l.simulacao_completa ? "" : ` • Simulação incompleta (parou na etapa ${l.etapa_parou ?? "?"} de 6)`}`,
     `WhatsApp: ${maskPhone(l.telefone)}${l.email ? ` • E-mail: ${l.email}` : ""}`,
+    l.cadastro_manual ? `Veio pelas redes: ${l.origem ?? "—"}${l.conteudo_rede ? ` (${l.conteudo_rede})` : ""}${l.regiao_detalhe ? ` • Bairro: ${l.regiao_detalhe}` : ""}${l.proximo_passo ? ` • Próximo passo: ${l.proximo_passo}` : ""}` : null,
     `Idade: ${idade ?? "—"} anos • Estado civil: ${labelOf(ESTADOS_CIVIS, l.estado_civil)} • Dependentes: ${txt(l.dependentes)}`,
     "",
     "RENDA",
@@ -195,13 +197,29 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
               itens={[
                 ["Nome", l.nome],
                 ["CPF", <RevealCPF key="cpf" leadId={l.id} final={l.cpf_final} />],
-                ["Nascimento", l.data_nascimento ? formatDate(`${l.data_nascimento}T12:00:00Z`) : "—"],
+                l.data_nascimento || !l.idade_informada
+                  ? ["Nascimento", l.data_nascimento ? formatDate(`${l.data_nascimento}T12:00:00Z`) : "—"]
+                  : ["Idade (informada)", `${l.idade_informada} anos`],
                 ["Estado civil", labelOf(ESTADOS_CIVIS, l.estado_civil)],
                 ["Telefone", maskPhone(l.telefone)],
                 ["E-mail", l.email ?? "—"],
               ]}
             />
           </Bloco>
+
+          {l.cadastro_manual && (
+            <Bloco titulo="Contato das redes sociais">
+              <Linhas
+                itens={[
+                  ["Rede", l.origem ?? "—"],
+                  ["Vídeo ou post", l.conteudo_rede ?? "—"],
+                  ["Data do contato", l.data_contato ? formatDate(`${l.data_contato}T12:00:00Z`) : "—"],
+                  ["Bairro / região", l.regiao_detalhe ?? "—"],
+                  ["Próximo passo", l.proximo_passo ?? "—"],
+                ]}
+              />
+            </Bloco>
+          )}
 
           <Bloco titulo="Perfil financeiro">
             <Linhas

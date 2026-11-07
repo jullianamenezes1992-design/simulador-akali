@@ -102,3 +102,11 @@ h3 {
   font-family: var(--font-display);
   letter-spacing: -0.02em;
 }
+
+@utility chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-sm font-semibold text-ink hover:border-caixa;
+}
+
+@utility chip-on {
+    @apply border-caixa bg-caixa/10 text-caixa;
+}

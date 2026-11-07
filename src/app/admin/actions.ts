@@ -713,3 +713,130 @@ export async function restaurarMensagensEtapa(status: string) {
   if (error) throw new Error(error.message);
   revalidatePath("/admin/mensagens");
 }
+
+// ---------------------------------------------------------------------------
+// Contatos das redes sociais (cadastro manual)
+// ---------------------------------------------------------------------------
+
+/** "3.200", "3200", "3.200,50", "R$ 3.200" → 3200 / 3200.5 */
+function numeroBR(v: FormDataEntryValue | null): number {
+  const s = String(v ?? "").replace(/[^\d,.]/g, "");
+  if (!s) return 0;
+  const n = s.includes(",") ? Number(s.replace(/\./g, "").replace(",", ".")) : Number(s.replace(/\.(?=\d{3}(\D|$))/g, ""));
+  return Number.isFinite(n) && n > 0 ? Math.min(n, 10_000_000) : 0;
+}
+
+export async function criarContatoRedes(_prev: ActionState, fd: FormData): Promise<ActionState & { leadId?: string }> {
+  try {
+    const { userId } = await assertAdmin();
+    const { REDES, REGIOES: RG, VINCULOS, RELACOES_COMPOSICAO } = await import("@/lib/constants");
+    const nome = String(fd.get("nome") ?? "").trim().replace(/\s+/g, " ");
+    if (nome.length < 2) return { erro: "Preencha o nome do cliente." };
+    let tel = String(fd.get("telefone") ?? "").replace(/\D/g, "");
+    if (tel.length >= 12 && tel.startsWith("55")) tel = tel.slice(2);
+    if (!/^\d{10,11}$/.test(tel)) return { erro: "Telefone com DDD inválido (ex.: 11 91234-5678)." };
+
+    const db = createAdminClient();
+    const { data: existe } = await db.from("leads").select("id, nome").eq("telefone", tel).is("excluido_em", null).limit(1).maybeSingle();
+    if (existe) return { erro: `Este telefone já está cadastrado como ${existe.nome}.`, leadId: existe.id };
+
+    const origem = String(fd.get("origem") ?? "");
+    const status = String(fd.get("status") ?? "novo");
+    const vinculo = String(fd.get("vinculo") ?? "");
+    const relacao = String(fd.get("relacao_composicao") ?? "");
+    const comporRenda = fd.get("compor_renda") === "sim";
+    const renda = numeroBR(fd.get("renda"));
+    const rendaComp = comporRenda ? numeroBR(fd.get("renda_composicao")) : 0;
+    const fgts = String(fd.get("fgts") ?? "");
+    const fgtsValor = fgts === "sim" ? numeroBR(fd.get("fgts_valor")) : 0;
+    const idade = Number(fd.get("idade")) || null;
+    if (idade != null && (idade < 16 || idade > 100)) return { erro: "Idade inválida." };
+    const regioes = fd.getAll("regioes").map(String).filter((r) => RG.some((x) => x.value === r));
+    const dataContato = /^\d{4}-\d{2}-\d{2}$/.test(String(fd.get("data_contato"))) ? String(fd.get("data_contato")) : null;
+    const texto = (k: string, max = 500) => String(fd.get(k) ?? "").trim().slice(0, max) || null;
+
+    // Estimativa automática, quando há renda e idade (mesmo cálculo do site)
+    let simulacao = null as unknown;
+    let paramsVersao: number | null = null;
+    let recomendados: string[] = [];
+    const rendaTotal = renda + rendaComp;
+    if (renda > 0 && idade) {
+      const { getActiveParams } = await import("@/lib/data");
+      const { simular } = await import("@/lib/simulacao/engine");
+      const { listarAtivosParaMatch, ranquearDevs } = await import("@/lib/server/leads");
+      const ativo = await getActiveParams();
+      if (ativo) {
+        const r = simular(
+          {
+            rendaPrincipal: renda,
+            rendaComposicao: rendaComp,
+            idadeMeses: idade * 12,
+            fgtsSaldo: fgtsValor,
+            fgtsTresAnos: fgtsValor > 0,
+            entrada: 0,
+            possuiImovel: false,
+            financiamentoAtivo: false,
+            jaBeneficiado: false,
+            restricaoCredito: "nao_sei",
+          },
+          ativo.params,
+          ativo.versao
+        );
+        simulacao = r;
+        paramsVersao = ativo.versao;
+        const ranking = ranquearDevs(await listarAtivosParaMatch(), r, { regioes, dormitoriosMin: null, precisaVaga: false, preferenciaObra: "indiferente" });
+        recomendados = ranking.compativeis.slice(0, 12).map((x) => x.dev.id);
+      }
+    }
+
+    const { data: lead, error } = await db
+      .from("leads")
+      .insert({
+        nome,
+        telefone: tel,
+        profissao: texto("profissao", 120),
+        tipo_renda: VINCULOS.some((v) => v.value === vinculo) ? vinculo : null,
+        renda_principal: renda,
+        compor_renda: comporRenda,
+        relacao_composicao: comporRenda && RELACOES_COMPOSICAO.some((r) => r.value === relacao) ? relacao : null,
+        renda_composicao: rendaComp,
+        renda_total: rendaTotal,
+        fgts_saldo: fgtsValor,
+        fgts_tres_anos: fgtsValor > 0,
+        regioes,
+        regiao_detalhe: texto("regiao_detalhe", 200),
+        idade_informada: idade,
+        origem: (REDES as readonly string[]).includes(origem) ? origem : "Outro",
+        conteudo_rede: texto("conteudo", 200),
+        proximo_passo: texto("proximo_passo", 300),
+        data_contato: dataContato,
+        status: LEAD_STATUS.some((s) => s.value === status) ? status : "novo",
+        responsavel_id: userId,
+        cadastro_manual: true,
+        simulacao_completa: !!simulacao,
+        simulacao,
+        params_versao: paramsVersao,
+        recomendados,
+        consentimento_em: new Date().toISOString(),
+        consentimento_versao: "contato-redes-manual",
+      })
+      .select("id")
+      .single();
+    if (error || !lead) return { erro: error?.message ?? "Não foi possível salvar." };
+
+    await db.from("lead_events").insert({ lead_id: lead.id, tipo: "cadastro_manual", dados: { origem, conteudo: texto("conteudo", 200) } });
+    const obs = texto("obs", 4000);
+    if (obs) await db.from("lead_notes").insert({ lead_id: lead.id, autor_id: userId, texto: obs });
+    const dia = String(fd.get("proximo_dia") ?? "");
+    const quando = /^\d{4}-\d{2}-\d{2}$/.test(dia) ? isoDeDataHoraSP(dia, "10:00") : null;
+    if (quando) {
+      await db.from("lead_tasks").insert({ lead_id: lead.id, tipo: "whatsapp", quando, descricao: texto("proximo_passo", 300) ?? "Retomar contato", lembrar_min: 0 });
+    }
+    revalidatePath("/admin/redes");
+    revalidatePath("/admin/leads");
+    revalidatePath("/admin/agenda");
+    return { ok: true, mensagem: `${nome} cadastrado(a)!`, leadId: lead.id };
+  } catch (e) {
+    return { erro: msg(e) };
+  }
+}

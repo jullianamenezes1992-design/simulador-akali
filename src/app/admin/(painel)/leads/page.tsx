@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Download, Trash2 } from "lucide-react";
+import { AtSign, Download, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/admin/ui";
 import { LEAD_STATUS, leadStatusInfo } from "@/lib/constants";
 import { formatBRL, formatDate, maskPhone } from "@/lib/format";
@@ -71,6 +71,9 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
         <a href={exportar("csv")} className="btn-secondary">
           <Download size={16} /> CSV
         </a>
+        <Link href="/admin/redes" className="btn-secondary">
+          <AtSign size={16} /> Redes sociais
+        </Link>
         <Link href="/admin/leads/lixeira" className="btn-secondary">
           <Trash2 size={16} /> Lixeira
         </Link>
