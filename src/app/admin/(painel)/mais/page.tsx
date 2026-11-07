@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRight, ExternalLink, History, LogOut, Settings, SlidersHorizontal } from "lucide-react";
+import { ChevronRight, ExternalLink, History, LogOut, MessageSquareText, Settings, SlidersHorizontal } from "lucide-react";
 import AppCelular from "@/components/admin/AppCelular";
 import Backups from "@/components/admin/Backups";
 import { listarBackups } from "@/lib/server/backup";
@@ -12,6 +12,7 @@ import { sair } from "../../actions";
 export const metadata: Metadata = { title: "Mais" };
 
 const LINKS = [
+  { href: "/admin/mensagens", label: "Mensagens prontas", desc: "Textos de WhatsApp para cada etapa do atendimento", icon: MessageSquareText },
   { href: "/admin/configuracoes", label: "Configurações", desc: "WhatsApp, avisos, CRECI e textos do site", icon: Settings },
   { href: "/admin/parametros", label: "Parâmetros da simulação", desc: "Faixas, juros e regras do cálculo", icon: SlidersHorizontal },
   { href: "/admin/historico", label: "Histórico de alterações", desc: "Quem mudou o quê no painel", icon: History },

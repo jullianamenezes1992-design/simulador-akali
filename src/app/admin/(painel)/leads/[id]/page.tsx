@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, MessageCircle } from "lucide-react";
+import MensagensProntas from "@/components/admin/MensagensProntas";
+import { mensagensDaEtapa, preencherMensagem } from "@/lib/mensagens-prontas";
+import { siteUrl } from "@/lib/server/notificacoes";
 import { AnonymizeButton, CopiarAtendimentoButton, DeleteLeadButton, OrigemEditor, NoteForm, ResponsavelSelect, RevealCPF, StatusSelect } from "@/components/admin/LeadControls";
 import {
   ESTADOS_CIVIS,
@@ -53,6 +56,7 @@ const TIPO_EVENTO: Record<string, string> = {
   clique_whatsapp: "Clicou no WhatsApp",
   status_alterado: "Etapa alterada",
   nota: "Observação",
+  mensagem_enviada: "Mensagem pronta enviada",
 };
 
 export default async function LeadDetalhe({ params }: { params: Promise<{ id: string }> }) {
@@ -63,7 +67,7 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
   const { data: l } = await supabase.from("leads").select("*, escolhido:escolhido_id(id, nome, slug)").eq("id", id).maybeSingle();
   if (!l) notFound();
 
-  const [eventos, notas, equipe, auditoria, recomendados, tarefas] = await Promise.all([
+  const [eventos, notas, equipe, auditoria, recomendados, tarefas, msgSalvas] = await Promise.all([
     supabase.from("lead_events").select("id, tipo, dados, created_at, development:development_id(nome, slug)").eq("lead_id", id).order("created_at", { ascending: false }).limit(200),
     supabase.from("lead_notes").select("id, texto, created_at, autor:autor_id(nome)").eq("lead_id", id).order("created_at", { ascending: false }),
     supabase.from("admin_users").select("user_id, nome").order("nome"),
@@ -72,6 +76,7 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
       ? supabase.from("developments").select("id, nome, slug").in("id", l.recomendados)
       : Promise.resolve({ data: [] as { id: string; nome: string; slug: string }[] }),
     supabase.from("lead_tasks").select("*").eq("lead_id", id).order("quando", { ascending: false }).limit(50),
+    supabase.from("mensagens_prontas").select("status, ordem, titulo, texto").eq("status", l.status),
   ]);
 
   const nomesEquipe = new Map((equipe.data ?? []).map((p) => [p.user_id, p.nome]));
@@ -83,6 +88,22 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
   const visualizados = [...new Map(evs.filter((e) => e.tipo === "visualizou_empreendimento" && e.development).map((e) => [e.development!.slug, e])).values()];
   const recOrdenados = (l.recomendados as string[]).map((rid) => (recomendados.data ?? []).find((d) => d.id === rid)).filter(Boolean) as { id: string; nome: string; slug: string }[];
   const anonimizado = !!l.anonimizado_em;
+
+  // Mensagens prontas da etapa atual, já com nome, imóvel e link do cliente
+  const imovelMsg = escolhido ?? recOrdenados[0] ?? null;
+  const linkMsg = `${siteUrl() || "https://simulador-akali.vercel.app"}${imovelMsg ? `/empreendimentos/${imovelMsg.slug}` : ""}?utm_source=whatsapp&utm_medium=corretora&utm_content=followup`;
+  const ultimoStatus = evs.find((e) => e.tipo === "status_alterado")?.created_at ?? null;
+  const mensagensEtapa = mensagensDaEtapa(l.status, msgSalvas.data ?? []).map((m) => {
+    const env = evs.find(
+      (e) => e.tipo === "mensagem_enviada" && e.dados?.status === l.status && Number(e.dados?.ordem) === m.ordem && (!ultimoStatus || e.created_at >= ultimoStatus)
+    );
+    return {
+      ordem: m.ordem,
+      titulo: m.titulo,
+      texto: preencherMensagem(m.texto, { nome: l.nome, imovel: imovelMsg?.nome ?? null, link: linkMsg, codigo: l.codigo }),
+      enviadaEm: env ? formatDate(env.created_at, true) : null,
+    };
+  });
 
   // Resumo em texto para colar no projeto "Atendimento Akali" do Claude
   const idade = l.data_nascimento ? Math.floor(idadeEmMeses(l.data_nascimento) / 12) : null;
@@ -271,6 +292,20 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
             </div>
           </Bloco>
 
+          {!anonimizado && (
+            <Bloco titulo="Mensagens prontas">
+              <MensagensProntas
+                key={l.status}
+                leadId={l.id}
+                status={l.status}
+                etapa={st.label}
+                telefone={l.telefone}
+                mensagens={mensagensEtapa}
+                podeEditar={papel === "admin"}
+              />
+            </Bloco>
+          )}
+
           <Bloco titulo="Agenda do cliente">
             <NovaTarefaForm leadId={l.id} />
             {(() => {
@@ -348,6 +383,7 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
                     {TIPO_EVENTO[e.tipo] ?? e.tipo}
                     {e.development ? `: ${e.development.nome}` : ""}
                     {e.tipo === "status_alterado" && e.dados?.para ? ` → ${leadStatusInfo(String(e.dados.para)).label}` : ""}
+                    {e.tipo === "mensagem_enviada" && e.dados?.titulo ? `: ${leadStatusInfo(String(e.dados.status)).label} · ${e.dados.ordem}. ${e.dados.titulo}` : ""}
                   </p>
                   <p className="text-xs text-ink-soft">{formatDate(e.created_at, true)}</p>
                 </li>

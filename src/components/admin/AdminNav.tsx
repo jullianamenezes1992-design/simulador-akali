@@ -9,6 +9,7 @@ import {
   History,
   LayoutDashboard,
   Menu,
+  MessageSquareText,
   Settings,
   SlidersHorizontal,
   Smartphone,
@@ -20,6 +21,7 @@ const ITENS = [
   { href: "/admin/agenda", label: "Agenda", icon: CalendarDays },
   { href: "/admin/leads", label: "Leads", icon: Users },
   { href: "/admin/empreendimentos", label: "Empreendimentos", icon: Building2 },
+  { href: "/admin/mensagens", label: "Mensagens prontas", icon: MessageSquareText },
   { href: "/admin/parametros", label: "Parâmetros", icon: SlidersHorizontal },
   { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
   { href: "/admin/historico", label: "Histórico", icon: History },
@@ -35,7 +37,7 @@ const ABAS = [
   { href: "/admin/mais", label: "Mais", icon: Menu },
 ];
 
-const MAIS = ["/admin/mais", "/admin/parametros", "/admin/configuracoes", "/admin/historico"];
+const MAIS = ["/admin/mais", "/admin/mensagens", "/admin/parametros", "/admin/configuracoes", "/admin/historico"];
 
 export default function AdminNav() {
   const path = usePathname();

@@ -524,7 +524,7 @@ export async function testarNotificacoes(): Promise<{ email?: string; whatsapp?:
 // ---------------------------------------------------------------------------
 
 const UUID_RE = /^[0-9a-f-]{36}$/i;
-const STATUS_ANTES_DA_VISITA = ["novo", "em_atendimento", "documentacao", "analise_credito", "aprovado"];
+const STATUS_ANTES_DA_VISITA = ["novo", "em_atendimento", "sem_resposta", "documentacao", "analise_credito", "aprovado"];
 
 function revalidarAgenda(leadId?: string) {
   revalidatePath("/admin/agenda");
@@ -678,4 +678,38 @@ export async function salvarTabelaoAuto(ativo: boolean) {
   const { error } = await db.from("notification_settings").update({ tabelao_auto: !!ativo }).eq("id", 1);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/empreendimentos/tabelao");
+}
+
+// ---------------------------------------------------------------------------
+// Mensagens prontas por etapa
+// ---------------------------------------------------------------------------
+
+export async function registrarMensagemEnviada(leadId: string, status: string, ordem: number, titulo: string) {
+  const { supabase } = await assertAdmin();
+  if (!UUID_RE.test(leadId) || ![1, 2, 3].includes(ordem)) throw new Error("Dados inválidos");
+  await supabase.from("lead_events").insert({
+    lead_id: leadId,
+    tipo: "mensagem_enviada",
+    dados: { status, ordem, titulo: String(titulo).slice(0, 80) },
+  });
+  revalidatePath(`/admin/leads/${leadId}`);
+}
+
+export async function salvarMensagensEtapa(status: string, itens: { ordem: number; titulo: string; texto: string }[]) {
+  const { supabase } = await assertAdmin(true);
+  if (!LEAD_STATUS.some((s) => s.value === status)) throw new Error("Etapa inválida");
+  const linhas = itens
+    .filter((i) => [1, 2, 3].includes(i.ordem))
+    .map((i) => ({ status, ordem: i.ordem, titulo: i.titulo.trim().slice(0, 80) || `Mensagem ${i.ordem}`, texto: i.texto.trim().slice(0, 2000), updated_at: new Date().toISOString() }));
+  if (linhas.some((l) => !l.texto)) throw new Error("Nenhuma mensagem pode ficar vazia.");
+  const { error } = await supabase.from("mensagens_prontas").upsert(linhas);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/mensagens");
+}
+
+export async function restaurarMensagensEtapa(status: string) {
+  const { supabase } = await assertAdmin(true);
+  const { error } = await supabase.from("mensagens_prontas").delete().eq("status", status);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/mensagens");
 }
