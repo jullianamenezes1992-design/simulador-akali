@@ -19,6 +19,7 @@ import { formatBRL, formatDate, idadeEmMeses, maskPhone } from "@/lib/format";
 import { requireAdmin } from "@/lib/server/auth";
 import type { SimulationResult } from "@/lib/simulacao/types";
 import { NovaTarefaForm, TarefaItem } from "@/components/admin/Agenda";
+import DadosSalesforce from "@/components/admin/DadosSalesforce";
 import { agoraMs, diaSP, type Tarefa } from "@/lib/agenda";
 
 const simNao = (v: boolean | null | undefined) => (v == null ? "—" : v ? "Sim" : "Não");
@@ -218,6 +219,12 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
               ]}
             />
           </Bloco>
+
+          {!anonimizado && (
+            <Bloco titulo="Salesforce Plano&Plano">
+              <DadosSalesforce leadId={l.id} oportunidade={l.oportunidade_sf ?? null} ar={l.ar_numero ?? null} ab={l.ab_numero ?? null} temCpf={!!l.cpf_final} />
+            </Bloco>
+          )}
 
           {l.cadastro_manual && (
             <Bloco titulo="Contato das redes sociais">

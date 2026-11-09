@@ -105,7 +105,7 @@ export default function AprovadoForm({
       {campoDinheiro("financiamento", "financiamento", "Financiamento aprovado")}
       {campoDinheiro("subsidio", "subsidio", "Subsídio")}
       {campoDinheiro("fgts", "fgts", "FGTS")}
-      {campoDinheiro("entrada", "entrada", "Entrada (recursos próprios)")}
+      {campoDinheiro("entrada", "entrada", "Entrada à vista (recursos próprios)")}
       <label>
         <span className="label">Prazo (meses)</span>
         <input name="prazo_meses" defaultValue={a.prazo_meses ?? ""} inputMode="numeric" placeholder="420" className="input" />
@@ -113,9 +113,28 @@ export default function AprovadoForm({
       {campoDinheiro("parcela", "parcela_max", "Parcela máxima")}
 
       <div className="rounded-2xl bg-caixa p-4 text-white sm:col-span-2">
-        <p className="text-xs font-bold uppercase tracking-wider text-white/80">Poder de compra</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-white/80">Recursos do cliente</p>
         <p className="font-display text-3xl font-black">{formatBRL(poder)}</p>
-        <p className="text-xs text-white/80">Financiamento + subsídio + FGTS + entrada</p>
+        <p className="text-xs text-white/80">
+          Financiamento + subsídio + FGTS + entrada à vista. Nos projetos, o sistema ainda soma a entrada parcelada com a construtora (até 30% do imóvel, parcela até
+          30% da renda{parseMoney(v.renda) > 0 ? ` = ${formatBRL(parseMoney(v.renda) * 0.3)}/mês` : ""}).
+        </p>
+      </div>
+
+      <p className="text-xs font-bold uppercase tracking-wider text-caixa sm:col-span-2">Números no Salesforce (Plano&amp;Plano)</p>
+      <label>
+        <span className="label">Oportunidade</span>
+        <input name="oportunidade_sf" defaultValue={a.oportunidade_sf ?? ""} placeholder="006TT00000…" className="input" maxLength={40} />
+      </label>
+      <div className="grid grid-cols-2 gap-2">
+        <label>
+          <span className="label">AR (análise de crédito)</span>
+          <input name="ar_numero" defaultValue={a.ar_numero ?? ""} placeholder="AR-1035002" className="input" maxLength={30} />
+        </label>
+        <label>
+          <span className="label">AB (aprovação bancária)</span>
+          <input name="ab_numero" defaultValue={a.ab_numero ?? ""} placeholder="AB-317630" className="input" maxLength={30} />
+        </label>
       </div>
 
       <p className="text-xs font-bold uppercase tracking-wider text-caixa sm:col-span-2">Interesse e atendimento</p>

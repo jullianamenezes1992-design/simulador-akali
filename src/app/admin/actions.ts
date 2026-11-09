@@ -904,8 +904,17 @@ async function montarAprovado(fd: FormData): Promise<{ erro: string } | { dados:
       dormitorios_min: dorm && dorm >= 1 && dorm <= 4 ? dorm : null,
       status: STATUS_APROVADO.some((s) => s.value === status) ? status : "ativo",
       observacoes: String(fd.get("observacoes") ?? "").trim().slice(0, 4000) || null,
+      oportunidade_sf: codigoSF(fd.get("oportunidade_sf"), 40),
+      ar_numero: codigoSF(fd.get("ar_numero"), 30)?.toUpperCase() ?? null,
+      ab_numero: codigoSF(fd.get("ab_numero"), 30)?.toUpperCase() ?? null,
     },
   };
+}
+
+/** Números do Salesforce (oportunidade, AR, AB): só letras, números e hífen (o ID da oportunidade diferencia maiúsculas). */
+function codigoSF(v: FormDataEntryValue | null, max: number) {
+  const t = String(v ?? "").trim().replace(/[^A-Za-z0-9-]/g, "").slice(0, max);
+  return t || null;
 }
 
 export async function salvarAprovado(_prev: ActionState, fd: FormData): Promise<ActionState & { id?: string }> {
@@ -1087,6 +1096,32 @@ export async function importarAprovados(_prev: ActionState, fd: FormData): Promi
       mensagem: `${ok} aprovado(s) importado(s).${erros.length ? ` ${erros.length} linha(s) não importada(s): ${erros.slice(0, 8).join(" · ")}${erros.length > 8 ? "…" : ""}` : ""}`,
       ...(ok === 0 ? { erro: erros.slice(0, 8).join(" · ") || "Nenhuma linha importada." } : {}),
     };
+  } catch (e) {
+    return { erro: msg(e) };
+  }
+}
+
+/** Números do Salesforce (oportunidade, AR, AB) e CPF do cliente, editados na ficha. */
+export async function salvarDadosSF(leadId: string, _prev: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const { supabase } = await assertAdmin();
+    if (!UUID_RE.test(leadId)) return { erro: "Cadastro inválido." };
+    const { gravarCPF, limparCodigoSF } = await import("@/lib/server/salesforce");
+    const nums = {
+      oportunidade_sf: limparCodigoSF(fd.get("oportunidade_sf"), 40),
+      ar_numero: limparCodigoSF(fd.get("ar_numero"), 30, true),
+      ab_numero: limparCodigoSF(fd.get("ab_numero"), 30, true),
+    };
+    const { error } = await supabase.from("leads").update(nums).eq("id", leadId);
+    if (error) return { erro: error.message };
+    await supabase.from("aprovados").update(nums).eq("lead_id", leadId);
+    const cpf = String(fd.get("cpf") ?? "").trim();
+    if (cpf) {
+      const g = await gravarCPF(leadId, cpf);
+      if ("erro" in g) return { erro: g.erro };
+    }
+    revalidatePath(`/admin/leads/${leadId}`);
+    return { ok: true, mensagem: cpf ? "Dados e CPF salvos." : "Dados salvos." };
   } catch (e) {
     return { erro: msg(e) };
   }

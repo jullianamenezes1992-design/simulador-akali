@@ -1,9 +1,13 @@
 /**
  * Clientes aprovados: tipos, rótulos e regras de compatibilidade com os empreendimentos.
- * Poder de compra = financiamento aprovado + subsídio + FGTS + entrada (calculado também no banco).
+ * Recursos (coluna poder_compra) = financiamento aprovado + subsídio + FGTS + entrada à vista (calculado também no banco).
+ * O que faltar para o preço pode virar entrada parcelada com a construtora, limitada a 30% do preço
+ * e a uma parcela de até 30% da renda (nos meses até a entrega das chaves, mais os pós-chaves dos parâmetros).
  */
 import { formatBRL } from "./format";
 import { regiaoLabel } from "./constants";
+import { mesesAteEntrega } from "./simulacao/engine";
+import type { SimulationParams } from "./simulacao/types";
 
 export const STATUS_APROVADO = [
   { value: "ativo", label: "Aprovado (ativo)", cor: "bg-emerald-100 text-emerald-800" },
@@ -47,6 +51,9 @@ export interface Aprovado {
   dormitorios_min: number | null;
   status: string;
   observacoes: string | null;
+  oportunidade_sf: string | null;
+  ar_numero: string | null;
+  ab_numero: string | null;
   created_at: string;
 }
 
@@ -62,6 +69,80 @@ export interface DevCompat {
   oferta_texto: string | null;
   unidades_disponiveis: number | null;
   status_obra: string | null;
+  previsao_entrega?: string | null;
+}
+
+/** Regra da entrada parcelada com a construtora usada para os aprovados. */
+export interface RegraEntrada {
+  /** parte máxima do preço que a construtora parcela (0.30 = 30%) */
+  pct: number;
+  /** parcela máxima da entrada como parte da renda (0.30 = 30%) */
+  comprometimento: number;
+  mesesLancamento: number;
+  mesesObras: number;
+  /** parcelas após as chaves (0 = não considerar) */
+  mesesPos: number;
+  comprometimentoPos: number;
+}
+
+export const ENTRADA_PCT = 0.3;
+export const PARCELA_PCT_RENDA = 0.3;
+
+/** 30% do preço e parcela de até 30% da renda; prazos vêm dos parâmetros da simulação quando existirem. */
+export function regraEntrada(params?: SimulationParams | null): RegraEntrada {
+  const ep = params?.entrada_parcelada;
+  return {
+    pct: ENTRADA_PCT,
+    comprometimento: PARCELA_PCT_RENDA,
+    mesesLancamento: ep?.meses_lancamento ?? 36,
+    mesesObras: ep?.meses_obras ?? 24,
+    mesesPos: Math.max(0, ep?.meses_pos_chaves ?? 0),
+    comprometimentoPos: ep?.comprometimento_pos ?? PARCELA_PCT_RENDA,
+  };
+}
+
+/** Quanto da entrada este cliente consegue parcelar neste empreendimento, e em quantos meses. */
+export function entradaParcelavelAprovado(
+  a: Pick<Aprovado, "renda_familiar">,
+  d: Pick<DevCompat, "status_obra" | "previsao_entrega">,
+  preco: number,
+  regra: RegraEntrada,
+  hoje = new Date()
+) {
+  const renda = Number(a.renda_familiar || 0);
+  const obra = d.status_obra === "pronto" ? 0 : (mesesAteEntrega(d.previsao_entrega, hoje) ?? (d.status_obra === "lancamento" ? regra.mesesLancamento : regra.mesesObras));
+  const parcelaObra = renda * regra.comprometimento;
+  const parcelaPos = renda * regra.comprometimentoPos;
+  const capacidade = parcelaObra * obra + parcelaPos * regra.mesesPos;
+  return { valorMax: Math.max(0, Math.min(preco * regra.pct, capacidade)), mesesObra: obra, mesesPos: regra.mesesPos, parcelaObra, parcelaPos };
+}
+
+/** Avalia um empreendimento para o aprovado: recursos + entrada parcelada (até 30% do preço e parcela até 30% da renda). */
+export function avaliarDev(a: Pick<Aprovado, "poder_compra" | "renda_familiar">, d: DevCompat, regra: RegraEntrada, tolerancia = 0, hoje = new Date()) {
+  const preco = Number(d.preco_min || 0);
+  const recursos = Number(a.poder_compra || 0);
+  const ep = entradaParcelavelAprovado(a, d, preco, regra, hoje);
+  const falta = Math.max(0, preco - recursos);
+  const limite = recursos + ep.valorMax;
+  const meses = ep.mesesObra + (falta > ep.parcelaObra * ep.mesesObra ? ep.mesesPos : 0);
+  return {
+    preco,
+    limite,
+    folga: limite - preco,
+    cabe: preco > 0 && limite >= preco * (1 - tolerancia),
+    /** entrada a parcelar com a construtora (0 se os recursos já cobrem) */
+    entradaParcelar: Math.min(falta, ep.valorMax),
+    parcelaEntrada: falta > 0 && meses > 0 ? Math.min(falta, ep.valorMax) / meses : 0,
+    meses,
+  };
+}
+
+/** "Compra até" estimado (empreendimento em obras, prazo padrão), para listas e resumos. */
+export function compraAte(a: Pick<Aprovado, "poder_compra" | "renda_familiar">, regra: RegraEntrada) {
+  const recursos = Number(a.poder_compra || 0);
+  const renda = Number(a.renda_familiar || 0);
+  const cap = renda * regra.comprometimento * regra.mesesObras + renda * regra.comprometimentoPos * regra.mesesPos;
+  return Math.round(Math.min(recursos / (1 - regra.pct), recursos + cap));
 }
 
 export const poderDeCompra = (a: Pick<Aprovado, "financiamento" | "subsidio" | "fgts" | "entrada">) =>
@@ -80,15 +161,15 @@ export function cabe(poder: number, preco: number | null, tolerancia = 0) {
   return poder >= preco * (1 - tolerancia);
 }
 
-/** Empreendimentos que cabem, com quem combina melhor (região/dormitórios) primeiro. */
-export function compativeis(a: Aprovado, devs: DevCompat[], tolerancia = 0) {
+/** Empreendimentos que cabem (recursos + entrada parcelada), com quem combina melhor (região/dormitórios) primeiro. */
+export function compativeis(a: Aprovado, devs: DevCompat[], tolerancia = 0, regra: RegraEntrada = regraEntrada()) {
   return devs
-    .filter((d) => cabe(Number(a.poder_compra), Number(d.preco_min), tolerancia))
-    .map((d) => {
+    .map((d) => ({ d, av: avaliarDev(a, d, regra, tolerancia) }))
+    .filter((x) => x.av.cabe)
+    .map(({ d, av }) => {
       const regiaoOk = !a.regioes?.length || (d.regiao ? a.regioes.includes(d.regiao) : false);
       const dormOk = !a.dormitorios_min || (d.dormitorios ?? []).some((n) => n >= a.dormitorios_min!);
-      const folga = Number(a.poder_compra) - Number(d.preco_min);
-      return { dev: d, regiaoOk, dormOk, folga, acimaDoPoder: folga < 0 };
+      return { dev: d, regiaoOk, dormOk, folga: av.folga, acimaDoPoder: av.folga < 0, av };
     })
     .sort((x, y) => Number(y.regiaoOk && y.dormOk) - Number(x.regiaoOk && x.dormOk) || Number(y.dev.oferta_destaque) - Number(x.dev.oferta_destaque) || Number(x.dev.preco_min) - Number(y.dev.preco_min));
 }

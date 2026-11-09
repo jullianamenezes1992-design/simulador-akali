@@ -10,6 +10,8 @@ import {
   STATUS_EM_ABERTO,
   classificacaoInfo,
   compativeis,
+  compraAte,
+  regraEntrada,
   diasParaVencer,
   statusAprovadoInfo,
   type Aprovado,
@@ -19,6 +21,7 @@ import { agoraMs } from "@/lib/agenda";
 import { formatBRL, formatDate, maskPhone } from "@/lib/format";
 import { requireAdmin } from "@/lib/server/auth";
 import { devsAtivos } from "@/lib/server/aprovados";
+import { getActiveParams } from "@/lib/data";
 
 export const metadata: Metadata = { title: "Clientes aprovados" };
 
@@ -32,7 +35,7 @@ export default async function AprovadosPage({ searchParams }: { searchParams: SP
   const classif = CLASSIFICACOES.some((c) => c.value === sp.classe) ? sp.classe! : "";
   const q = (sp.q ?? "").trim().toLowerCase().slice(0, 60);
 
-  const [{ data }, devs, { data: ops }] = await Promise.all([
+  const [{ data }, devs, { data: ops }, ativo] = await Promise.all([
     supabase.from("aprovados").select("*").order("created_at", { ascending: false }).limit(2000),
     devsAtivos(supabase),
     supabase
@@ -41,7 +44,9 @@ export default async function AprovadosPage({ searchParams }: { searchParams: SP
       .gte("created_at", new Date(agoraMs() - 30 * 864e5).toISOString())
       .order("created_at", { ascending: false })
       .limit(20),
+    getActiveParams(),
   ]);
+  const regra = regraEntrada(ativo?.params);
   const todos = (data ?? []) as Aprovado[];
   const oportunidades = (ops ?? []) as unknown as Op[];
   const novas = oportunidades.filter((o) => !o.visto_em);
@@ -55,7 +60,7 @@ export default async function AprovadosPage({ searchParams }: { searchParams: SP
     (a) =>
       (status === "todos" ? true : status === "abertos" ? STATUS_EM_ABERTO.includes(a.status) : status === "vencendo" ? vencendo.includes(a) : a.status === status) &&
       (!classif || a.classificacao === classif) &&
-      (!q || [a.nome, a.telefone, a.observacoes].join(" ").toLowerCase().includes(q))
+      (!q || [a.nome, a.telefone, a.observacoes, a.ar_numero, a.ab_numero, a.oportunidade_sf].join(" ").toLowerCase().includes(q))
   );
   const link = (p: Record<string, string>) => {
     const u = new URLSearchParams({ status, ...(classif ? { classe: classif } : {}), ...(q ? { q } : {}), ...p });
@@ -161,7 +166,7 @@ export default async function AprovadosPage({ searchParams }: { searchParams: SP
             const st = statusAprovadoInfo(a.status);
             const cl = classificacaoInfo(a.classificacao);
             const dias = diasParaVencer(a.vencimento);
-            const n = STATUS_EM_ABERTO.includes(a.status) ? compativeis(a, devs).length : null;
+            const n = STATUS_EM_ABERTO.includes(a.status) ? compativeis(a, devs, 0, regra).length : null;
             return (
               <li key={a.id}>
                 <Link href={`/admin/aprovados/${a.id}`} className="card block p-4 hover:border-caixa">
@@ -175,8 +180,9 @@ export default async function AprovadosPage({ searchParams }: { searchParams: SP
                       <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${cl.cor}`}>{cl.label}</span>
                     </div>
                   </div>
-                  <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">Poder de compra</p>
-                  <p className="font-display text-2xl font-black text-caixa">{formatBRL(Number(a.poder_compra))}</p>
+                  <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">Compra até (com entrada parcelada)</p>
+                  <p className="font-display text-2xl font-black text-caixa">{formatBRL(compraAte(a, regra))}</p>
+                  <p className="text-xs text-ink-soft">Recursos {formatBRL(Number(a.poder_compra))} + até 30% do imóvel parcelado</p>
                   <p className="text-sm text-ink-soft">
                     {a.faixa ? `Faixa ${a.faixa}` : "Sem faixa"} · renda {formatBRL(Number(a.renda_familiar))}
                     {a.regioes?.length ? ` · ${a.regioes.map(regiaoLabel).join(", ")}` : ""}

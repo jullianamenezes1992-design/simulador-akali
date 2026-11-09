@@ -6,8 +6,8 @@ import { PageHeader } from "@/components/admin/ui";
 import AprovadoForm from "@/components/admin/AprovadoForm";
 import EnviarOferta from "@/components/admin/EnviarOferta";
 import ExcluirAprovado from "@/components/admin/ExcluirAprovado";
-import { STATUS_EM_ABERTO, compativeis, diasParaVencer, mensagemOferta, type Aprovado } from "@/lib/aprovados";
-import { getSettings } from "@/lib/data";
+import { STATUS_EM_ABERTO, compativeis, compraAte, diasParaVencer, mensagemOferta, regraEntrada, type Aprovado } from "@/lib/aprovados";
+import { getActiveParams, getSettings } from "@/lib/data";
 import { regiaoLabel } from "@/lib/constants";
 import { formatBRL, formatDate } from "@/lib/format";
 import { requireAdmin } from "@/lib/server/auth";
@@ -25,12 +25,13 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
   const { data } = await supabase.from("aprovados").select("*").eq("id", id).maybeSingle();
   if (!data) notFound();
   const a = data as Aprovado;
-  const [devs, apoio, s] = await Promise.all([devsAtivos(supabase), apoioFormAprovado(supabase), getSettings()]);
+  const [devs, apoio, s, ativo] = await Promise.all([devsAtivos(supabase), apoioFormAprovado(supabase), getSettings(), getActiveParams()]);
+  const regra = regraEntrada(ativo?.params);
 
   const assinatura = s.corretora_nome || s.empresa_nome;
   const base = siteUrl();
-  const cabem = compativeis(a, devs);
-  const quase = compativeis(a, devs, 0.05).filter((c) => c.acimaDoPoder);
+  const cabem = compativeis(a, devs, 0, regra);
+  const quase = compativeis(a, devs, 0.05, regra).filter((c) => c.acimaDoPoder);
   const dias = diasParaVencer(a.vencimento);
   const aberto = STATUS_EM_ABERTO.includes(a.status);
 
@@ -44,7 +45,17 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
           </Link>
           <p className="text-xs text-ink-soft">
             {[c.dev.bairro, regiaoLabel(c.dev.regiao)].filter(Boolean).join(" · ")} · a partir de <strong>{formatBRL(Number(c.dev.preco_min))}</strong>
-            {c.folga >= 0 ? ` · sobra ${formatBRL(c.folga)}` : ` · faltam ${formatBRL(-c.folga)}`}
+            {c.folga < 0 ? ` · faltam ${formatBRL(-c.folga)}` : ""}
+          </p>
+          <p className="text-xs text-ink-soft">
+            {c.av.entradaParcelar > 0 ? (
+              <>
+                Entrada a parcelar: <strong>{formatBRL(c.av.entradaParcelar)}</strong>
+                {c.av.meses ? ` ≈ ${c.av.meses}x de ${formatBRL(c.av.parcelaEntrada)}` : ""}
+              </>
+            ) : (
+              "Os recursos já cobrem o valor, sem parcelar entrada."
+            )}
           </p>
           <p className="mt-0.5 flex flex-wrap gap-1 text-[11px] font-semibold">
             {c.regiaoOk && a.regioes?.length ? <span className="rounded-full bg-emerald-100 px-2 text-emerald-800">região certa</span> : null}
@@ -63,7 +74,10 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
       <Link href="/admin/aprovados" className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-caixa hover:underline">
         <ArrowLeft size={14} /> Clientes aprovados
       </Link>
-      <PageHeader titulo={a.nome} descricao={`Poder de compra ${formatBRL(Number(a.poder_compra))}${a.faixa ? ` · Faixa ${a.faixa}` : ""}`}>
+      <PageHeader
+        titulo={a.nome}
+        descricao={`Compra até ~${formatBRL(compraAte(a, regra))} · recursos ${formatBRL(Number(a.poder_compra))}${a.faixa ? ` · Faixa ${a.faixa}` : ""}${[a.oportunidade_sf && "Oportunidade " + a.oportunidade_sf, a.ar_numero, a.ab_numero].filter(Boolean).map((x) => " · " + x).join("")}`}
+      >
         {a.lead_id && (
           <Link href={`/admin/leads/${a.lead_id}`} className="btn-secondary">
             <User size={16} /> Ficha no CRM
@@ -81,8 +95,11 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
 
       <div className="grid gap-4 xl:grid-cols-[1fr_1.1fr]">
         <section className="card p-4">
-          <h2 className="mb-1 font-bold">Projetos que cabem no poder de compra ({cabem.length})</h2>
-          <p className="mb-2 text-xs text-ink-soft">Empreendimentos ativos com preço “a partir de” até {formatBRL(Number(a.poder_compra))}. Os que combinam com a região e os dormitórios aparecem primeiro.</p>
+          <h2 className="mb-1 font-bold">Projetos que cabem ({cabem.length})</h2>
+          <p className="mb-2 text-xs text-ink-soft">
+            Recursos ({formatBRL(Number(a.poder_compra))}) + entrada parcelada com a construtora de até 30% do imóvel, com parcela de até 30% da renda (
+            {formatBRL(Number(a.renda_familiar) * regra.comprometimento)}/mês) até a entrega das chaves{regra.mesesPos ? ` e mais até ${regra.mesesPos}x depois` : ""}. Os que combinam com a região e os dormitórios aparecem primeiro.
+          </p>
           {!aberto ? (
             <p className="text-sm text-ink-soft">Este cadastro não está em aberto (status: {a.status}).</p>
           ) : cabem.length ? (
