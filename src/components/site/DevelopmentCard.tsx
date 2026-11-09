@@ -24,8 +24,8 @@ export function areaTexto(d: Development) {
     : `${d.area_min.toLocaleString("pt-BR")} m²`;
 }
 
-/** Até quantas unidades à venda o imóvel ganha o selo "Últimas unidades". */
-export const ULTIMAS_UNIDADES = 10;
+/** O imóvel ganha o selo "Últimas unidades" quando tem MENOS de 50 unidades à venda. */
+export const ULTIMAS_UNIDADES = 49;
 
 export default function DevelopmentCard({ d, href, destaque, children }: Props) {
   const capa = capaDe(d);
