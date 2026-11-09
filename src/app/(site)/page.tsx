@@ -1,12 +1,12 @@
 /* eslint-disable @next/next/no-img-element -- fotos vêm das construtoras/Storage */
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, BadgePercent, ChevronDown, HandCoins, MessageCircle, PiggyBank, ShieldCheck, Clock } from "lucide-react";
+import { ArrowRight, BadgePercent, CheckCircle2, ChevronDown, HandCoins, MessageCircle, PiggyBank, ShieldCheck, Clock } from "lucide-react";
 import { getActiveParams, getSettings, listPublicDevelopments } from "@/lib/data";
 import { formatBRL, formatDate } from "@/lib/format";
 import { REGIOES } from "@/lib/constants";
 import DevelopmentCard, { capaDe } from "@/components/site/DevelopmentCard";
-import CalculadoraRenda, { type FaixaResumo } from "@/components/site/CalculadoraRenda";
+import BotaoSimular from "@/components/site/BotaoSimular";
 
 // foto de um prédio na prévia do link da página inicial (WhatsApp/Facebook), no lugar da imagem azul
 export async function generateMetadata(): Promise<Metadata> {
@@ -74,19 +74,9 @@ export default async function Home() {
 
   const destaques = vitrine.filter((d) => d.id !== heroDev?.id && d.id !== heroDev2?.id).slice(0, 6);
 
-  const faixasResumo: FaixaResumo[] = faixas.map((f) => ({
-    id: f.id,
-    nome: f.nome,
-    renda_min: f.renda_min,
-    renda_max: f.renda_max,
-    teto_imovel: f.teto_imovel,
-    juros_min: f.juros_min,
-    subsidio_max: f.subsidio_max,
-  }));
-
   return (
     <>
-      {/* HERO: a calculadora de renda é o convite para simular */}
+      {/* HERO: convite direto para a simulação (sem perguntar a renda antes) */}
       <section className="relative overflow-hidden bg-caixa text-white">
         <svg aria-hidden className="pointer-events-none absolute -right-40 top-10 h-[520px] w-[520px] text-white/[0.06]" viewBox="0 0 34 34">
           <path d="M8 18.5 17 10l9 8.5V26a1 1 0 0 1-1 1h-5.5v-5.5h-5V27H9a1 1 0 0 1-1-1z" fill="currentColor" />
@@ -103,9 +93,32 @@ export default async function Home() {
               {c.hero_subtitulo ??
                 "Descubra quanto você pode financiar e veja os apartamentos que cabem no seu bolso."}
             </p>
-            <div className="mt-5 max-w-lg">
-              <CalculadoraRenda faixas={faixasResumo} />
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <BotaoSimular origem="hero_home" className="btn-sol w-full justify-center px-8 py-4 text-lg font-extrabold shadow-xl sm:w-auto" />
+              <Link href="/empreendimentos" className="inline-flex items-center justify-center rounded-full border-2 border-white/40 px-6 py-3.5 font-semibold text-white hover:bg-white/10">
+                Ver os imóveis
+              </Link>
             </div>
+            <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5 text-sm font-medium text-white/90">
+              {["Grátis e sem compromisso", "Não pede CPF", "Resultado na hora"].map((t) => (
+                <li key={t} className="flex items-center gap-1.5">
+                  <CheckCircle2 size={16} className="text-sol" aria-hidden /> {t}
+                </li>
+              ))}
+            </ul>
+
+            {/* No celular: foto real com o preço, logo abaixo do botão */}
+            {heroDev && (
+              <Link href={`/empreendimentos/${heroDev.slug}`} className="relative mt-6 block h-44 overflow-hidden rounded-3xl shadow-xl lg:hidden">
+                <img src={capaDe(heroDev)!} alt={heroDev.nome} className="h-full w-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                <div className="absolute left-3 top-3 rounded-xl bg-sol px-3 py-1.5 text-[#14202b] shadow-lg">
+                  <p className="text-xs font-bold">Apartamentos a partir de</p>
+                  <p className="font-display text-xl font-black leading-none">{formatBRL(Number(heroDev.preco_min))}</p>
+                </div>
+                <p className="absolute bottom-3 left-4 font-display text-lg font-bold text-white">{heroDev.nome}</p>
+              </Link>
+            )}
           </div>
 
           {/* Fotos reais de empreendimentos */}
