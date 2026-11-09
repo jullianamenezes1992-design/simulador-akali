@@ -30,9 +30,9 @@ export default function DevelopmentCard({ d, href, destaque, children }: Props) 
   const indisponivel = !d.disponivel || d.unidades_disponiveis === 0;
   return (
     <article className="card flex flex-col overflow-hidden transition hover:shadow-lg">
-      <Link href={href ?? `/empreendimentos/${d.slug}`} className="relative block aspect-[16/10] bg-mist">
+      <Link href={href ?? `/empreendimentos/${d.slug}`} className="relative block aspect-[16/10] shrink-0 overflow-hidden bg-mist">
         {capa ? (
-          <img src={capa} alt={`Imagem de ${d.nome}`} className="h-full w-full object-cover" loading="lazy" />
+          <img src={capa} alt={`Imagem de ${d.nome}`} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-1 text-sm font-semibold text-caixa"><Building2 size={32} aria-hidden /> Fotos em breve</div>
         )}
