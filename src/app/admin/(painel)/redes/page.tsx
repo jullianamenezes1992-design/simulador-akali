@@ -114,9 +114,9 @@ export default async function RedesPage({ searchParams }: { searchParams: SP }) 
       </section>
 
       <div className="mb-3 flex flex-wrap gap-2">
-        <Link href={link({ rede: "" })} className={`chip ${!rede ? "chip-on" : ""}`}>Todas as redes</Link>
+        <Link href={link({ rede: "" })} className={`filtro ${!rede ? "filtro-on" : ""}`}>Todas as redes</Link>
         {REDES.filter((r) => redes.has(r)).map((r) => (
-          <Link key={r} href={link({ rede: r })} className={`chip ${rede === r ? "chip-on" : ""}`}>
+          <Link key={r} href={link({ rede: r })} className={`filtro ${rede === r ? "filtro-on" : ""}`}>
             {r} <b>{redes.get(r)?.[0]}</b>
           </Link>
         ))}
