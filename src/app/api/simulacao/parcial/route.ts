@@ -3,7 +3,7 @@ import { CONSENT_VERSION } from "@/lib/constants";
 import { inferirOrigem, rateLimit } from "@/lib/server/leads";
 import { notificarLead } from "@/lib/server/notificacoes";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { ETAPAS, etapaDadosPessoais, rastreamentoSchema } from "@/lib/validation/simulacao";
+import { ETAPAS, etapaContato, rastreamentoSchema } from "@/lib/validation/simulacao";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   if (body.website) return NextResponse.json({ erro: "Requisição inválida." }, { status: 400 });
 
   const etapa = Math.min(Math.max(1, Number(body.etapa) || 1), ETAPAS.length - 1);
-  const pessoais = etapaDadosPessoais.safeParse(body.dados);
+  const pessoais = etapaContato.safeParse(body.dados);
   if (!pessoais.success) return NextResponse.json({ erro: "Dados pessoais inválidos." }, { status: 422 });
 
   // Junta apenas as etapas seguintes que já estejam válidas

@@ -111,7 +111,7 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
   const txt = (v: unknown) => (v == null || v === "" ? "—" : String(v));
   const resumoAtendimento = [
     `CLIENTE: ${l.nome} (código ${l.codigo})`,
-    `Cadastro: ${formatDate(l.created_at, true)} • Status: ${st.label}${l.simulacao_completa ? "" : ` • Simulação incompleta (parou na etapa ${l.etapa_parou ?? "?"} de 6)`}`,
+    `Cadastro: ${formatDate(l.created_at, true)} • Status: ${st.label}${l.simulacao_completa ? "" : ` • Simulação incompleta (parou na etapa ${l.etapa_parou ?? "?"} de ${l.created_at < "2026-11-09T15:00:00Z" ? 6 : 3})`}`,
     `WhatsApp: ${maskPhone(l.telefone)}${l.email ? ` • E-mail: ${l.email}` : ""}`,
     l.cadastro_manual ? `Veio pelas redes: ${l.origem ?? "—"}${l.conteudo_rede ? ` (${l.conteudo_rede})` : ""}${l.regiao_detalhe ? ` • Bairro: ${l.regiao_detalhe}` : ""}${l.proximo_passo ? ` • Próximo passo: ${l.proximo_passo}` : ""}` : null,
     `Idade: ${idade ?? "—"} anos • Estado civil: ${labelOf(ESTADOS_CIVIS, l.estado_civil)} • Dependentes: ${txt(l.dependentes)}`,
@@ -171,7 +171,7 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
             {l.codigo} • cadastrado em {formatDate(l.created_at, true)} • <span className={`chip ${st.cor}`}>{st.label}</span>
             {!l.simulacao_completa && (
               <span className="chip ml-1 bg-sol-50 text-ink">
-                Simulação incompleta{l.etapa_parou ? ` • parou na etapa ${l.etapa_parou} de 6` : ""}
+                Simulação incompleta{l.etapa_parou ? ` • parou na etapa ${l.etapa_parou} de ${l.created_at < "2026-11-09T15:00:00Z" ? 6 : 3}` : ""}
               </span>
             )}
           </p>

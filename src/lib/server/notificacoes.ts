@@ -95,7 +95,7 @@ function htmlEmail(tipo: Tipo, l: LeadAviso) {
     linhas.push(["Renda familiar", l.renda_total ? formatBRL(Number(l.renda_total)) : "—"]);
     linhas.push(["Faixa", l.faixa ?? "—"]);
   } else {
-    linhas.push(["Situação", `Parou na etapa ${l.etapa_parou ?? 2} de 6`]);
+    linhas.push(["Situação", `Parou na etapa ${l.etapa_parou ?? 2} de 3`]);
   }
   linhas.push(["Origem", [l.origem, l.utm_campaign].filter(Boolean).join(" • ") || "Direto"]);
   return `<!doctype html><html><body style="margin:0;background:#f4f6f9;font-family:Arial,sans-serif;color:#263746">

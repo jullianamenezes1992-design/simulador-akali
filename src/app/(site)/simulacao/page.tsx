@@ -12,10 +12,10 @@ export default async function SimulacaoPage() {
   return (
     <div className="bg-mist">
       <div className="container-page max-w-2xl py-8 sm:py-12">
-        <h1 className="text-2xl font-extrabold sm:text-3xl">Pré-simulação habitacional</h1>
+        <h1 className="text-2xl font-extrabold sm:text-3xl">Simulação Minha Casa, Minha Vida</h1>
         <p className="mt-2 text-sm text-ink-soft">
-          Responda às perguntas para estimar quanto você pode financiar. Os resultados são estimativas e dependem da análise e
-          aprovação da Caixa ou de outro agente financeiro.
+          São só 3 passos rápidos para ver quanto você pode financiar e os imóveis que combinam com você. O resultado é uma
+          estimativa e depende da análise e aprovação da Caixa.
         </p>
         {!ativo && (
           <p className="mt-4 rounded-xl bg-sol-50 px-4 py-3 text-sm font-medium text-ink">

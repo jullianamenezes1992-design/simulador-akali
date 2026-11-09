@@ -4,19 +4,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, Loader2, Lock, RotateCcw, Save } from "lucide-react";
-import {
-  ESTADOS_CIVIS,
-  PRAZOS_COMPRA,
-  PREFERENCIAS_OBRA,
-  REGIOES,
-  RELACOES_COMPOSICAO,
-  RESULT_KEY,
-  TIPOS_RENDA,
-} from "@/lib/constants";
+import { PRAZOS_COMPRA, REGIOES, RELACOES_COMPOSICAO, RESULT_KEY, TIPOS_RENDA } from "@/lib/constants";
 import { brDateToISO, maskDate, maskMoney, maskPhone, onlyDigits, parseMoney } from "@/lib/format";
 import { getUtms, trackEvent } from "@/lib/tracking";
 import { ETAPAS, errosPorCampo } from "@/lib/validation/simulacao";
 import { RadioGroup, SelectInput, TextInput, YesNo } from "./fields";
+
+// Formulário em 3 etapas curtas: contato → renda → imóvel.
+// E-mail, estado civil, profissão, dependentes, restrição no nome e preferência de obra
+// ficaram para o atendimento da corretora (não mudam o cálculo).
 
 const DRAFT_KEY = "akali_sim_rascunho";
 /** token do cadastro parcial salvo no servidor após a 1ª etapa */
@@ -82,28 +78,22 @@ function toPayload(f: FormState) {
   const num = (s: string) => (s.trim() === "" ? null : Number(s));
   return {
     nome: f.nome.trim().replace(/\s+/g, " "),
-    data_nascimento: brDateToISO(f.data_nascimento) ?? f.data_nascimento,
-    email: f.email.trim().toLowerCase(),
     telefone: onlyDigits(f.telefone),
-    estado_civil: f.estado_civil || undefined,
-    profissao: f.profissao.trim(),
+    consentimento: f.consentimento,
     tipo_renda: f.tipo_renda || undefined,
     renda_principal: parseMoney(f.renda_principal),
-    dependentes: num(f.dependentes) ?? NaN,
+    data_nascimento: brDateToISO(f.data_nascimento) ?? f.data_nascimento,
     compor_renda: f.compor_renda,
     relacao_composicao: f.compor_renda ? f.relacao_composicao || null : null,
     renda_composicao: f.compor_renda ? parseMoney(f.renda_composicao) : 0,
     idade_composicao: f.compor_renda ? num(f.idade_composicao) : null,
+    tem_fgts: f.tem_fgts,
     fgts_saldo: f.tem_fgts ? parseMoney(f.fgts_saldo) : 0,
     fgts_tres_anos: f.tem_fgts ? f.fgts_tres_anos : false,
-    restricao_credito: f.restricao_credito || undefined,
     regioes: f.regioes,
     dormitorios_min: num(f.dormitorios_min),
     precisa_vaga: f.precisa_vaga,
-    preferencia_obra: f.preferencia_obra,
     prazo_compra: f.prazo_compra || undefined,
-    consentimento: f.consentimento,
-    aceita_marketing: f.aceita_marketing,
   };
 }
 
@@ -128,7 +118,7 @@ export default function SimulacaoForm() {
       if (raw) {
         const d = JSON.parse(raw) as { form: Partial<FormState>; step: number };
         // eslint-disable-next-line react-hooks/set-state-in-effect -- rascunho só existe no navegador
-        setForm({ ...INICIAL, ...d.form, consentimento: false });
+        setForm({ ...INICIAL, ...d.form });
         setStep(Math.min(Math.max(0, d.step ?? 0), ETAPAS.length - 1));
         setRestaurado(true);
         iniciado.current = true;
@@ -148,9 +138,7 @@ export default function SimulacaoForm() {
     if (!carregado.current) return;
     const t = setTimeout(() => {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { consentimento, ...semSensiveis } = form;
-        localStorage.setItem(DRAFT_KEY, JSON.stringify({ form: semSensiveis, step, savedAt: Date.now() }));
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, step, savedAt: Date.now() }));
         setSalvoEm(new Date());
       } catch {}
     }, 500);
@@ -263,7 +251,7 @@ export default function SimulacaoForm() {
       if (!res.ok) {
         if (json.campos) {
           setErrors(json.campos);
-          const idx = ETAPAS.findIndex((e) => Object.keys(json.campos).some((k) => k in e.schema.shape));
+          const idx = ETAPAS.findIndex((e) => Object.keys(json.campos).some((k) => (e.campos as readonly string[]).includes(k)));
           if (idx >= 0) setStep(idx);
         }
         setErroGeral(json.erro ?? "Não foi possível concluir a simulação. Tente novamente.");
@@ -310,13 +298,13 @@ export default function SimulacaoForm() {
         >
           <div className="h-full rounded-full bg-caixa transition-all duration-300" style={{ width: `${progresso}%` }} />
         </div>
-        <ol className="mt-3 hidden grid-cols-6 gap-2 sm:grid">
+        <ol className="mt-3 grid grid-cols-3 gap-2">
           {ETAPAS.map((et, i) => (
             <li
               key={et.id}
               className={`text-[11px] font-semibold leading-tight ${i === step ? "text-caixa" : i < step ? "text-ink" : "text-ink-soft/60"}`}
             >
-              {i < step ? <CheckCircle2 size={12} className="mb-0.5 inline text-caixa" /> : null} {et.titulo}
+              {i < step ? <CheckCircle2 size={12} className="mb-0.5 inline text-caixa" /> : null} {et.curto}
             </li>
           ))}
         </ol>
@@ -353,50 +341,41 @@ export default function SimulacaoForm() {
         <div className="mt-5 grid gap-4">
           {step === 0 && (
             <>
-              <TextInput label="Nome completo" autoComplete="name" value={form.nome} onChange={(ev) => set("nome", ev.target.value)} error={e.nome} />
+              <p className="-mt-2 text-sm text-ink-soft">Leva menos de 2 minutos. Grátis e sem CPF.</p>
+              <TextInput label="Seu nome" autoComplete="name" value={form.nome} onChange={(ev) => set("nome", ev.target.value)} error={e.nome} />
               <TextInput
-                label="Data de nascimento"
-                inputMode="numeric"
-                placeholder="dd/mm/aaaa"
-                value={form.data_nascimento}
-                onChange={(ev) => set("data_nascimento", maskDate(ev.target.value))}
-                error={e.data_nascimento}
-                hint="A idade influencia o prazo do financiamento."
+                label="Seu WhatsApp (com DDD)"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel-national"
+                placeholder="(11) 90000-0000"
+                value={form.telefone}
+                onChange={(ev) => set("telefone", maskPhone(ev.target.value))}
+                error={e.telefone}
               />
-              <div className="grid gap-4 sm:grid-cols-2">
-                <TextInput
-                  label="WhatsApp (com DDD)"
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="tel-national"
-                  placeholder="(11) 90000-0000"
-                  value={form.telefone}
-                  onChange={(ev) => set("telefone", maskPhone(ev.target.value))}
-                  error={e.telefone}
-                />
-                <TextInput
-                  label="E-mail (opcional)"
-                  type="email"
-                  inputMode="email"
-                  autoComplete="email"
-                  value={form.email}
-                  onChange={(ev) => set("email", ev.target.value)}
-                  error={e.email}
-                />
+              <div>
+                <label className="flex items-start gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-5 w-5 shrink-0 accent-caixa"
+                    checked={form.consentimento}
+                    onChange={(ev) => set("consentimento", ev.target.checked)}
+                  />
+                  <span>
+                    Li e concordo com a{" "}
+                    <Link href="/privacidade" target="_blank" className="font-semibold text-caixa underline">
+                      Política de Privacidade
+                    </Link>{" "}
+                    e autorizo o contato pelo WhatsApp para a simulação e o atendimento sobre imóveis.
+                  </span>
+                </label>
+                {e.consentimento && <p className="field-error">{e.consentimento}</p>}
               </div>
-              <SelectInput
-                label="Estado civil"
-                options={ESTADOS_CIVIS}
-                value={form.estado_civil}
-                onChange={(ev) => set("estado_civil", ev.target.value)}
-                error={e.estado_civil}
-              />
             </>
           )}
 
           {step === 1 && (
             <>
-              <TextInput label="Profissão" value={form.profissao} onChange={(ev) => set("profissao", ev.target.value)} error={e.profissao} />
               <SelectInput
                 label="Como você recebe a sua renda?"
                 options={TIPOS_RENDA}
@@ -413,17 +392,14 @@ export default function SimulacaoForm() {
                 error={e.renda_principal}
                 hint="Valor antes dos descontos. Se a renda varia, use a média dos últimos meses."
               />
-            </>
-          )}
-
-          {step === 2 && (
-            <>
               <TextInput
-                label="Quantos dependentes moram com você?"
+                label="Sua data de nascimento"
                 inputMode="numeric"
-                value={form.dependentes}
-                onChange={(ev) => set("dependentes", onlyDigits(ev.target.value).slice(0, 2))}
-                error={e.dependentes}
+                placeholder="dd/mm/aaaa"
+                value={form.data_nascimento}
+                onChange={(ev) => set("data_nascimento", maskDate(ev.target.value))}
+                error={e.data_nascimento}
+                hint="A idade influencia o prazo do financiamento."
               />
               <YesNo
                 label="Vai somar a renda de outra pessoa?"
@@ -457,17 +433,11 @@ export default function SimulacaoForm() {
                       value={form.idade_composicao}
                       onChange={(ev) => set("idade_composicao", onlyDigits(ev.target.value).slice(0, 3))}
                       error={e.idade_composicao}
-                      hint="A idade do mais velho influencia o prazo."
                     />
                   </div>
                 </div>
               )}
-            </>
-          )}
-
-          {step === 3 && (
-            <>
-              <YesNo label="Você tem saldo de FGTS?" name="tem_fgts" value={form.tem_fgts} onChange={(v) => set("tem_fgts", v)} />
+              <YesNo label="Você tem saldo de FGTS?" name="tem_fgts" value={form.tem_fgts} onChange={(v) => set("tem_fgts", v)} error={e.tem_fgts} />
               {form.tem_fgts && (
                 <div className="grid gap-4 rounded-xl bg-mist p-4">
                   <TextInput
@@ -479,7 +449,7 @@ export default function SimulacaoForm() {
                     error={e.fgts_saldo}
                   />
                   <YesNo
-                    label="Soma 3 anos ou mais de trabalho com carteira assinada (FGTS)?"
+                    label="Soma 3 anos ou mais de carteira assinada?"
                     name="fgts_tres_anos"
                     value={form.fgts_tres_anos}
                     onChange={(v) => set("fgts_tres_anos", v)}
@@ -488,26 +458,13 @@ export default function SimulacaoForm() {
                   />
                 </div>
               )}
-              <RadioGroup
-                label="Possui restrição no nome (SPC/Serasa)?"
-                name="restricao_credito"
-                cols={3}
-                value={(form.restricao_credito || null) as "nao" | "sim" | "nao_sei" | null}
-                onChange={(v) => set("restricao_credito", v)}
-                options={[
-                  { value: "nao", label: "Não" },
-                  { value: "sim", label: "Sim" },
-                  { value: "nao_sei", label: "Não sei" },
-                ]}
-                error={e.restricao_credito}
-              />
             </>
           )}
 
-          {step === 4 && (
+          {step === 2 && (
             <>
               <fieldset>
-                <legend className="label">Regiões de interesse</legend>
+                <legend className="label">Onde você quer morar?</legend>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {REGIOES.map((r) => (
                     <label key={r.value} className="option">
@@ -539,19 +496,6 @@ export default function SimulacaoForm() {
                 error={e.dormitorios_min}
               />
               <YesNo label="Precisa de vaga de garagem?" name="precisa_vaga" value={form.precisa_vaga} onChange={(v) => set("precisa_vaga", v)} error={e.precisa_vaga} />
-              <RadioGroup
-                label="Prefere imóvel"
-                name="preferencia_obra"
-                cols={3}
-                value={form.preferencia_obra as "indiferente"}
-                onChange={(v) => set("preferencia_obra", v)}
-                options={PREFERENCIAS_OBRA}
-              />
-            </>
-          )}
-
-          {step === 5 && (
-            <>
               <SelectInput
                 label="Quando pretende comprar?"
                 options={PRAZOS_COMPRA}
@@ -559,47 +503,10 @@ export default function SimulacaoForm() {
                 onChange={(ev) => set("prazo_compra", ev.target.value)}
                 error={e.prazo_compra}
               />
-              <div className="space-y-3 rounded-xl border border-line p-4">
-                <label className="flex items-start gap-3 text-sm">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 h-5 w-5 shrink-0 accent-caixa"
-                    checked={form.consentimento}
-                    onChange={(ev) => set("consentimento", ev.target.checked)}
-                  />
-                  <span>
-                    Li e concordo com a{" "}
-                    <Link href="/privacidade" target="_blank" className="font-semibold text-caixa underline">
-                      Política de Privacidade
-                    </Link>{" "}
-                    e autorizo o uso dos meus dados para realizar a pré-simulação e receber atendimento sobre imóveis.
-                  </span>
-                </label>
-                {e.consentimento && <p className="field-error">{e.consentimento}</p>}
-                <label className="flex items-start gap-3 text-sm text-ink-soft">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 h-5 w-5 shrink-0 accent-caixa"
-                    checked={form.aceita_marketing}
-                    onChange={(ev) => set("aceita_marketing", ev.target.checked)}
-                  />
-                  <span>Quero receber novidades e ofertas de imóveis (opcional).</span>
-                </label>
-              </div>
             </>
           )}
         </div>
 
-        {step === 0 && (
-          <p className="mt-5 text-xs text-ink-soft">
-            Ao continuar, você autoriza a corretora a entrar em contato pelo WhatsApp informado para ajudar na simulação,
-            conforme a{" "}
-            <Link href="/privacidade" target="_blank" className="font-semibold text-caixa underline">
-              Política de Privacidade
-            </Link>
-            .
-          </p>
-        )}
 
         {erroGeral && (
           <p className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700" role="alert">
@@ -622,7 +529,7 @@ export default function SimulacaoForm() {
           ) : (
             <button type="submit" disabled={enviando} className="btn-sol">
               {enviando ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-              Ver minha simulação
+              Ver meu resultado
             </button>
           )}
         </div>
