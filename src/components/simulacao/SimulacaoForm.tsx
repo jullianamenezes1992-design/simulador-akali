@@ -115,8 +115,9 @@ export default function SimulacaoForm() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
-      if (raw) {
-        const d = JSON.parse(raw) as { form: Partial<FormState>; step: number };
+      const d = raw ? (JSON.parse(raw) as { form: Partial<FormState>; step: number }) : null;
+      // só retoma se a pessoa já tinha começado a preencher
+      if (d && (d.form?.nome || d.form?.telefone)) {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- rascunho só existe no navegador
         setForm({ ...INICIAL, ...d.form });
         setStep(Math.min(Math.max(0, d.step ?? 0), ETAPAS.length - 1));
@@ -135,7 +136,7 @@ export default function SimulacaoForm() {
 
   // Salvamento automático (debounce)
   useEffect(() => {
-    if (!carregado.current) return;
+    if (!carregado.current || !iniciado.current) return;
     const t = setTimeout(() => {
       try {
         localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, step, savedAt: Date.now() }));
