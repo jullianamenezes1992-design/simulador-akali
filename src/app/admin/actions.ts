@@ -845,3 +845,249 @@ export async function criarContatoRedes(_prev: ActionState, fd: FormData): Promi
     return { erro: msg(e) };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Clientes aprovados
+// ---------------------------------------------------------------------------
+
+function dataISO(v: FormDataEntryValue | null): string | null {
+  const s = String(v ?? "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (m) return `${m[3].length === 2 ? `20${m[3]}` : m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  return null;
+}
+
+async function faixaDaRenda(renda: number): Promise<number | null> {
+  if (!(renda > 0)) return null;
+  const { getActiveParams } = await import("@/lib/data");
+  const { encontrarFaixa } = await import("@/lib/simulacao/engine");
+  const ativo = await getActiveParams();
+  return ativo ? (encontrarFaixa(renda, ativo.params)?.id ?? null) : null;
+}
+
+type DadosAprovado = Record<string, unknown>;
+
+async function montarAprovado(fd: FormData): Promise<{ erro: string } | { dados: DadosAprovado }> {
+  const { STATUS_APROVADO, CLASSIFICACOES } = await import("@/lib/aprovados");
+  const { REGIOES: RG, TIPOS_RENDA } = await import("@/lib/constants");
+  const nome = String(fd.get("nome") ?? "").trim().replace(/\s+/g, " ");
+  if (nome.length < 2) return { erro: "Preencha o nome do cliente." };
+  let tel = String(fd.get("telefone") ?? "").replace(/\D/g, "");
+  if (tel.length >= 12 && tel.startsWith("55")) tel = tel.slice(2);
+  if (!/^\d{10,11}$/.test(tel)) return { erro: "Telefone com DDD inválido." };
+  const renda = numeroBR(fd.get("renda_familiar"));
+  const status = String(fd.get("status") ?? "ativo");
+  const classif = String(fd.get("classificacao") ?? "morno");
+  const tipo = String(fd.get("tipo_renda") ?? "");
+  const prazo = Number(String(fd.get("prazo_meses") ?? "").replace(/\D/g, "")) || null;
+  const dorm = Number(fd.get("dormitorios_min")) || null;
+  const lead = String(fd.get("lead_id") ?? "");
+  return {
+    dados: {
+      nome,
+      telefone: tel,
+      lead_id: UUID_RE.test(lead) ? lead : null,
+      data_analise: dataISO(fd.get("data_analise")),
+      vencimento: dataISO(fd.get("vencimento")),
+      tipo_renda: TIPOS_RENDA.some((t) => t.value === tipo) ? tipo : null,
+      renda_familiar: renda,
+      faixa: await faixaDaRenda(renda),
+      financiamento: numeroBR(fd.get("financiamento")),
+      subsidio: numeroBR(fd.get("subsidio")),
+      fgts: numeroBR(fd.get("fgts")),
+      entrada: numeroBR(fd.get("entrada")),
+      prazo_meses: prazo && prazo >= 12 && prazo <= 480 ? prazo : null,
+      parcela_max: numeroBR(fd.get("parcela_max")) || null,
+      classificacao: CLASSIFICACOES.some((c) => c.value === classif) ? classif : "morno",
+      regioes: fd.getAll("regioes").map(String).filter((r) => RG.some((x) => x.value === r)),
+      dormitorios_min: dorm && dorm >= 1 && dorm <= 4 ? dorm : null,
+      status: STATUS_APROVADO.some((s) => s.value === status) ? status : "ativo",
+      observacoes: String(fd.get("observacoes") ?? "").trim().slice(0, 4000) || null,
+    },
+  };
+}
+
+export async function salvarAprovado(_prev: ActionState, fd: FormData): Promise<ActionState & { id?: string }> {
+  try {
+    const { supabase, userId } = await assertAdmin();
+    const r = await montarAprovado(fd);
+    if ("erro" in r) return { erro: r.erro };
+    // Sem vínculo escolhido: liga sozinho ao cliente do CRM com o mesmo telefone
+    if (!r.dados.lead_id) {
+      const { data: lead } = await supabase.from("leads").select("id").eq("telefone", r.dados.telefone as string).limit(1).maybeSingle();
+      if (lead) r.dados.lead_id = lead.id;
+    }
+    const id = String(fd.get("id") ?? "");
+    if (UUID_RE.test(id)) {
+      // se mudou o vencimento, libera um novo aviso
+      const { error } = await supabase.from("aprovados").update({ ...r.dados, aviso_vencimento_em: null }).eq("id", id);
+      if (error) return { erro: error.message };
+      revalidatePath(`/admin/aprovados/${id}`);
+      revalidatePath("/admin/aprovados");
+      return { ok: true, mensagem: "Alterações salvas.", id };
+    }
+    const { data, error } = await supabase.from("aprovados").insert({ ...r.dados, created_by: userId }).select("id").single();
+    if (error || !data) return { erro: error?.message ?? "Não foi possível salvar." };
+    if (r.dados.lead_id) {
+      await supabase.from("lead_events").insert({ lead_id: r.dados.lead_id, tipo: "aprovado_registrado", dados: { aprovado_id: data.id } });
+    }
+    revalidatePath("/admin/aprovados");
+    return { ok: true, mensagem: "Aprovado cadastrado!", id: data.id };
+  } catch (e) {
+    return { erro: msg(e) };
+  }
+}
+
+export async function excluirAprovado(id: string) {
+  const { supabase } = await assertAdmin(true);
+  if (!UUID_RE.test(id)) throw new Error("Cadastro inválido");
+  const { error } = await supabase.from("aprovados").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/aprovados");
+}
+
+export async function registrarOfertaEnviada(aprovadoId: string, devNome: string) {
+  const { supabase } = await assertAdmin();
+  if (!UUID_RE.test(aprovadoId)) return;
+  const { data } = await supabase.from("aprovados").select("lead_id, observacoes").eq("id", aprovadoId).maybeSingle();
+  const dia = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+  const linha = `${dia}: oferta enviada – ${String(devNome).slice(0, 120)}`;
+  await supabase
+    .from("aprovados")
+    .update({ observacoes: [linha, data?.observacoes].filter(Boolean).join("\n").slice(0, 4000) })
+    .eq("id", aprovadoId);
+  if (data?.lead_id) await supabase.from("lead_events").insert({ lead_id: data.lead_id, tipo: "oferta_enviada", dados: { empreendimento: devNome } });
+  revalidatePath(`/admin/aprovados/${aprovadoId}`);
+}
+
+export async function marcarOportunidadesVistas() {
+  const { supabase } = await assertAdmin();
+  await supabase.from("oportunidades").update({ visto_em: new Date().toISOString() }).is("visto_em", null);
+  revalidatePath("/admin/aprovados");
+}
+
+/** Importa a planilha de aprovados (.xlsx ou .csv). Cabeçalhos flexíveis (nome, telefone, vencimento, financiamento…). */
+export async function importarAprovados(_prev: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const { supabase, userId } = await assertAdmin();
+    const arq = fd.get("arquivo");
+    if (!(arq instanceof File) || arq.size === 0) return { erro: "Escolha a planilha (.xlsx ou .csv)." };
+    if (arq.size > 5 * 1024 * 1024) return { erro: "Planilha muito grande (máximo 5 MB)." };
+    const buf = Buffer.from(await arq.arrayBuffer());
+    let linhas: string[][] = [];
+    if (/\.csv$/i.test(arq.name) || arq.type.includes("csv")) {
+      const txt = buf.toString("utf8").replace(/^﻿/, "");
+      const sep = (txt.split("\n")[0].match(/;/g)?.length ?? 0) > (txt.split("\n")[0].match(/,/g)?.length ?? 0) ? ";" : ",";
+      linhas = txt.split(/\r?\n/).filter((l) => l.trim()).map((l) => l.split(sep).map((c) => c.replace(/^"|"$/g, "").trim()));
+    } else {
+      const ExcelJS = (await import("exceljs")).default;
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(buf as unknown as ArrayBuffer);
+      const ws = wb.worksheets[0];
+      ws?.eachRow((row) => {
+        const vals = (row.values as unknown[]).slice(1).map((v) => {
+          if (v instanceof Date) return v.toISOString().slice(0, 10);
+          if (v && typeof v === "object" && "result" in (v as object)) return String((v as { result: unknown }).result ?? "");
+          if (v && typeof v === "object" && "text" in (v as object)) return String((v as { text: unknown }).text ?? "");
+          return v == null ? "" : String(v);
+        });
+        linhas.push(vals);
+      });
+    }
+    if (linhas.length < 2) return { erro: "A planilha está vazia." };
+
+    const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    const MAPA: [string, RegExp][] = [
+      ["nome", /^(nome|cliente|nome do cliente)/],
+      ["telefone", /(telefone|whats|celular|fone)/],
+      ["data_analise", /(data da analise|data analise|analise|data aprovacao|aprovado em)/],
+      ["vencimento", /(vencimento|validade|vence)/],
+      ["tipo_renda", /(tipo de renda|tipo renda|vinculo)/],
+      ["renda_familiar", /(renda)/],
+      ["financiamento", /(financiamento|financiado|valor aprovado|credito)/],
+      ["subsidio", /(subsidio)/],
+      ["fgts", /(fgts)/],
+      ["entrada", /(entrada|recursos proprios)/],
+      ["prazo_meses", /(prazo)/],
+      ["parcela_max", /(parcela)/],
+      ["classificacao", /(classificacao|temperatura)/],
+      ["regioes", /(regiao)/],
+      ["dormitorios_min", /(dorm)/],
+      ["status", /(status|situacao)/],
+      ["observacoes", /(obs)/],
+    ];
+    const cab = linhas[0].map(norm);
+    const col: Record<string, number> = {};
+    cab.forEach((c, i) => {
+      const achou = MAPA.find(([k, re]) => col[k] === undefined && re.test(c));
+      if (achou) col[achou[0]] = i;
+    });
+    if (col.nome === undefined || col.telefone === undefined) return { erro: "A planilha precisa ter as colunas Nome e Telefone na primeira linha." };
+
+    const { REGIOES: RG, TIPOS_RENDA } = await import("@/lib/constants");
+    const achaRegiao = (s: string) => RG.find((r) => norm(r.label) === norm(s) || r.value === norm(s).replace(/ /g, "_"))?.value;
+    const achaTipo = (s: string) => {
+      const n = norm(s);
+      if (/clt|carteira|registr/.test(n)) return "clt";
+      if (/servidor|public/.test(n)) return "servidor";
+      if (/aposent|pension/.test(n)) return "aposentado";
+      if (/mei|empres/.test(n)) return "empresario";
+      if (/autonom/.test(n)) return "autonomo";
+      if (/informal/.test(n)) return "informal";
+      return TIPOS_RENDA.find((t) => norm(t.label) === n)?.value ?? "";
+    };
+
+    let ok = 0;
+    const erros: string[] = [];
+    const { data: existentes } = await supabase.from("aprovados").select("telefone");
+    const jaTem = new Set((existentes ?? []).map((e) => e.telefone));
+    for (let i = 1; i < linhas.length; i++) {
+      const l = linhas[i];
+      const v = (k: string) => (col[k] !== undefined ? (l[col[k]] ?? "").trim() : "");
+      if (!v("nome") && !v("telefone")) continue;
+      const f = new FormData();
+      for (const k of ["nome", "telefone", "data_analise", "vencimento", "renda_familiar", "financiamento", "subsidio", "fgts", "entrada", "prazo_meses", "parcela_max", "dormitorios_min", "observacoes"]) {
+        let val = v(k);
+        // números vindos do Excel como "250000.5" → formato BR
+        if (/^(renda_familiar|financiamento|subsidio|fgts|entrada|parcela_max)$/.test(k) && /^\d+\.\d{1,2}$/.test(val)) val = val.replace(".", ",");
+        f.set(k, val);
+      }
+      f.set("tipo_renda", achaTipo(v("tipo_renda")));
+      const cl = norm(v("classificacao"));
+      f.set("classificacao", /quent/.test(cl) ? "quente" : /fri/.test(cl) ? "frio" : "morno");
+      const st = norm(v("status"));
+      f.set("status", /vend/.test(st) ? "vendido" : /negoc/.test(st) ? "negociando" : /venc/.test(st) ? "vencido" : /desist/.test(st) ? "desistiu" : "ativo");
+      v("regioes")
+        .split(/[,;/]/)
+        .map((s) => achaRegiao(s.trim()))
+        .filter(Boolean)
+        .forEach((r) => f.append("regioes", r!));
+      const r = await montarAprovado(f);
+      if ("erro" in r) {
+        erros.push(`Linha ${i + 1}: ${r.erro}`);
+        continue;
+      }
+      if (jaTem.has(r.dados.telefone as string)) {
+        erros.push(`Linha ${i + 1}: ${r.dados.nome} já estava cadastrado (mesmo telefone)`);
+        continue;
+      }
+      // vincula ao lead com o mesmo telefone, se existir
+      const { data: lead } = await supabase.from("leads").select("id").eq("telefone", r.dados.telefone as string).limit(1).maybeSingle();
+      const { error } = await supabase.from("aprovados").insert({ ...r.dados, lead_id: lead?.id ?? null, created_by: userId });
+      if (error) erros.push(`Linha ${i + 1}: ${error.message}`);
+      else {
+        ok++;
+        jaTem.add(r.dados.telefone as string);
+      }
+    }
+    revalidatePath("/admin/aprovados");
+    return {
+      ok: ok > 0,
+      mensagem: `${ok} aprovado(s) importado(s).${erros.length ? ` ${erros.length} linha(s) não importada(s): ${erros.slice(0, 8).join(" · ")}${erros.length > 8 ? "…" : ""}` : ""}`,
+      ...(ok === 0 ? { erro: erros.slice(0, 8).join(" · ") || "Nenhuma linha importada." } : {}),
+    };
+  } catch (e) {
+    return { erro: msg(e) };
+  }
+}

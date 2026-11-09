@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, MessageCircle } from "lucide-react";
+import { ArrowLeft, BadgeCheck, MessageCircle } from "lucide-react";
 import MensagensProntas from "@/components/admin/MensagensProntas";
 import { mensagensDaEtapa, preencherMensagem } from "@/lib/mensagens-prontas";
 import { siteUrl } from "@/lib/server/notificacoes";
@@ -58,6 +58,8 @@ const TIPO_EVENTO: Record<string, string> = {
   nota: "Observação",
   mensagem_enviada: "Mensagem pronta enviada",
   cadastro_manual: "Cadastrado pela corretora (redes sociais)",
+  aprovado_registrado: "Crédito aprovado registrado",
+  oferta_enviada: "Oferta enviada ao aprovado",
 };
 
 export default async function LeadDetalhe({ params }: { params: Promise<{ id: string }> }) {
@@ -68,7 +70,7 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
   const { data: l } = await supabase.from("leads").select("*, escolhido:escolhido_id(id, nome, slug)").eq("id", id).maybeSingle();
   if (!l) notFound();
 
-  const [eventos, notas, equipe, auditoria, recomendados, tarefas, msgSalvas] = await Promise.all([
+  const [eventos, notas, equipe, auditoria, recomendados, tarefas, msgSalvas, aprovadoReg] = await Promise.all([
     supabase.from("lead_events").select("id, tipo, dados, created_at, development:development_id(nome, slug)").eq("lead_id", id).order("created_at", { ascending: false }).limit(200),
     supabase.from("lead_notes").select("id, texto, created_at, autor:autor_id(nome)").eq("lead_id", id).order("created_at", { ascending: false }),
     supabase.from("admin_users").select("user_id, nome").order("nome"),
@@ -78,6 +80,7 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
       : Promise.resolve({ data: [] as { id: string; nome: string; slug: string }[] }),
     supabase.from("lead_tasks").select("*").eq("lead_id", id).order("quando", { ascending: false }).limit(50),
     supabase.from("mensagens_prontas").select("status, ordem, titulo, texto").eq("status", l.status),
+    supabase.from("aprovados").select("id, poder_compra, status").eq("lead_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   const nomesEquipe = new Map((equipe.data ?? []).map((p) => [p.user_id, p.nome]));
@@ -179,6 +182,15 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
         {!anonimizado && (
           <div className="flex flex-wrap gap-2">
             <CopiarAtendimentoButton texto={resumoAtendimento} />
+            {aprovadoReg.data ? (
+              <Link href={`/admin/aprovados/${aprovadoReg.data.id}`} className="btn-secondary">
+                <BadgeCheck size={16} /> Aprovado · {formatBRL(Number(aprovadoReg.data.poder_compra))}
+              </Link>
+            ) : (
+              <Link href={`/admin/aprovados/novo?lead=${l.id}`} className="btn-secondary">
+                <BadgeCheck size={16} /> Registrar aprovação
+              </Link>
+            )}
             <a href={`https://wa.me/55${l.telefone}`} target="_blank" rel="noreferrer" className="btn-whatsapp">
               <MessageCircle size={16} /> Chamar {maskPhone(l.telefone)}
             </a>
@@ -401,6 +413,7 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
                     {TIPO_EVENTO[e.tipo] ?? e.tipo}
                     {e.development ? `: ${e.development.nome}` : ""}
                     {e.tipo === "status_alterado" && e.dados?.para ? ` → ${leadStatusInfo(String(e.dados.para)).label}` : ""}
+                    {e.tipo === "oferta_enviada" && e.dados?.empreendimento ? `: ${String(e.dados.empreendimento)}` : ""}
                     {e.tipo === "mensagem_enviada" && e.dados?.titulo ? `: ${leadStatusInfo(String(e.dados.status)).label} · ${e.dados.ordem}. ${e.dados.titulo}` : ""}
                   </p>
                   <p className="text-xs text-ink-soft">{formatDate(e.created_at, true)}</p>

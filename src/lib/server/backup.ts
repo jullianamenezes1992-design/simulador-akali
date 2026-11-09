@@ -47,11 +47,12 @@ async function todas(tabela: string, colunas = "*", ordem = "created_at") {
 }
 
 export async function gerarBackup(): Promise<{ nome: string; caminho: string; buffer: Buffer; clientes: number }> {
-  const [leads, tarefas, notas, devs] = await Promise.all([
+  const [leads, tarefas, notas, devs, aprovados] = await Promise.all([
     todas("leads"),
     todas("lead_tasks"),
     todas("lead_notes"),
     todas("developments", "id, slug, nome, construtora, bairro, cidade, regiao, preco_min, faixas, dormitorios, status_obra, previsao_entrega, disponivel, ativo, updated_at"),
+    todas("aprovados").catch(() => [] as Linha[]),
   ]);
   // Resumo da simulação em colunas legíveis
   const clientes = leads.map((l) => {
@@ -73,6 +74,7 @@ export async function gerarBackup(): Promise<{ nome: string; caminho: string; bu
   aba(wb, "Agenda", tarefas);
   aba(wb, "Observações", notas);
   aba(wb, "Empreendimentos", devs);
+  aba(wb, "Aprovados", aprovados);
   const buffer = Buffer.from(await wb.xlsx.writeBuffer());
   const dia = diaSP();
   const nome = `backup-akali-${dia}.xlsx`;

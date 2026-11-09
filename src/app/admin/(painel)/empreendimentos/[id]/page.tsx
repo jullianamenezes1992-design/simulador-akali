@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ArrowLeft, BadgeCheck, ExternalLink } from "lucide-react";
 import DevelopmentForm from "@/components/admin/DevelopmentForm";
 import MediaManager from "@/components/admin/MediaManager";
 import DeleteDevelopment from "@/components/admin/DeleteDevelopment";
@@ -43,6 +43,9 @@ export default async function EditarEmpreendimento({
         <ArrowLeft size={14} /> Empreendimentos
       </Link>
       <PageHeader titulo={dev.nome} descricao={`Página pública: /empreendimentos/${dev.slug}`}>
+        <Link href={`/admin/aprovados/cabem?dev=${dev.id}`} className="btn-primary">
+          <BadgeCheck size={16} /> Ver aprovados que cabem neste projeto
+        </Link>
         <Link href={`/empreendimentos/${dev.slug}`} target="_blank" className="btn-secondary">
           <ExternalLink size={16} /> Ver no site
         </Link>

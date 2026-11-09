@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { PageHeader, StatCard } from "@/components/admin/ui";
 import { agoraMs, diaSP } from "@/lib/agenda";
-import { CalendarDays } from "lucide-react";
+import { BadgeCheck, CalendarDays } from "lucide-react";
 import { LEAD_STATUS, leadStatusInfo } from "@/lib/constants";
 import { formatBRL, formatDate } from "@/lib/format";
 import { requireAdmin } from "@/lib/server/auth";
@@ -42,9 +42,27 @@ export default async function Dashboard() {
   });
   const top = [...ranking.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
 
+  const [opsNovas, aprovVencendo] = await Promise.all([
+    supabase.from("oportunidades").select("id", { count: "exact", head: true }).is("visto_em", null),
+    supabase
+      .from("aprovados")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["ativo", "negociando"])
+      .gte("vencimento", diaSP())
+      .lte("vencimento", new Date(agoraMs() + 15 * 864e5).toISOString().slice(0, 10)),
+  ]);
+
   return (
     <>
       <PageHeader titulo="Visão geral" descricao="Resumo do funil de simulações e atendimento." />
+      {(opsNovas.count ?? 0) + (aprovVencendo.count ?? 0) > 0 && (
+        <Link href="/admin/aprovados" className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+          <BadgeCheck size={18} />
+          {(opsNovas.count ?? 0) > 0 && <span>💰 {opsNovas.count} oportunidade(s) nova(s) para aprovados</span>}
+          {(aprovVencendo.count ?? 0) > 0 && <span>⏳ {aprovVencendo.count} aprovação(ões) vencem em até 15 dias</span>}
+          <span className="underline">Ver aprovados</span>
+        </Link>
+      )}
 
       <Link
         href="/admin/agenda"

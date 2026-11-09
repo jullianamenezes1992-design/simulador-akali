@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
   const temCanal = cfg.email_ativo || cfg.whatsapp_ativo || (await temAparelhosPush());
   const db = createAdminClient();
   const agora = Date.now();
-  const resultado: { lembretes: number; resumo: boolean; backup: boolean; tabelao?: string } = { lembretes: 0, resumo: false, backup: false };
+  const resultado: { lembretes: number; resumo: boolean; backup: boolean; tabelao?: string; oportunidades?: number; vencimentos?: number } = { lembretes: 0, resumo: false, backup: false };
 
   const enviar = async (assunto: string, texto: string, html: string, push?: { title: string; body: string; url: string; tag?: string }) => {
     const r = await Promise.allSettled([
@@ -226,6 +226,78 @@ ${agenda ? `<p><a href="${agenda}" style="color:#005CA9;font-weight:bold">Abrir 
       }
       if (!t.ok)
         await enviarPush({ title: "⚠️ Tabelão não atualizou hoje", body: "Abra Imóveis → Tabelão para ver o motivo ou tentar de novo.", url: "/admin/empreendimentos/tabelao", tag: `tabelao-${hojeB}` }).catch(() => null);
+    }
+  }
+
+  // 5) Oportunidades para aprovados (preço baixou / promoção) — avisa uma vez cada
+  {
+    const { data: ops } = await db
+      .from("oportunidades")
+      .select("id, tipo, preco_antes, preco_depois, aprovados, dev:development_id(nome)")
+      .is("notificado_em", null)
+      .order("created_at", { ascending: true })
+      .limit(20);
+    const lista = (ops ?? []) as unknown as { id: number; tipo: string; preco_antes: number; preco_depois: number; aprovados: { nome: string }[]; dev: { nome: string } | null }[];
+    if (lista.length) {
+      const ids = lista.map((o) => o.id);
+      const { data: marcados } = await db.from("oportunidades").update({ notificado_em: new Date().toISOString() }).in("id", ids).is("notificado_em", null).select("id");
+      const ok = new Set((marcados ?? []).map((m) => m.id));
+      const aEnviar = lista.filter((o) => ok.has(o.id));
+      if (aEnviar.length) {
+        const fmt = (n: number) => Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+        const linhas = aEnviar.map(
+          (o) =>
+            `• ${o.dev?.nome ?? "Empreendimento"}: ${o.tipo === "preco_baixou" ? `baixou de ${fmt(o.preco_antes)} para ${fmt(o.preco_depois)}` : `em promoção (${fmt(o.preco_depois)})`} → ${o.aprovados
+              .slice(0, 6)
+              .map((a) => a.nome)
+              .join(", ")}${o.aprovados.length > 6 ? ` e mais ${o.aprovados.length - 6}` : ""}`
+        );
+        const total = new Set(aEnviar.flatMap((o) => o.aprovados.map((a) => a.nome))).size;
+        const url = siteUrl() ? `${siteUrl()}/admin/aprovados` : "";
+        const texto = [`💰 *Oportunidade para aprovados*`, ...linhas, url ? `\nVer no painel: ${url}` : null].filter(Boolean).join("\n");
+        const html = `<div style="font-family:Arial,sans-serif;color:#263746;max-width:560px"><h2 style="color:#005CA9;margin:0 0 8px">Oportunidade para clientes aprovados</h2><ul>${linhas
+          .map((l) => `<li style="margin:4px 0">${esc(l.slice(2))}</li>`)
+          .join("")}</ul>${url ? `<p><a href="${url}" style="color:#005CA9;font-weight:bold">Abrir clientes aprovados</a></p>` : ""}</div>`;
+        await enviar(`Oportunidade: ${total} aprovado(s) passaram a caber em ${aEnviar.length} projeto(s)`, texto, html, {
+          title: "💰 Oportunidade para aprovados",
+          body: `${total} aprovado(s) passaram a caber: ${aEnviar.map((o) => o.dev?.nome).filter(Boolean).slice(0, 3).join(", ")}`,
+          url: "/admin/aprovados",
+          tag: `oportunidade-${ids[0]}`,
+        });
+        resultado.oportunidades = aEnviar.length;
+      }
+    }
+  }
+
+  // 6) Aprovações vencendo (aviso com 7 dias e na véspera) e vencidas viram "vencido"
+  {
+    await db.from("aprovados").update({ status: "vencido" }).in("status", ["ativo", "negociando"]).lt("vencimento", hojeB);
+    const limite = somarDias(hojeB, 7);
+    const { data: venc } = await db
+      .from("aprovados")
+      .select("id, nome, vencimento, aviso_vencimento_em, poder_compra")
+      .in("status", ["ativo", "negociando"])
+      .gte("vencimento", hojeB)
+      .lte("vencimento", limite)
+      .limit(50);
+    const avisar = (venc ?? []).filter((a) => {
+      const vespera = somarDias(a.vencimento as string, -1);
+      if (!a.aviso_vencimento_em) return true; // primeiro aviso (até 7 dias antes)
+      return hojeB >= vespera && (a.aviso_vencimento_em as string) < vespera; // segundo aviso, na véspera
+    });
+    if (avisar.length && horaAtualSP() >= 8) {
+      const { data: marcados } = await db.from("aprovados").update({ aviso_vencimento_em: hojeB }).in("id", avisar.map((a) => a.id)).select("id");
+      if (marcados?.length) {
+        const nomes = avisar.map((a) => `• ${a.nome} – vence ${String(a.vencimento).split("-").reverse().join("/")}`);
+        const url = siteUrl() ? `${siteUrl()}/admin/aprovados?status=vencendo` : "";
+        await enviar(
+          `Aprovação vencendo: ${avisar.length} cliente(s)`,
+          [`⏳ *Aprovações perto de vencer*`, ...nomes, url ? `\nVer: ${url}` : null].filter(Boolean).join("\n"),
+          `<div style="font-family:Arial,sans-serif;color:#263746"><h2 style="color:#b91c1c">Aprovações perto de vencer</h2><ul>${nomes.map((n) => `<li>${esc(n.slice(2))}</li>`).join("")}</ul>${url ? `<p><a href="${url}">Abrir no painel</a></p>` : ""}</div>`,
+          { title: "⏳ Aprovação perto de vencer", body: avisar.map((a) => a.nome).slice(0, 4).join(", "), url: "/admin/aprovados?status=vencendo", tag: `vencimento-${hojeB}` }
+        );
+        resultado.vencimentos = avisar.length;
+      }
     }
   }
 
