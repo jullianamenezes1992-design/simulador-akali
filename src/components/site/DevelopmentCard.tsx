@@ -24,10 +24,15 @@ export function areaTexto(d: Development) {
     : `${d.area_min.toLocaleString("pt-BR")} m²`;
 }
 
+/** Até quantas unidades à venda o imóvel ganha o selo "Últimas unidades". */
+export const ULTIMAS_UNIDADES = 10;
+
 export default function DevelopmentCard({ d, href, destaque, children }: Props) {
   const capa = capaDe(d);
   const area = areaTexto(d);
   const indisponivel = !d.disponivel || d.unidades_disponiveis === 0;
+  // Poucas unidades à venda (estoque vem do tabelão/cadastro): selo vermelho de urgência
+  const ultimas = !indisponivel && d.unidades_disponiveis != null && d.unidades_disponiveis > 0 && d.unidades_disponiveis <= ULTIMAS_UNIDADES;
   return (
     <article className="card flex flex-col overflow-hidden transition hover:shadow-lg">
       <Link href={href ?? `/empreendimentos/${d.slug}`} className="relative block aspect-[16/10] shrink-0 overflow-hidden bg-mist">
@@ -40,6 +45,11 @@ export default function DevelopmentCard({ d, href, destaque, children }: Props) 
           <span className="chip bg-white/95 text-ink">{statusObraLabel(d.status_obra)}</span>
           {d.oferta_destaque && <span className="chip bg-sol text-ink">{d.oferta_texto ? "Oferta" : "Destaque"}</span>}
           {indisponivel && <span className="chip bg-ink text-white">Sem unidades</span>}
+          {ultimas && (
+            <span className="chip border-red-600 bg-red-600 text-white shadow">
+              {d.unidades_disponiveis === 1 ? "Última unidade!" : "Últimas unidades!"}
+            </span>
+          )}
         </div>
         {d.is_demo && <span className="chip absolute bottom-3 right-3 bg-red-600 text-white">EXEMPLO</span>}
       </Link>

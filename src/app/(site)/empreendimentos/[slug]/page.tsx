@@ -6,7 +6,7 @@ import { BedDouble, Building, CalendarClock, Car, Check, MapPin, Ruler, Tag } fr
 import Gallery from "@/components/site/Gallery";
 import ViewTracker from "@/components/site/ViewTracker";
 import WhatsAppButton from "@/components/site/WhatsAppButton";
-import { areaTexto } from "@/components/site/DevelopmentCard";
+import { areaTexto, ULTIMAS_UNIDADES } from "@/components/site/DevelopmentCard";
 import { getPublicDevelopment } from "@/lib/data";
 import { regiaoLabel, statusObraLabel } from "@/lib/constants";
 import { formatBRL, formatPreco } from "@/lib/format";
@@ -64,6 +64,11 @@ export default async function EmpreendimentoPage({ params }: { params: Params })
             <div className="mt-6">
               <div className="flex flex-wrap gap-2">
                 <span className="chip bg-caixa-50 text-caixa-dark">{statusObraLabel(d.status_obra)}</span>
+                {!indisponivel && d.unidades_disponiveis != null && d.unidades_disponiveis > 0 && d.unidades_disponiveis <= ULTIMAS_UNIDADES && (
+                  <span className="chip border-red-600 bg-red-600 text-white">
+                    {d.unidades_disponiveis === 1 ? "Última unidade!" : "Últimas unidades!"}
+                  </span>
+                )}
                 {d.faixas.map((f) => (
                   <span key={f} className="chip bg-mist text-ink">MCMV Faixa {f}</span>
                 ))}
