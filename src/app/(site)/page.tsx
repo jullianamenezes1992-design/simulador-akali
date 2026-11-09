@@ -94,7 +94,7 @@ export default async function Home() {
                 "Descubra quanto você pode financiar e veja os apartamentos que cabem no seu bolso."}
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <BotaoSimular origem="hero_home" className="btn-sol w-full justify-center px-8 py-4 text-lg font-extrabold shadow-xl sm:w-auto" />
+              <BotaoSimular origem="hero_home" className="btn-sol w-full justify-center whitespace-nowrap px-5 py-4 text-[17px] font-extrabold shadow-xl sm:w-auto sm:px-8 sm:text-lg" />
               <Link href="/empreendimentos" className="inline-flex items-center justify-center rounded-full border-2 border-white/40 px-6 py-3.5 font-semibold text-white hover:bg-white/10">
                 Ver os imóveis
               </Link>
