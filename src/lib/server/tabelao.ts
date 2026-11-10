@@ -9,6 +9,7 @@ import { IGNORAR_TABELAO, MAPA_TABELAO, normNome } from "@/lib/tabelao-mapa";
  * Fontes:
  *  - index.html → lista "D" com cada empreendimento (status, entrega, preço de referência, estoque...)
  *  - unidades.json → todas as unidades à venda no dia (o "a partir de" sai da unidade mais barata)
+ *  - promocoes.json → encarte do mês da Plano&Plano, com as parcelas da entrada após as chaves de cada projeto
  *
  * Regras de segurança:
  *  - se a carga vier pequena ou com formato estranho, não altera nada;
@@ -60,6 +61,35 @@ async function baixar(caminho: string) {
   }
 }
 
+type Promocoes = { ativo?: boolean; validoAte?: string; campos?: string[]; grupos?: { n?: number[] }[]; rows?: (string | number | null)[][] };
+
+/**
+ * Parcelas pós-chaves por empreendimento (n do tabelão) a partir do encarte do mês.
+ * "24"/"36"/"48" → número; "Não" → 0; vazio ou "SIM" (sem quantidade) → não mexe.
+ */
+export function posChavesDoEncarte(p: Promocoes | null): Map<number, number> {
+  const out = new Map<number, number>();
+  if (!p?.rows?.length || !p.grupos?.length || !p.campos) return out;
+  const iG = p.campos.indexOf("g");
+  const iP = p.campos.indexOf("posChaves");
+  if (iG < 0 || iP < 0) return out;
+  const valores = new Map<number, Set<number>>();
+  for (const r of p.rows) {
+    const t = String(r[iP] ?? "").trim().toLowerCase();
+    const v = /^\d{1,3}$/.test(t) ? Number(t) : /^n[aã]o$/.test(t) ? 0 : null;
+    if (v == null || v > 120) continue;
+    const g = Number(r[iG]);
+    if (!valores.has(g)) valores.set(g, new Set());
+    valores.get(g)!.add(v);
+  }
+  valores.forEach((vs, g) => {
+    if (vs.size !== 1) return; // valores diferentes no mesmo projeto: deixa como está
+    const v = [...vs][0];
+    for (const n of p.grupos![g]?.n ?? []) out.set(Number(n), v);
+  });
+  return out;
+}
+
 /** Extrai a lista "const D = [...]" do index.html sem executar código de terceiros. */
 export function extrairLista(html: string): LinhaD[] {
   const i = html.indexOf("const D = [");
@@ -96,7 +126,13 @@ export async function sincronizarTabelao(origem: "automatico" | "manual" = "auto
   const db = createAdminClient();
   const res: ResultadoTabelao = { ok: false, atualizados: 0, sem_mudanca: 0, esgotados: 0, dados_de: null, mudancas: [], novos: [] };
   try {
-    const [html, uni] = await Promise.all([baixar("index.html").then((r) => r.text()), baixar("unidades.json").then((r) => r.json() as Promise<Unidades>)]);
+    const [html, uni, promo] = await Promise.all([
+      baixar("index.html").then((r) => r.text()),
+      baixar("unidades.json").then((r) => r.json() as Promise<Unidades>),
+      // o encarte é opcional: se não vier, o resto atualiza normalmente
+      baixar("promocoes.json").then((r) => r.json() as Promise<Promocoes>).catch(() => null),
+    ]);
+    const posChaves = posChavesDoEncarte(promo);
     const D = extrairLista(html);
     if (!uni?.rows || uni.rows.length < 3000 || (uni.consultados?.length ?? 0) < 40) throw new Error("Lista de unidades veio pequena demais; nada foi alterado.");
     res.dados_de = uni.geradoEm ?? null;
@@ -127,7 +163,7 @@ export async function sincronizarTabelao(origem: "automatico" | "manual" = "auto
     const slugs = Object.values(MAPA_TABELAO);
     const { data: atuais, error } = await db
       .from("developments")
-      .select("id, slug, nome, preco_min, preco_max, faixas, status_obra, previsao_entrega, vagas, unidades_disponiveis, disponivel, condicoes_comerciais")
+      .select("id, slug, nome, preco_min, preco_max, faixas, status_obra, previsao_entrega, vagas, unidades_disponiveis, disponivel, condicoes_comerciais, meses_pos_chaves")
       .in("slug", slugs);
     if (error) throw new Error(error.message);
     const porSlug = new Map((atuais ?? []).map((d) => [d.slug as string, d]));
@@ -165,7 +201,7 @@ export async function sincronizarTabelao(origem: "automatico" | "manual" = "auto
         const igual = Array.isArray(valor) ? JSON.stringify(valor) === JSON.stringify(velho) : typeof valor === "number" ? Math.abs(Number(velho ?? -1) - valor) < 1 : velho === valor;
         if (igual) return;
         novo[campo] = valor;
-        if (["preco_min", "disponivel", "status_obra", "previsao_entrega"].includes(campo))
+        if (["preco_min", "disponivel", "status_obra", "previsao_entrega", "meses_pos_chaves"].includes(campo))
           res.mudancas.push({ nome: atual.nome as string, campo: rotulo, de: (velho as string | number | boolean | null) ?? null, para: valor as string | number | boolean });
       };
 
@@ -176,6 +212,7 @@ export async function sincronizarTabelao(origem: "automatico" | "manual" = "auto
       if (d[12] != null) muda("vagas", Number(d[12]) > 0);
       if (estoque != null) muda("unidades_disponiveis", estoque);
       muda("disponivel", !esgotado, "à venda");
+      if (posChaves.has(n)) muda("meses_pos_chaves", posChaves.get(n)!, "parcelas pós-chaves");
       if (esgotado) res.esgotados++;
       if (precoMin && !esgotado) {
         const pMin = Math.round(precoMin * 100) / 100;
