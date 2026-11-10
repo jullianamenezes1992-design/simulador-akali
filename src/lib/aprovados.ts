@@ -1,8 +1,8 @@
 /**
  * Clientes aprovados: tipos, rótulos e regras de compatibilidade com os empreendimentos.
  * Recursos (coluna poder_compra) = financiamento aprovado + subsídio + FGTS + entrada à vista (calculado também no banco).
- * O que faltar para o preço pode virar entrada parcelada com a construtora, limitada a 30% do preço
- * e a uma parcela de até 30% da renda (nos meses até a entrega das chaves, mais os pós-chaves dos parâmetros).
+ * O que faltar para o preço pode virar entrada parcelada com a construtora, limitada a 20% do preço
+ * e a uma parcela de até 30% da renda (nos meses até a entrega das chaves, mais as parcelas pós-chaves do projeto, se houver).
  */
 import { formatBRL } from "./format";
 import { regiaoLabel } from "./constants";
@@ -70,25 +70,24 @@ export interface DevCompat {
   unidades_disponiveis: number | null;
   status_obra: string | null;
   previsao_entrega?: string | null;
+  meses_pos_chaves?: number | null;
 }
 
 /** Regra da entrada parcelada com a construtora usada para os aprovados. */
 export interface RegraEntrada {
-  /** parte máxima do preço que a construtora parcela (0.30 = 30%) */
+  /** parte máxima do preço que a construtora parcela (0.20 = 20%) */
   pct: number;
   /** parcela máxima da entrada como parte da renda (0.30 = 30%) */
   comprometimento: number;
   mesesLancamento: number;
   mesesObras: number;
-  /** parcelas após as chaves (0 = não considerar) */
-  mesesPos: number;
   comprometimentoPos: number;
 }
 
-export const ENTRADA_PCT = 0.3;
+export const ENTRADA_PCT = 0.2;
 export const PARCELA_PCT_RENDA = 0.3;
 
-/** 30% do preço e parcela de até 30% da renda; prazos vêm dos parâmetros da simulação quando existirem. */
+/** Até 20% do preço e parcela de até 30% da renda; prazos padrão de obra vêm dos parâmetros da simulação. */
 export function regraEntrada(params?: SimulationParams | null): RegraEntrada {
   const ep = params?.entrada_parcelada;
   return {
@@ -96,7 +95,6 @@ export function regraEntrada(params?: SimulationParams | null): RegraEntrada {
     comprometimento: PARCELA_PCT_RENDA,
     mesesLancamento: ep?.meses_lancamento ?? 36,
     mesesObras: ep?.meses_obras ?? 24,
-    mesesPos: Math.max(0, ep?.meses_pos_chaves ?? 0),
     comprometimentoPos: ep?.comprometimento_pos ?? PARCELA_PCT_RENDA,
   };
 }
@@ -104,7 +102,7 @@ export function regraEntrada(params?: SimulationParams | null): RegraEntrada {
 /** Quanto da entrada este cliente consegue parcelar neste empreendimento, e em quantos meses. */
 export function entradaParcelavelAprovado(
   a: Pick<Aprovado, "renda_familiar">,
-  d: Pick<DevCompat, "status_obra" | "previsao_entrega">,
+  d: Pick<DevCompat, "status_obra" | "previsao_entrega" | "meses_pos_chaves">,
   preco: number,
   regra: RegraEntrada,
   hoje = new Date()
@@ -113,11 +111,12 @@ export function entradaParcelavelAprovado(
   const obra = d.status_obra === "pronto" ? 0 : (mesesAteEntrega(d.previsao_entrega, hoje) ?? (d.status_obra === "lancamento" ? regra.mesesLancamento : regra.mesesObras));
   const parcelaObra = renda * regra.comprometimento;
   const parcelaPos = renda * regra.comprometimentoPos;
-  const capacidade = parcelaObra * obra + parcelaPos * regra.mesesPos;
-  return { valorMax: Math.max(0, Math.min(preco * regra.pct, capacidade)), mesesObra: obra, mesesPos: regra.mesesPos, parcelaObra, parcelaPos };
+  const mesesPos = Math.max(0, Number(d.meses_pos_chaves ?? 0));
+  const capacidade = parcelaObra * obra + parcelaPos * mesesPos;
+  return { valorMax: Math.max(0, Math.min(preco * regra.pct, capacidade)), mesesObra: obra, mesesPos, parcelaObra, parcelaPos };
 }
 
-/** Avalia um empreendimento para o aprovado: recursos + entrada parcelada (até 30% do preço e parcela até 30% da renda). */
+/** Avalia um empreendimento para o aprovado: recursos + entrada parcelada (até 20% do preço e parcela até 30% da renda). */
 export function avaliarDev(a: Pick<Aprovado, "poder_compra" | "renda_familiar">, d: DevCompat, regra: RegraEntrada, tolerancia = 0, hoje = new Date()) {
   const preco = Number(d.preco_min || 0);
   const recursos = Number(a.poder_compra || 0);
@@ -137,11 +136,11 @@ export function avaliarDev(a: Pick<Aprovado, "poder_compra" | "renda_familiar">,
   };
 }
 
-/** "Compra até" estimado (empreendimento em obras, prazo padrão), para listas e resumos. */
+/** "Compra até" estimado (empreendimento em obras, prazo padrão, sem pós-chaves), para listas e resumos. */
 export function compraAte(a: Pick<Aprovado, "poder_compra" | "renda_familiar">, regra: RegraEntrada) {
   const recursos = Number(a.poder_compra || 0);
   const renda = Number(a.renda_familiar || 0);
-  const cap = renda * regra.comprometimento * regra.mesesObras + renda * regra.comprometimentoPos * regra.mesesPos;
+  const cap = renda * regra.comprometimento * regra.mesesObras;
   return Math.round(Math.min(recursos / (1 - regra.pct), recursos + cap));
 }
 

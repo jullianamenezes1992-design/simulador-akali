@@ -116,7 +116,7 @@ export default function AprovadoForm({
         <p className="text-xs font-bold uppercase tracking-wider text-white/80">Recursos do cliente</p>
         <p className="font-display text-3xl font-black">{formatBRL(poder)}</p>
         <p className="text-xs text-white/80">
-          Financiamento + subsídio + FGTS + entrada à vista. Nos projetos, o sistema ainda soma a entrada parcelada com a construtora (até 30% do imóvel, parcela até
+          Financiamento + subsídio + FGTS + entrada à vista. Nos projetos, o sistema ainda soma a entrada parcelada com a construtora (até 20% do imóvel, parcela até
           30% da renda{parseMoney(v.renda) > 0 ? ` = ${formatBRL(parseMoney(v.renda) * 0.3)}/mês` : ""}).
         </p>
       </div>

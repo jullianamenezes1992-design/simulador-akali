@@ -47,7 +47,7 @@ export default async function CabemPage({ searchParams }: { searchParams: Promis
       </Link>
       <PageHeader
         titulo={`Aprovados que cabem no ${dev.nome}`}
-        descricao={`A partir de ${preco ? formatBRL(preco) : "—"}. Mostra quem consegue comprar com financiamento + subsídio + FGTS + entrada, parcelando até 30% do imóvel com parcela de até 30% da renda${tol ? `, ou quem fica até ${tol}% abaixo` : ""}.`}
+        descricao={`A partir de ${preco ? formatBRL(preco) : "—"}. Mostra quem consegue comprar com financiamento + subsídio + FGTS + entrada, parcelando até 20% do imóvel (e pós-chaves, se o projeto tiver) com parcela de até 30% da renda${tol ? `, ou quem fica até ${tol}% abaixo` : ""}.`}
       />
       <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
         <span className="font-semibold text-ink-soft">Tolerância:</span>

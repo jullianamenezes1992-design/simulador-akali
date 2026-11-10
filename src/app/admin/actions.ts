@@ -73,6 +73,7 @@ const devSchema = z
     status_obra: z.enum(valores(STATUS_OBRA)),
     previsao_entrega: z.string().max(60).nullable(),
     unidades_disponiveis: z.number().int().min(0).nullable(),
+    meses_pos_chaves: z.number().int("Parcelas pós-chaves: número inteiro").min(0).max(120, "Máximo de 120 parcelas pós-chaves"),
     disponivel: z.boolean(),
     condicoes_comerciais: z.string().max(3000).nullable(),
     diferenciais: z.array(z.string().max(80)).max(40),
@@ -108,6 +109,7 @@ function lerEmpreendimento(fd: FormData) {
     status_obra: String(fd.get("status_obra") ?? "lancamento"),
     previsao_entrega: textoOuNull(fd.get("previsao_entrega")),
     unidades_disponiveis: numOuNull(fd.get("unidades_disponiveis")),
+    meses_pos_chaves: numOuNull(fd.get("meses_pos_chaves")) ?? 0,
     disponivel: fd.get("disponivel") === "on",
     condicoes_comerciais: textoOuNull(fd.get("condicoes_comerciais")),
     diferenciais: String(fd.get("diferenciais") ?? "")

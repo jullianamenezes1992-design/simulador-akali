@@ -115,6 +115,8 @@ export interface DevelopmentForMatch {
   unidades_disponiveis: number | null;
   status_obra: string;
   previsao_entrega?: string | null;
+  /** parcelas da entrada após as chaves neste projeto (0 = não tem; ausente = usa o parâmetro geral) */
+  meses_pos_chaves?: number | null;
 }
 
 export interface MatchPreferences {

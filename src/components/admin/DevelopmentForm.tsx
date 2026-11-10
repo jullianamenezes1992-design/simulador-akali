@@ -163,6 +163,11 @@ export default function DevelopmentForm({ dev }: { dev?: Development }) {
           <label className="label" htmlFor="previsao_entrega">Previsão de entrega</label>
           <input id="previsao_entrega" name="previsao_entrega" defaultValue={dev?.previsao_entrega ?? ""} placeholder="Ex.: Dezembro/2028" className="input" />
         </div>
+        <div>
+          <label className="label" htmlFor="meses_pos_chaves">Parcelas da entrada após as chaves</label>
+          <input id="meses_pos_chaves" name="meses_pos_chaves" inputMode="numeric" defaultValue={dev?.meses_pos_chaves ?? 0} placeholder="0" className="input" />
+          <span className="mt-1 block text-xs text-ink-soft">Quantas parcelas a construtora aceita depois da entrega (ex.: 24 ou 48). 0 = não tem.</span>
+        </div>
         <label className="option">
           <input type="checkbox" name="disponivel" defaultChecked={dev ? dev.disponivel : true} className="accent-caixa" /> Com unidades à venda
         </label>

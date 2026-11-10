@@ -182,7 +182,7 @@ export default async function AprovadosPage({ searchParams }: { searchParams: SP
                   </div>
                   <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">Compra até (com entrada parcelada)</p>
                   <p className="font-display text-2xl font-black text-caixa">{formatBRL(compraAte(a, regra))}</p>
-                  <p className="text-xs text-ink-soft">Recursos {formatBRL(Number(a.poder_compra))} + até 30% do imóvel parcelado</p>
+                  <p className="text-xs text-ink-soft">Recursos {formatBRL(Number(a.poder_compra))} + até 20% do imóvel parcelado</p>
                   <p className="text-sm text-ink-soft">
                     {a.faixa ? `Faixa ${a.faixa}` : "Sem faixa"} · renda {formatBRL(Number(a.renda_familiar))}
                     {a.regioes?.length ? ` · ${a.regioes.map(regiaoLabel).join(", ")}` : ""}

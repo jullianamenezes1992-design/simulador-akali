@@ -97,8 +97,8 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
         <section className="card p-4">
           <h2 className="mb-1 font-bold">Projetos que cabem ({cabem.length})</h2>
           <p className="mb-2 text-xs text-ink-soft">
-            Recursos ({formatBRL(Number(a.poder_compra))}) + entrada parcelada com a construtora de até 30% do imóvel, com parcela de até 30% da renda (
-            {formatBRL(Number(a.renda_familiar) * regra.comprometimento)}/mês) até a entrega das chaves{regra.mesesPos ? ` e mais até ${regra.mesesPos}x depois` : ""}. Os que combinam com a região e os dormitórios aparecem primeiro.
+            Recursos ({formatBRL(Number(a.poder_compra))}) + entrada parcelada com a construtora de até 20% do imóvel, com parcela de até 30% da renda (
+            {formatBRL(Number(a.renda_familiar) * regra.comprometimento)}/mês) até a entrega das chaves, mais as parcelas pós-chaves nos projetos que oferecem. Os que combinam com a região e os dormitórios aparecem primeiro.
           </p>
           {!aberto ? (
             <p className="text-sm text-ink-soft">Este cadastro não está em aberto (status: {a.status}).</p>

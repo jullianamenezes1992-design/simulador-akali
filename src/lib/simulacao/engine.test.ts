@@ -241,6 +241,10 @@ describe("entrada parcelada com parcelas após as chaves", () => {
     // sem pós-chaves seria só 900×6
     const semPos = simular({ ...base, entrada: 0 }, { ...pPos, entrada_parcelada: { ...pPos.entrada_parcelada!, meses_pos_chaves: 0 } });
     expect(entradaParcelavel(200000, dev, semPos).valorMax).toBe(5400);
+    // o projeto define as parcelas pós-chaves: 0 = não tem; imóvel pronto parcela só no pós-chaves
+    expect(entradaParcelavel(200000, { ...dev, meses_pos_chaves: 0 }, sim).valorMax).toBe(5400);
+    expect(entradaParcelavel(200000, { status_obra: "pronto", meses_pos_chaves: 24 }, sim).valorMax).toBe(21600);
+    expect(entradaParcelavel(200000, { status_obra: "pronto", meses_pos_chaves: 0 }, sim).valorMax).toBe(0);
     const d = dividirEntrada(10000, 6, 48, 900, 900);
     expect(d.parcela).toBe(900);
     expect(d.mesesPos).toBe(6); // 4.600 restantes em parcelas de até 900

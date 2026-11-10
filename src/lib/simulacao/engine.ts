@@ -244,21 +244,21 @@ export function mesesAteEntrega(previsao: string | null | undefined, hoje = new 
 }
 
 /**
- * Quanto do preço pode ser pago como entrada parcelada durante a obra:
- * o menor entre (% máximo do preço) e (parcela mensal possível × nº de meses até a entrega).
- * Imóvel pronto = 0.
+ * Quanto do preço pode ser pago como entrada parcelada com a construtora:
+ * o menor entre (% máximo do preço) e (parcela mensal possível × meses até a entrega + parcelas pós-chaves).
+ * As parcelas pós-chaves vêm do empreendimento (meses_pos_chaves; 0 = não tem). Imóvel pronto só parcela pós-chaves.
  */
 export function entradaParcelavel(
   preco: number,
-  dev: { status_obra: string; previsao_entrega?: string | null },
+  dev: { status_obra: string; previsao_entrega?: string | null; meses_pos_chaves?: number | null },
   sim: Pick<SimulationResult, "entradaParcelada">,
   hoje = new Date()
 ): { valorMax: number; meses: number; mesesPos: number } {
   const ep = sim.entradaParcelada;
-  if (!ep || dev.status_obra === "pronto") return { valorMax: 0, meses: 0, mesesPos: 0 };
+  if (!ep) return { valorMax: 0, meses: 0, mesesPos: 0 };
   const padrao = dev.status_obra === "lancamento" ? ep.mesesLancamento : ep.mesesObras;
-  const meses = Math.max(0, mesesAteEntrega(dev.previsao_entrega, hoje) ?? padrao);
-  const mesesPos = Math.max(0, ep.mesesPosChaves ?? 0);
+  const meses = dev.status_obra === "pronto" ? 0 : Math.max(0, mesesAteEntrega(dev.previsao_entrega, hoje) ?? padrao);
+  const mesesPos = Math.max(0, dev.meses_pos_chaves ?? ep.mesesPosChaves ?? 0);
   const capacidade = ep.parcelaMensalMax * meses + (ep.parcelaPosMax ?? ep.parcelaMensalMax) * mesesPos;
   if (capacidade <= 0) return { valorMax: 0, meses: 0, mesesPos: 0 };
   return { valorMax: Math.min(preco * ep.pctMax, capacidade), meses, mesesPos };

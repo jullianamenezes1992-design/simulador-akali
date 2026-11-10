@@ -73,6 +73,8 @@ export interface Development {
   vagas: boolean;
   status_obra: string;
   previsao_entrega: string | null;
+  /** parcelas da entrada após as chaves (0 = não tem) */
+  meses_pos_chaves: number;
   unidades_disponiveis: number | null;
   disponivel: boolean;
   condicoes_comerciais: string | null;
