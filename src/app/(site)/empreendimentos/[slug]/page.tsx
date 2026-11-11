@@ -6,6 +6,7 @@ import { BedDouble, Building, CalendarClock, Car, Check, MapPin, Ruler, Tag } fr
 import Gallery from "@/components/site/Gallery";
 import ViewTracker from "@/components/site/ViewTracker";
 import WhatsAppButton from "@/components/site/WhatsAppButton";
+import CompartilharBotao from "@/components/site/CompartilharBotao";
 import { areaTexto, ULTIMAS_UNIDADES } from "@/components/site/DevelopmentCard";
 import { getPublicDevelopment } from "@/lib/data";
 import { regiaoLabel, statusObraLabel } from "@/lib/constants";
@@ -79,6 +80,12 @@ export default async function EmpreendimentoPage({ params }: { params: Params })
               <p className="mt-2 flex items-start gap-1.5 text-sm text-ink-soft">
                 <MapPin size={16} className="mt-0.5 shrink-0" /> {local} • {regiaoLabel(d.regiao)}
               </p>
+              <CompartilharBotao
+                slug={d.slug}
+                nome={d.nome}
+                resumo={[d.bairro, d.preco_min != null ? `a partir de ${formatPreco(d.preco_min)}` : null].filter(Boolean).join(", ")}
+                className="mt-4"
+              />
             </div>
 
             <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">

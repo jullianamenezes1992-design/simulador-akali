@@ -47,7 +47,7 @@ const META_EVENTS: Record<string, string> = {
   whatsapp_click: "Contact",
 };
 
-export type TrackEvent = "simulation_cta" | "simulation_start" | "simulation_step" | "simulation_complete" | "view_development" | "whatsapp_click";
+export type TrackEvent = "simulation_cta" | "simulation_start" | "simulation_step" | "simulation_complete" | "view_development" | "whatsapp_click" | "share";
 
 export function trackEvent(name: TrackEvent, params: Params = {}) {
   if (typeof window === "undefined" || getConsent() !== "granted") return;
