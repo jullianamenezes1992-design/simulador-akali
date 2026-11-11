@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/admin/ui";
 import AprovadoForm from "@/components/admin/AprovadoForm";
 import EnviarOferta from "@/components/admin/EnviarOferta";
 import ExcluirAprovado from "@/components/admin/ExcluirAprovado";
-import { STATUS_EM_ABERTO, compativeis, compraAte, diasParaVencer, mensagemOferta, regraEntrada, type Aprovado } from "@/lib/aprovados";
+import { STATUS_EM_ABERTO, compativeis, compraAte, diasParaVencer, mensagemOferta, ofertaDoProjeto, ofertasPorProjeto, regraEntrada, type Aprovado, type OfertaEnviada } from "@/lib/aprovados";
 import { getActiveParams, getSettings } from "@/lib/data";
 import { regiaoLabel } from "@/lib/constants";
 import { formatBRL, formatDate } from "@/lib/format";
@@ -25,18 +25,32 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
   const { data } = await supabase.from("aprovados").select("*").eq("id", id).maybeSingle();
   if (!data) notFound();
   const a = data as Aprovado;
-  const [devs, apoio, s, ativo] = await Promise.all([devsAtivos(supabase), apoioFormAprovado(supabase), getSettings(), getActiveParams()]);
+  const [devs, apoio, s, ativo, { data: ofs }] = await Promise.all([
+    devsAtivos(supabase),
+    apoioFormAprovado(supabase),
+    getSettings(),
+    getActiveParams(),
+    supabase.from("ofertas_enviadas").select("aprovado_id, development_id, dev_nome, enviado_em").eq("aprovado_id", id).order("enviado_em", { ascending: false }).limit(200),
+  ]);
+  const ofertas = (ofs ?? []) as OfertaEnviada[];
+  const jaOfertado = ofertasPorProjeto(ofertas);
+  // projetos já oferecidos vão para o fim da lista (o oferecido há mais tempo antes)
+  const naoRepetir = <T extends { dev: { id: string; nome: string } }>(lista: T[]) => {
+    const quando = (c: T) => ofertaDoProjeto(jaOfertado, c.dev);
+    return [...lista.filter((c) => !quando(c)), ...lista.filter((c) => quando(c)).sort((x, y) => quando(x)!.localeCompare(quando(y)!))];
+  };
   const regra = regraEntrada(ativo?.params);
 
   const assinatura = s.corretora_nome || s.empresa_nome;
   const base = siteUrl();
-  const cabem = compativeis(a, devs, 0, regra);
-  const quase = compativeis(a, devs, 0.05, regra).filter((c) => c.acimaDoPoder);
+  const cabem = naoRepetir(compativeis(a, devs, 0, regra));
+  const quase = naoRepetir(compativeis(a, devs, 0.05, regra).filter((c) => c.acimaDoPoder));
   const dias = diasParaVencer(a.vencimento);
   const aberto = STATUS_EM_ABERTO.includes(a.status);
 
   const linha = (c: ReturnType<typeof compativeis>[number]) => {
     const link = `${base}/empreendimentos/${c.dev.slug}?utm_source=whatsapp&utm_medium=corretora&utm_content=aprovado`;
+    const enviada = ofertaDoProjeto(jaOfertado, c.dev);
     return (
       <li key={c.dev.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
         <div className="min-w-0">
@@ -62,9 +76,10 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
             {c.dormOk && a.dormitorios_min ? <span className="rounded-full bg-emerald-100 px-2 text-emerald-800">dormitórios ok</span> : null}
             {c.dev.oferta_destaque && <span className="rounded-full bg-sol px-2 text-ink">promoção</span>}
             {c.dev.unidades_disponiveis != null && c.dev.unidades_disponiveis < 50 && <span className="rounded-full bg-red-600 px-2 text-white">últimas unidades</span>}
+            {enviada && <span className="rounded-full bg-zinc-200 px-2 text-zinc-800">📤 oferta enviada em {formatDate(enviada)}</span>}
           </p>
         </div>
-        <EnviarOferta aprovadoId={a.id} telefone={a.telefone} devNome={c.dev.nome} texto={mensagemOferta(a, c.dev, link, assinatura)} />
+        <EnviarOferta aprovadoId={a.id} telefone={a.telefone} devNome={c.dev.nome} devId={c.dev.id} jaEnviada={enviada} texto={mensagemOferta(a, c.dev, link, assinatura)} />
       </li>
     );
   };
@@ -76,7 +91,7 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
       </Link>
       <PageHeader
         titulo={a.nome}
-        descricao={`Compra até ~${formatBRL(compraAte(a, regra))} · recursos ${formatBRL(Number(a.poder_compra))}${a.faixa ? ` · Faixa ${a.faixa}` : ""}${[a.oportunidade_sf && "Oportunidade " + a.oportunidade_sf, a.ar_numero, a.ab_numero].filter(Boolean).map((x) => " · " + x).join("")}`}
+        descricao={`Atualizado em ${formatDate(a.updated_at, true)} · Compra até ~${formatBRL(compraAte(a, regra))} · recursos ${formatBRL(Number(a.poder_compra))}${a.faixa ? ` · Faixa ${a.faixa}` : ""}${[a.oportunidade_sf && "Oportunidade " + a.oportunidade_sf, a.ar_numero, a.ab_numero].filter(Boolean).map((x) => " · " + x).join("")}`}
       >
         {a.lead_id && (
           <Link href={`/admin/leads/${a.lead_id}`} className="btn-secondary">
@@ -107,6 +122,9 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
           ) : (
             <p className="text-sm text-ink-soft">Nenhum projeto cabe hoje. Você será avisada quando algum baixar de preço ou entrar em promoção.</p>
           )}
+          {cabem.some((c) => ofertaDoProjeto(jaOfertado, c.dev)) && (
+            <p className="mt-2 text-xs text-ink-soft">Os projetos que você já ofereceu a este cliente ficam no fim da lista, marcados com 📤.</p>
+          )}
           {aberto && quase.length > 0 && (
             <>
               <h3 className="mb-1 mt-4 text-sm font-bold">Quase cabem (até 5% acima)</h3>
@@ -116,6 +134,19 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
         </section>
         <div className="space-y-3">
           <AprovadoForm aprovado={a} faixas={apoio.faixas} leads={apoio.leads} />
+          {ofertas.length > 0 && (
+            <section className="card p-4">
+              <h2 className="mb-2 font-bold">Ofertas enviadas ({ofertas.length})</h2>
+              <ul className="divide-y divide-line text-sm">
+                {ofertas.map((o, i) => (
+                  <li key={i} className="flex justify-between gap-2 py-1.5">
+                    <span>{o.dev_nome}</span>
+                    <span className="shrink-0 text-ink-soft">{formatDate(o.enviado_em, true)}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           {papel === "admin" && <ExcluirAprovado id={a.id} />}
         </div>
       </div>

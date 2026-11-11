@@ -20,13 +20,17 @@ export default async function CabemPage({ searchParams }: { searchParams: Promis
   if (!sp.dev || !/^[0-9a-f-]{36}$/i.test(sp.dev)) notFound();
   const tol = TOLERANCIAS.includes(Number(sp.tol)) ? Number(sp.tol) : 0;
   const { supabase } = await requireAdmin();
-  const [{ data: d }, { data }, s, ativo] = await Promise.all([
+  const [{ data: d }, { data }, s, ativo, { data: ofs }] = await Promise.all([
     supabase.from("developments").select(CAMPOS_DEV).eq("id", sp.dev).maybeSingle(),
     supabase.from("aprovados").select("*").in("status", STATUS_EM_ABERTO).order("poder_compra", { ascending: false }).limit(2000),
     getSettings(),
     getActiveParams(),
+    supabase.from("ofertas_enviadas").select("aprovado_id, enviado_em, development_id").eq("development_id", sp.dev).order("enviado_em", { ascending: false }).limit(2000),
   ]);
   if (!d) notFound();
+  // última vez que cada aprovado recebeu a oferta DESTE projeto
+  const ofertaAqui = new Map<string, string>();
+  for (const o of ofs ?? []) if (!ofertaAqui.has(o.aprovado_id)) ofertaAqui.set(o.aprovado_id, o.enviado_em);
   const regra = regraEntrada(ativo?.params);
   const dev = d as DevCompat;
   const preco = Number(dev.preco_min);
@@ -36,7 +40,13 @@ export default async function CabemPage({ searchParams }: { searchParams: Promis
       const dias = diasParaVencer(a.vencimento);
       return (dias == null || dias >= 0) && av.cabe;
     })
-    .sort((x, y) => Number(y.a.classificacao === "quente") - Number(x.a.classificacao === "quente") || y.av.folga - x.av.folga);
+    .sort(
+      (x, y) =>
+        // quem já recebeu este projeto vai para o fim
+        Number(ofertaAqui.has(x.a.id)) - Number(ofertaAqui.has(y.a.id)) ||
+        Number(y.a.classificacao === "quente") - Number(x.a.classificacao === "quente") ||
+        y.av.folga - x.av.folga
+    );
   const link = `${siteUrl()}/empreendimentos/${dev.slug}?utm_source=whatsapp&utm_medium=corretora&utm_content=aprovado`;
   const assinatura = s.corretora_nome || s.empresa_nome;
 
@@ -76,9 +86,10 @@ export default async function CabemPage({ searchParams }: { searchParams: Promis
                     {av.entradaParcelar > 0 ? ` · entrada a parcelar ${formatBRL(av.entradaParcelar)}${av.meses ? ` (≈ ${av.meses}x de ${formatBRL(av.parcelaEntrada)})` : ""}` : ""}
                     {falta > 0 ? <span className="font-semibold text-amber-700"> · faltam {formatBRL(falta)}</span> : ""}
                     {a.vencimento ? ` · vence ${formatDate(`${a.vencimento}T12:00:00Z`)}` : ""}
+                    {ofertaAqui.has(a.id) && <span className="font-semibold text-zinc-700"> · 📤 já recebeu este projeto em {formatDate(ofertaAqui.get(a.id)!)}</span>}
                   </p>
                 </div>
-                <EnviarOferta aprovadoId={a.id} telefone={a.telefone} devNome={dev.nome} texto={mensagemOferta(a, dev, link, assinatura)} />
+                <EnviarOferta aprovadoId={a.id} telefone={a.telefone} devNome={dev.nome} devId={dev.id} jaEnviada={ofertaAqui.get(a.id) ?? null} texto={mensagemOferta(a, dev, link, assinatura)} />
               </li>
             );
           })}

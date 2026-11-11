@@ -5,7 +5,24 @@ import { Check, Copy, MessageCircle } from "lucide-react";
 import { registrarOfertaEnviada } from "@/app/admin/actions";
 
 /** Botão "Enviar oferta": abre o WhatsApp do aprovado com a mensagem pronta e registra no histórico. */
-export default function EnviarOferta({ aprovadoId, telefone, texto, devNome, compacto }: { aprovadoId: string; telefone: string; texto: string; devNome: string; compacto?: boolean }) {
+export default function EnviarOferta({
+  aprovadoId,
+  telefone,
+  texto,
+  devNome,
+  devId,
+  jaEnviada,
+  compacto,
+}: {
+  aprovadoId: string;
+  telefone: string;
+  texto: string;
+  devNome: string;
+  devId?: string;
+  /** data da última vez que este projeto foi oferecido a este cliente */
+  jaEnviada?: string | null;
+  compacto?: boolean;
+}) {
   const [, start] = useTransition();
   const [enviada, setEnviada] = useState(false);
   const [copiada, setCopiada] = useState(false);
@@ -18,11 +35,11 @@ export default function EnviarOferta({ aprovadoId, telefone, texto, devNome, com
         rel="noreferrer"
         onClick={() => {
           setEnviada(true);
-          start(() => registrarOfertaEnviada(aprovadoId, devNome).catch(() => undefined));
+          start(() => registrarOfertaEnviada(aprovadoId, devNome, devId ?? null).catch(() => undefined));
         }}
-        className="inline-flex items-center gap-1.5 rounded-lg bg-[#25D366] px-3 py-1.5 text-sm font-bold text-white"
+        className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold ${jaEnviada && !enviada ? "border border-[#25D366] text-[#128C4B]" : "bg-[#25D366] text-white"}`}
       >
-        {enviada ? <Check size={15} /> : <MessageCircle size={15} />} {enviada ? "Oferta aberta" : "Enviar oferta"}
+        {enviada ? <Check size={15} /> : <MessageCircle size={15} />} {enviada ? "Oferta aberta" : jaEnviada ? "Enviar de novo" : "Enviar oferta"}
       </a>
       {!compacto && (
         <button

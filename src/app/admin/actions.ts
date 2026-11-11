@@ -958,18 +958,17 @@ export async function excluirAprovado(id: string) {
   revalidatePath("/admin/aprovados");
 }
 
-export async function registrarOfertaEnviada(aprovadoId: string, devNome: string) {
+export async function registrarOfertaEnviada(aprovadoId: string, devNome: string, devId?: string | null) {
   const { supabase } = await assertAdmin();
   if (!UUID_RE.test(aprovadoId)) return;
-  const { data } = await supabase.from("aprovados").select("lead_id, observacoes").eq("id", aprovadoId).maybeSingle();
-  const dia = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
-  const linha = `${dia}: oferta enviada – ${String(devNome).slice(0, 120)}`;
-  await supabase
-    .from("aprovados")
-    .update({ observacoes: [linha, data?.observacoes].filter(Boolean).join("\n").slice(0, 4000) })
-    .eq("id", aprovadoId);
-  if (data?.lead_id) await supabase.from("lead_events").insert({ lead_id: data.lead_id, tipo: "oferta_enviada", dados: { empreendimento: devNome } });
+  const nome = String(devNome).trim().slice(0, 160) || "Projeto";
+  const { data } = await supabase.from("aprovados").select("lead_id").eq("id", aprovadoId).maybeSingle();
+  const agora = new Date().toISOString();
+  await supabase.from("ofertas_enviadas").insert({ aprovado_id: aprovadoId, development_id: devId && UUID_RE.test(devId) ? devId : null, dev_nome: nome, enviado_em: agora });
+  await supabase.from("aprovados").update({ ultima_oferta_em: agora }).eq("id", aprovadoId);
+  if (data?.lead_id) await supabase.from("lead_events").insert({ lead_id: data.lead_id, tipo: "oferta_enviada", dados: { empreendimento: nome } });
   revalidatePath(`/admin/aprovados/${aprovadoId}`);
+  revalidatePath("/admin/aprovados");
 }
 
 export async function marcarOportunidadesVistas() {

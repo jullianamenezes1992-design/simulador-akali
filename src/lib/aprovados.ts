@@ -54,8 +54,31 @@ export interface Aprovado {
   oportunidade_sf: string | null;
   ar_numero: string | null;
   ab_numero: string | null;
+  ultima_oferta_em: string | null;
   created_at: string;
+  updated_at: string;
 }
+
+export interface OfertaEnviada {
+  aprovado_id: string;
+  development_id: string | null;
+  dev_nome: string;
+  enviado_em: string;
+}
+
+/** Última oferta de cada projeto para um aprovado (chave: id do empreendimento ou nome). */
+export function ofertasPorProjeto(ofertas: OfertaEnviada[]) {
+  const m = new Map<string, string>();
+  for (const o of ofertas) {
+    for (const k of [o.development_id, o.dev_nome].filter(Boolean) as string[]) {
+      if (!m.has(k) || m.get(k)! < o.enviado_em) m.set(k, o.enviado_em);
+    }
+  }
+  return m;
+}
+
+/** Data da última oferta deste projeto para o aprovado, se houver. */
+export const ofertaDoProjeto = (m: Map<string, string>, d: { id: string; nome: string }) => m.get(d.id) ?? m.get(d.nome) ?? null;
 
 export interface DevCompat {
   id: string;

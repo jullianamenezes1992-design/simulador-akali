@@ -15,6 +15,7 @@ import {
   diasParaVencer,
   statusAprovadoInfo,
   type Aprovado,
+  type OfertaEnviada,
 } from "@/lib/aprovados";
 import { regiaoLabel } from "@/lib/constants";
 import { agoraMs } from "@/lib/agenda";
@@ -35,7 +36,7 @@ export default async function AprovadosPage({ searchParams }: { searchParams: SP
   const classif = CLASSIFICACOES.some((c) => c.value === sp.classe) ? sp.classe! : "";
   const q = (sp.q ?? "").trim().toLowerCase().slice(0, 60);
 
-  const [{ data }, devs, { data: ops }, ativo] = await Promise.all([
+  const [{ data }, devs, { data: ops }, ativo, { data: ofs }] = await Promise.all([
     supabase.from("aprovados").select("*").order("created_at", { ascending: false }).limit(2000),
     devsAtivos(supabase),
     supabase
@@ -45,8 +46,12 @@ export default async function AprovadosPage({ searchParams }: { searchParams: SP
       .order("created_at", { ascending: false })
       .limit(20),
     getActiveParams(),
+    supabase.from("ofertas_enviadas").select("aprovado_id, development_id, dev_nome, enviado_em").order("enviado_em", { ascending: false }).limit(5000),
   ]);
   const regra = regraEntrada(ativo?.params);
+  // ofertas por aprovado (a mais recente primeiro)
+  const ofertasDe = new Map<string, OfertaEnviada[]>();
+  for (const o of (ofs ?? []) as OfertaEnviada[]) ofertasDe.set(o.aprovado_id, [...(ofertasDe.get(o.aprovado_id) ?? []), o]);
   const todos = (data ?? []) as Aprovado[];
   const oportunidades = (ops ?? []) as unknown as Op[];
   const novas = oportunidades.filter((o) => !o.visto_em);
@@ -56,12 +61,17 @@ export default async function AprovadosPage({ searchParams }: { searchParams: SP
     const d = diasParaVencer(a.vencimento);
     return d != null && d >= 0 && d <= 15;
   });
-  const lista = todos.filter(
+  const filtrados = todos.filter(
     (a) =>
       (status === "todos" ? true : status === "abertos" ? STATUS_EM_ABERTO.includes(a.status) : status === "vencendo" ? vencendo.includes(a) : a.status === status) &&
       (!classif || a.classificacao === classif) &&
       (!q || [a.nome, a.telefone, a.observacoes, a.ar_numero, a.ab_numero, a.oportunidade_sf].join(" ").toLowerCase().includes(q))
   );
+  // quem já recebeu oferta desce para o fim da lista (a oferta mais antiga primeiro), para não repetir
+  const lista = [
+    ...filtrados.filter((a) => !a.ultima_oferta_em),
+    ...filtrados.filter((a) => a.ultima_oferta_em).sort((x, y) => x.ultima_oferta_em!.localeCompare(y.ultima_oferta_em!)),
+  ];
   const link = (p: Record<string, string>) => {
     const u = new URLSearchParams({ status, ...(classif ? { classe: classif } : {}), ...(q ? { q } : {}), ...p });
     [...u.entries()].forEach(([k, v]) => !v && u.delete(k));
@@ -183,6 +193,15 @@ export default async function AprovadosPage({ searchParams }: { searchParams: SP
                   <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">Compra até (com entrada parcelada)</p>
                   <p className="font-display text-2xl font-black text-caixa">{formatBRL(compraAte(a, regra))}</p>
                   <p className="text-xs text-ink-soft">Recursos {formatBRL(Number(a.poder_compra))} + até 20% do imóvel parcelado</p>
+                  {(() => {
+                    const of = ofertasDe.get(a.id);
+                    return of?.length ? (
+                      <p className="mt-1 rounded-lg bg-zinc-100 px-2 py-1 text-xs font-semibold text-zinc-700">
+                        📤 Oferta enviada em {formatDate(of[0].enviado_em)}: {of[0].dev_nome}
+                        {of.length > 1 ? ` (+${of.length - 1} antes)` : ""}
+                      </p>
+                    ) : null;
+                  })()}
                   <p className="text-sm text-ink-soft">
                     {a.faixa ? `Faixa ${a.faixa}` : "Sem faixa"} · renda {formatBRL(Number(a.renda_familiar))}
                     {a.regioes?.length ? ` · ${a.regioes.map(regiaoLabel).join(", ")}` : ""}
@@ -205,6 +224,7 @@ export default async function AprovadosPage({ searchParams }: { searchParams: SP
                     )}
                     {a.classificacao === "quente" && <Flame size={14} className="text-red-600" aria-hidden />}
                   </div>
+                  <p className="mt-2 text-xs text-ink-soft">Atualizado em {formatDate(a.updated_at)}</p>
                 </Link>
               </li>
             );
