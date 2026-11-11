@@ -2,8 +2,8 @@
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { Check, ClipboardCopy, Eye, Loader2, RotateCcw, ShieldOff, Trash2 } from "lucide-react";
-import { LEAD_STATUS } from "@/lib/constants";
-import { adicionarNota, anonimizarLead, atualizarOrigem, excluirLead, excluirLeadDefinitivo, restaurarLead, atribuirResponsavel, atualizarStatusLead, revelarCPF, type ActionState } from "@/app/admin/actions";
+import { LEAD_STATUS, REGIOES } from "@/lib/constants";
+import { adicionarNota, anonimizarLead, atualizarOrigem, excluirLead, excluirLeadDefinitivo, restaurarLead, atribuirResponsavel, atualizarStatusLead, revelarCPF, atualizarInteresse, type ActionState } from "@/app/admin/actions";
 
 export function StatusSelect({ leadId, status }: { leadId: string; status: string }) {
   const [pending, start] = useTransition();
@@ -277,5 +277,90 @@ export function LixeiraItem({ id, nome, detalhe }: { id: string; nome: string; d
         </button>
       </div>
     </li>
+  );
+}
+
+export function InteresseEditor({
+  leadId,
+  regioes,
+  bairro,
+  dormitorios,
+}: {
+  leadId: string;
+  regioes: string[];
+  bairro: string | null;
+  dormitorios: number | null;
+}) {
+  const [aberto, setAberto] = useState(false);
+  const [sel, setSel] = useState<string[]>(regioes);
+  const [bai, setBai] = useState(bairro ?? "");
+  const [dorm, setDorm] = useState(dormitorios ? String(dormitorios) : "");
+  const [pending, start] = useTransition();
+  const [msg, setMsg] = useState<string | null>(null);
+  if (!aberto)
+    return (
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <button type="button" onClick={() => setAberto(true)} className="text-xs font-semibold text-caixa hover:underline">
+          Corrigir região, bairro ou dormitórios
+        </button>
+        {msg && <span className="text-xs text-emerald-700">{msg}</span>}
+      </div>
+    );
+  return (
+    <div className="mt-3 rounded-xl border border-line p-3">
+      <p className="label">Região de interesse</p>
+      <div className="flex flex-wrap gap-2">
+        {REGIOES.map((r) => (
+          <label key={r.value} className="flex cursor-pointer items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-sm has-[:checked]:border-caixa has-[:checked]:bg-caixa/10">
+            <input
+              type="checkbox"
+              className="accent-caixa"
+              checked={sel.includes(r.value)}
+              onChange={(e) => setSel((s) => (e.target.checked ? [...s, r.value] : s.filter((x) => x !== r.value)))}
+            />
+            {r.label}
+          </label>
+        ))}
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+        <label>
+          <span className="label">Bairro / detalhe</span>
+          <input value={bai} onChange={(e) => setBai(e.target.value)} maxLength={200} placeholder="Ex.: Pirituba" className="input" />
+        </label>
+        <label>
+          <span className="label">Dormitórios</span>
+          <select value={dorm} onChange={(e) => setDorm(e.target.value)} className="input">
+            <option value="">Indiferente</option>
+            {[1, 2, 3].map((n) => (
+              <option key={n} value={n}>{n}+</option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="mt-3 flex gap-2">
+        <button
+          type="button"
+          className="btn-primary"
+          disabled={pending}
+          onClick={() =>
+            start(async () => {
+              try {
+                const r = await atualizarInteresse(leadId, { regioes: sel, bairro: bai, dormitorios: dorm ? Number(dorm) : null });
+                setMsg(r.recomendados != null ? `Salvo! ${r.recomendados} imóvel(is) recomendado(s) com a nova região.` : "Salvo!");
+                setAberto(false);
+              } catch (e) {
+                setMsg(e instanceof Error ? e.message : "Erro ao salvar.");
+              }
+            })
+          }
+        >
+          {pending ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Salvar
+        </button>
+        <button type="button" className="btn-secondary" onClick={() => setAberto(false)}>
+          Cancelar
+        </button>
+      </div>
+      {msg && <p className="mt-1 text-xs text-red-600">{msg}</p>}
+    </div>
   );
 }

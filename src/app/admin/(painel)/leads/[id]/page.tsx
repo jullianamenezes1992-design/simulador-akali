@@ -4,7 +4,7 @@ import { ArrowLeft, BadgeCheck, MessageCircle } from "lucide-react";
 import MensagensProntas from "@/components/admin/MensagensProntas";
 import { mensagensDaEtapa, preencherMensagem } from "@/lib/mensagens-prontas";
 import { siteUrl } from "@/lib/server/notificacoes";
-import { AnonymizeButton, CopiarAtendimentoButton, DeleteLeadButton, OrigemEditor, NoteForm, ResponsavelSelect, RevealCPF, StatusSelect } from "@/components/admin/LeadControls";
+import { AnonymizeButton, CopiarAtendimentoButton, DeleteLeadButton, InteresseEditor, OrigemEditor, NoteForm, ResponsavelSelect, RevealCPF, StatusSelect } from "@/components/admin/LeadControls";
 import {
   ESTADOS_CIVIS,
   PRAZOS_COMPRA,
@@ -317,6 +317,8 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
               Preferências: {l.regioes?.length ? l.regioes.map(regiaoLabel).join(", ") : "qualquer região"} •{" "}
               {l.dormitorios_min ? `${l.dormitorios_min}+ dorm.` : "dorm. indiferente"} • vaga: {simNao(l.precisa_vaga)} •{" "}
               {labelOf(PREFERENCIAS_OBRA, l.preferencia_obra)}
+              {l.regiao_detalhe ? ` • ${l.regiao_detalhe}` : ""}
+              {!anonimizado && <InteresseEditor leadId={l.id} regioes={l.regioes ?? []} bairro={l.regiao_detalhe ?? null} dormitorios={l.dormitorios_min ?? null} />}
             </div>
           </Bloco>
         </div>

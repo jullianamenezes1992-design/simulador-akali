@@ -1131,3 +1131,27 @@ export async function salvarDadosSF(leadId: string, _prev: ActionState, fd: Form
     return { erro: msg(e) };
   }
 }
+
+/** Região de interesse, bairro e dormitórios do cliente (corrigidos pela corretora); refaz os imóveis recomendados. */
+export async function atualizarInteresse(leadId: string, dados: { regioes: string[]; bairro: string; dormitorios: number | null }) {
+  const { supabase } = await assertAdmin();
+  if (!UUID_RE.test(leadId)) throw new Error("Cliente inválido.");
+  const { REGIOES: RG } = await import("@/lib/constants");
+  const regioes = [...new Set((dados.regioes ?? []).filter((r) => RG.some((x) => x.value === r)))];
+  const dorm = dados.dormitorios && dados.dormitorios >= 1 && dados.dormitorios <= 4 ? dados.dormitorios : null;
+  const upd: Record<string, unknown> = { regioes, regiao_detalhe: String(dados.bairro ?? "").trim().slice(0, 200) || null, dormitorios_min: dorm };
+
+  // com a simulação feita, refaz a lista de imóveis compatíveis com as novas preferências
+  const { data: l } = await supabase.from("leads").select("simulacao, precisa_vaga, preferencia_obra").eq("id", leadId).maybeSingle();
+  if (l?.simulacao) {
+    const { listarAtivosParaMatch, ranquearDevs, prefsDoLead } = await import("@/lib/server/leads");
+    const prefs = prefsDoLead({ regioes, dormitorios_min: dorm, precisa_vaga: !!l.precisa_vaga, preferencia_obra: l.preferencia_obra ?? "indiferente" });
+    const ranking = ranquearDevs(await listarAtivosParaMatch(), l.simulacao as import("@/lib/simulacao/types").SimulationResult, prefs);
+    upd.recomendados = ranking.compativeis.slice(0, 12).map((x) => x.dev.id);
+  }
+  const { error } = await supabase.from("leads").update(upd).eq("id", leadId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/admin/leads/${leadId}`);
+  revalidatePath("/admin/leads");
+  return { recomendados: (upd.recomendados as string[] | undefined)?.length ?? null };
+}
