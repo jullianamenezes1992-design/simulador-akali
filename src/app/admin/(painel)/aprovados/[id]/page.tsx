@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/admin/ui";
 import AprovadoForm from "@/components/admin/AprovadoForm";
 import EnviarOferta from "@/components/admin/EnviarOferta";
 import ExcluirAprovado from "@/components/admin/ExcluirAprovado";
-import { STATUS_EM_ABERTO, compativeis, compraAte, diasParaVencer, mensagemOferta, ofertaDoProjeto, ofertasPorProjeto, regraEntrada, type Aprovado, type OfertaEnviada } from "@/lib/aprovados";
+import { STATUS_EM_ABERTO, compativeis, compraAte, diasParaVencer, mensagemOferta, ofertaDoProjeto, preSimulacao, ofertasPorProjeto, regraEntrada, type Aprovado, type OfertaEnviada } from "@/lib/aprovados";
 import { getActiveParams, getSettings } from "@/lib/data";
 import { regiaoLabel } from "@/lib/constants";
 import { formatBRL, formatDate } from "@/lib/format";
@@ -51,6 +51,8 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
   const linha = (c: ReturnType<typeof compativeis>[number]) => {
     const link = `${base}/empreendimentos/${c.dev.slug}?utm_source=whatsapp&utm_medium=corretora&utm_content=aprovado`;
     const enviada = ofertaDoProjeto(jaOfertado, c.dev);
+    const ps = preSimulacao(a, c.dev, regra);
+    const psOk = ps && !ps.excede ? ps : undefined;
     return (
       <li key={c.dev.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
         <div className="min-w-0">
@@ -77,9 +79,10 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
             {c.dev.oferta_destaque && <span className="rounded-full bg-sol px-2 text-ink">promoção</span>}
             {c.dev.unidades_disponiveis != null && c.dev.unidades_disponiveis < 50 && <span className="rounded-full bg-red-600 px-2 text-white">últimas unidades</span>}
             {enviada && <span className="rounded-full bg-zinc-200 px-2 text-zinc-800">📤 oferta enviada em {formatDate(enviada)}</span>}
+            {!(Number(c.dev.avaliacao_min) > 0) && <span className="rounded-full bg-amber-100 px-2 text-amber-900" title="Cadastre a avaliação no empreendimento para limitar o financiamento a 80% dela">sem avaliação</span>}
           </p>
         </div>
-        <EnviarOferta aprovadoId={a.id} telefone={a.telefone} devNome={c.dev.nome} devId={c.dev.id} jaEnviada={enviada} texto={mensagemOferta(a, c.dev, link, assinatura)} />
+        <EnviarOferta aprovadoId={a.id} telefone={a.telefone} devNome={c.dev.nome} devId={c.dev.id} jaEnviada={enviada} texto={mensagemOferta(a, c.dev, link, assinatura, psOk)} />
       </li>
     );
   };

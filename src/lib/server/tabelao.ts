@@ -90,6 +90,27 @@ export function posChavesDoEncarte(p: Promocoes | null): Map<number, number> {
   return out;
 }
 
+/** Avaliação da unidade mais barata de cada empreendimento no encarte (n do tabelão → valor). */
+export function avaliacaoDoEncarte(p: Promocoes | null): Map<number, number> {
+  const out = new Map<number, number>();
+  if (!p?.rows?.length || !p.grupos?.length || !p.campos) return out;
+  const [iG, iT, iA] = ["g", "tabela", "avaliacao"].map((k) => p.campos!.indexOf(k));
+  if (iG < 0 || iT < 0 || iA < 0) return out;
+  const menor = new Map<number, { t: number; a: number }>();
+  for (const r of p.rows) {
+    const t = Number(r[iT]);
+    const a = Number(r[iA]);
+    if (!(t >= 80000 && a >= t * 0.8 && a <= 5000000)) continue;
+    const g = Number(r[iG]);
+    const m = menor.get(g);
+    if (!m || t < m.t) menor.set(g, { t, a });
+  }
+  menor.forEach((v, g) => {
+    for (const n of p.grupos![g]?.n ?? []) out.set(Number(n), Math.round(v.a));
+  });
+  return out;
+}
+
 /** Extrai a lista "const D = [...]" do index.html sem executar código de terceiros. */
 export function extrairLista(html: string): LinhaD[] {
   const i = html.indexOf("const D = [");
@@ -133,6 +154,7 @@ export async function sincronizarTabelao(origem: "automatico" | "manual" = "auto
       baixar("promocoes.json").then((r) => r.json() as Promise<Promocoes>).catch(() => null),
     ]);
     const posChaves = posChavesDoEncarte(promo);
+    const avaliacoes = avaliacaoDoEncarte(promo);
     const D = extrairLista(html);
     if (!uni?.rows || uni.rows.length < 3000 || (uni.consultados?.length ?? 0) < 40) throw new Error("Lista de unidades veio pequena demais; nada foi alterado.");
     res.dados_de = uni.geradoEm ?? null;
@@ -163,7 +185,7 @@ export async function sincronizarTabelao(origem: "automatico" | "manual" = "auto
     const slugs = Object.values(MAPA_TABELAO);
     const { data: atuais, error } = await db
       .from("developments")
-      .select("id, slug, nome, preco_min, preco_max, faixas, status_obra, previsao_entrega, vagas, unidades_disponiveis, disponivel, condicoes_comerciais, meses_pos_chaves")
+      .select("id, slug, nome, preco_min, preco_max, faixas, status_obra, previsao_entrega, vagas, unidades_disponiveis, disponivel, condicoes_comerciais, meses_pos_chaves, avaliacao_min")
       .in("slug", slugs);
     if (error) throw new Error(error.message);
     const porSlug = new Map((atuais ?? []).map((d) => [d.slug as string, d]));
@@ -213,6 +235,7 @@ export async function sincronizarTabelao(origem: "automatico" | "manual" = "auto
       if (estoque != null) muda("unidades_disponiveis", estoque);
       muda("disponivel", !esgotado, "à venda");
       if (posChaves.has(n)) muda("meses_pos_chaves", posChaves.get(n)!, "parcelas pós-chaves");
+      if (avaliacoes.has(n)) muda("avaliacao_min", avaliacoes.get(n)!, "avaliação");
       if (esgotado) res.esgotados++;
       if (precoMin && !esgotado) {
         const pMin = Math.round(precoMin * 100) / 100;

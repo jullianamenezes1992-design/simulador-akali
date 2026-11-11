@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/admin/ui";
 import EnviarOferta from "@/components/admin/EnviarOferta";
-import { STATUS_EM_ABERTO, avaliarDev, regraEntrada, classificacaoInfo, diasParaVencer, mensagemOferta, type Aprovado, type DevCompat } from "@/lib/aprovados";
+import { STATUS_EM_ABERTO, avaliarDev, regraEntrada, classificacaoInfo, diasParaVencer, mensagemOferta, preSimulacao, type Aprovado, type DevCompat } from "@/lib/aprovados";
 import { getActiveParams, getSettings } from "@/lib/data";
 import { formatBRL, formatDate, maskPhone } from "@/lib/format";
 import { requireAdmin } from "@/lib/server/auth";
@@ -89,7 +89,7 @@ export default async function CabemPage({ searchParams }: { searchParams: Promis
                     {ofertaAqui.has(a.id) && <span className="font-semibold text-zinc-700"> · 📤 já recebeu este projeto em {formatDate(ofertaAqui.get(a.id)!)}</span>}
                   </p>
                 </div>
-                <EnviarOferta aprovadoId={a.id} telefone={a.telefone} devNome={dev.nome} devId={dev.id} jaEnviada={ofertaAqui.get(a.id) ?? null} texto={mensagemOferta(a, dev, link, assinatura)} />
+                <EnviarOferta aprovadoId={a.id} telefone={a.telefone} devNome={dev.nome} devId={dev.id} jaEnviada={ofertaAqui.get(a.id) ?? null} texto={mensagemOferta(a, dev, link, assinatura, (() => { const ps = preSimulacao(a, dev, regra); return ps && !ps.excede ? ps : undefined; })())} />
               </li>
             );
           })}

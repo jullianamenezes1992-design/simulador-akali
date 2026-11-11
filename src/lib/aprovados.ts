@@ -94,6 +94,30 @@ export interface DevCompat {
   status_obra: string | null;
   previsao_entrega?: string | null;
   meses_pos_chaves?: number | null;
+  construtora?: string | null;
+  /** valor de avaliação da unidade mais barata (o financiamento vai até 80% dele) */
+  avaliacao_min?: number | null;
+  /** ato mínimo na assinatura (vazio = padrão da construtora) */
+  ato_minimo?: number | null;
+}
+
+/** Parte da avaliação da unidade que a Caixa financia. */
+export const COTA_AVALIACAO = 0.8;
+
+/** Ato mínimo na assinatura: o do cadastro do projeto ou o padrão da construtora (Plano&Plano R$ 500, Cury R$ 800). */
+export function atoMinimo(d: Pick<DevCompat, "construtora" | "ato_minimo">) {
+  if (d.ato_minimo != null && Number(d.ato_minimo) >= 0) return Number(d.ato_minimo);
+  const c = (d.construtora ?? "").toLowerCase();
+  if (c.includes("cury")) return 800;
+  if (c.includes("plano")) return 500;
+  return 0;
+}
+
+/** Financiamento que dá para usar neste projeto: o aprovado, limitado a 80% da avaliação (se a avaliação estiver cadastrada). */
+export function financiamentoNoProjeto(a: Pick<Aprovado, "financiamento">, d: Pick<DevCompat, "avaliacao_min">) {
+  const fin = Number(a.financiamento || 0);
+  const aval = Number(d.avaliacao_min || 0);
+  return aval > 0 ? Math.min(fin, aval * COTA_AVALIACAO) : fin;
 }
 
 /** Regra da entrada parcelada com a construtora usada para os aprovados. */
@@ -140,9 +164,10 @@ export function entradaParcelavelAprovado(
 }
 
 /** Avalia um empreendimento para o aprovado: recursos + entrada parcelada (até 20% do preço e parcela até 30% da renda). */
-export function avaliarDev(a: Pick<Aprovado, "poder_compra" | "renda_familiar">, d: DevCompat, regra: RegraEntrada, tolerancia = 0, hoje = new Date()) {
+export function avaliarDev(a: Pick<Aprovado, "poder_compra" | "renda_familiar" | "financiamento">, d: DevCompat, regra: RegraEntrada, tolerancia = 0, hoje = new Date()) {
   const preco = Number(d.preco_min || 0);
-  const recursos = Number(a.poder_compra || 0);
+  // o financiamento usado no projeto vai até 80% da avaliação da unidade
+  const recursos = Number(a.poder_compra || 0) - Number(a.financiamento || 0) + financiamentoNoProjeto(a, d);
   const ep = entradaParcelavelAprovado(a, d, preco, regra, hoje);
   const falta = Math.max(0, preco - recursos);
   const limite = recursos + ep.valorMax;
@@ -196,8 +221,68 @@ export function compativeis(a: Aprovado, devs: DevCompat[], tolerancia = 0, regr
     .sort((x, y) => Number(y.regiaoOk && y.dormOk) - Number(x.regiaoOk && x.dormOk) || Number(y.dev.oferta_destaque) - Number(x.dev.oferta_destaque) || Number(x.dev.preco_min) - Number(y.dev.preco_min));
 }
 
+/**
+ * Pré-simulação de um projeto para o aprovado: quanto financia, FGTS/subsídio, ato e entrada parcelada,
+ * e a parcela estimada do financiamento (proporcional à da aprovação).
+ */
+export function preSimulacao(a: Aprovado, d: DevCompat, regra: RegraEntrada, hoje = new Date()) {
+  const preco = Number(d.preco_min || 0);
+  if (!preco) return null;
+  const sub = Number(a.subsidio || 0);
+  const fgts = Number(a.fgts || 0);
+  const vista = Number(a.entrada || 0);
+  const ato = atoMinimo(d);
+  // financia o necessário (deixando ao menos o ato), até o aprovado e até 80% da avaliação
+  const finMax = financiamentoNoProjeto(a, d);
+  const financiamento = Math.max(0, Math.min(finMax, preco - sub - fgts - Math.max(ato, vista)));
+  const entradaTotal = Math.max(0, preco - financiamento - sub - fgts);
+  const atoValor = Math.min(entradaTotal, Math.max(ato, vista));
+  const aParcelar = Math.max(0, entradaTotal - atoValor);
+  const ep = entradaParcelavelAprovado(a, d, preco, regra, hoje);
+  const naObra = ep.mesesObra > 0 ? Math.min(aParcelar, ep.parcelaObra * ep.mesesObra) : 0;
+  const resto = aParcelar - naObra;
+  const mesesObra = naObra > 0 ? ep.mesesObra : 0;
+  const mesesPos = resto > 0 && ep.parcelaPos > 0 ? Math.min(ep.mesesPos, Math.ceil(resto / ep.parcelaPos)) : 0;
+  const finAprov = Number(a.financiamento || 0);
+  const parcelaFin = a.parcela_max && finAprov > 0 ? (Number(a.parcela_max) * financiamento) / finAprov : null;
+  return {
+    preco,
+    financiamento: Math.round(financiamento),
+    subsidio: sub,
+    fgts,
+    ato: Math.round(atoValor),
+    entradaTotal: Math.round(entradaTotal),
+    aParcelar: Math.round(aParcelar),
+    mesesObra,
+    parcelaObra: mesesObra ? Math.round(naObra / mesesObra) : 0,
+    mesesPos,
+    parcelaPos: mesesPos ? Math.round(resto / mesesPos) : 0,
+    parcelaFinanciamento: parcelaFin ? Math.round(parcelaFin) : null,
+    /** a entrada não cabe nas regras (mais de 20% do imóvel ou parcela acima de 30% da renda) */
+    excede: aParcelar > ep.valorMax + 1,
+    semAvaliacao: !(Number(d.avaliacao_min) > 0),
+  };
+}
+
+/** Bloco de texto da pré-simulação para o WhatsApp. */
+export function textoPreSimulacao(p: NonNullable<ReturnType<typeof preSimulacao>>) {
+  const L: string[] = ["📋 *Sua pré-simulação*", `• Valor do imóvel: ${formatBRL(p.preco)}`];
+  if (p.financiamento > 0) L.push(`• Financiamento Caixa (já aprovado): ${formatBRL(p.financiamento)}`);
+  if (p.subsidio > 0) L.push(`• Subsídio: ${formatBRL(p.subsidio)}`);
+  if (p.fgts > 0) L.push(`• FGTS: ${formatBRL(p.fgts)}`);
+  if (p.aParcelar <= 0) {
+    L.push(p.ato > 0 ? `• Só o ato de *${formatBRL(p.ato)}* na assinatura: o financiamento${p.fgts > 0 ? " e o FGTS" : ""} cobrem o resto` : `• Sem entrada: o financiamento${p.fgts > 0 ? " e o FGTS" : ""} cobrem o valor`);
+  } else {
+    const partes = [p.ato > 0 ? `ato de ${formatBRL(p.ato)}` : null, p.mesesObra ? `*${p.mesesObra}x de ${formatBRL(p.parcelaObra)}* até as chaves` : null, p.mesesPos ? `*${p.mesesPos}x de ${formatBRL(p.parcelaPos)}* depois das chaves` : null].filter(Boolean);
+    L.push(`• Entrada com a construtora: ${formatBRL(p.entradaTotal)} (${partes.join(" + ")})`);
+  }
+  if (p.parcelaFinanciamento) L.push(`• Parcela do financiamento depois das chaves: cerca de *${formatBRL(p.parcelaFinanciamento)}/mês*`);
+  L.push("", "_Valores estimados com base na sua aprovação e na tabela de hoje; a unidade e as condições finais são confirmadas na proposta._");
+  return L.join("\n");
+}
+
 /** Mensagem de WhatsApp oferecendo um empreendimento a um aprovado. */
-export function mensagemOferta(a: Pick<Aprovado, "nome">, d: DevCompat, link: string, assinatura: string) {
+export function mensagemOferta(a: Pick<Aprovado, "nome">, d: DevCompat, link: string, assinatura: string, preSim?: ReturnType<typeof preSimulacao>) {
   const nome = (a.nome.trim().split(/\s+/)[0] || "").replace(/^./, (c) => c.toUpperCase());
   const local = [d.bairro, regiaoLabel(d.regiao)].filter(Boolean).join(", ");
   const preco = d.preco_min ? formatBRL(Number(d.preco_min)) : null;
@@ -207,10 +292,12 @@ export function mensagemOferta(a: Pick<Aprovado, "nome">, d: DevCompat, link: st
     `Como o seu crédito já está *aprovado*, separei uma oportunidade que cabe no seu poder de compra:`,
     "",
     `🏡 *${d.nome}*${local ? ` – ${local}` : ""}`,
-    preco ? `💰 A partir de *${preco}*` : null,
+    preco && !preSim ? `💰 A partir de *${preco}*` : null,
     d.oferta_destaque && d.oferta_texto ? `🔥 ${d.oferta_texto}` : null,
     d.unidades_disponiveis != null && d.unidades_disponiveis > 0 && d.unidades_disponiveis < 50 ? `⚠️ Últimas unidades disponíveis` : null,
     "",
+    preSim ? textoPreSimulacao(preSim) : null,
+    preSim ? "" : null,
     `Veja fotos e plantas: ${link}`,
     "",
     `Quer que eu separe a melhor unidade para você? A sua aprovação tem prazo, então vale garantir logo! 💙`,

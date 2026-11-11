@@ -75,6 +75,10 @@ export interface Development {
   previsao_entrega: string | null;
   /** parcelas da entrada após as chaves (0 = não tem) */
   meses_pos_chaves: number;
+  /** avaliação da unidade mais barata (financiamento até 80% dela) */
+  avaliacao_min: number | null;
+  /** ato mínimo na assinatura (vazio = padrão da construtora) */
+  ato_minimo: number | null;
   unidades_disponiveis: number | null;
   disponivel: boolean;
   condicoes_comerciais: string | null;

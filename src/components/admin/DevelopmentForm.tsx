@@ -103,6 +103,17 @@ export default function DevelopmentForm({ dev }: { dev?: Development }) {
           <input id="preco_max" name="preco_max" inputMode="numeric" defaultValue={moneyDefault(dev?.preco_max)} onInput={onMoney} className="input" />
           {err("preco_max")}
         </div>
+        <div>
+          <label className="label" htmlFor="avaliacao_min">Avaliação da unidade mais barata</label>
+          <input id="avaliacao_min" name="avaliacao_min" inputMode="numeric" defaultValue={moneyDefault(dev?.avaliacao_min)} onInput={onMoney} className="input" />
+          {err("avaliacao_min")}
+          <p className="hint">A Caixa financia até 80% da avaliação. Vazio = usa o financiamento aprovado sem esse limite. Plano&amp;Plano em promoção: o Tabelão preenche sozinho.</p>
+        </div>
+        <div>
+          <label className="label" htmlFor="ato_minimo">Ato mínimo na assinatura</label>
+          <input id="ato_minimo" name="ato_minimo" inputMode="numeric" defaultValue={moneyDefault(dev?.ato_minimo)} onInput={onMoney} placeholder="Padrão: Plano&Plano R$ 500 · Cury R$ 800" className="input" />
+          {err("ato_minimo")}
+        </div>
         <fieldset className="sm:col-span-2">
           <legend className="label">Faixas de renda do MCMV atendidas</legend>
           <div className="flex flex-wrap gap-2">
