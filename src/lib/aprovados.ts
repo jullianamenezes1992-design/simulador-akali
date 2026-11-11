@@ -99,6 +99,30 @@ export interface DevCompat {
   avaliacao_min?: number | null;
   /** ato mínimo na assinatura (vazio = padrão da construtora) */
   ato_minimo?: number | null;
+  /** unidade mais barata por nº de dormitórios ({"1": 209184, "2": 245000}) — vem do tabelão */
+  precos_por_dorm?: Record<string, number> | null;
+}
+
+/**
+ * Preço usado para o aprovado: a unidade mais barata com os dormitórios que ele quer (se o tabelão informar);
+ * senão, o "a partir de" do empreendimento.
+ */
+export function precoParaAprovado(a: Pick<Aprovado, "dormitorios_min">, d: Pick<DevCompat, "preco_min" | "precos_por_dorm">) {
+  const base = Number(d.preco_min || 0);
+  const tabela = d.precos_por_dorm ?? null;
+  if (!a.dormitorios_min || !tabela || !Object.keys(tabela).length) return { preco: base, dorms: null as number | null };
+  const op = Object.entries(tabela)
+    .map(([k, v]) => ({ dorms: Number(k), preco: Number(v) }))
+    .filter((x) => x.dorms >= a.dormitorios_min! && x.preco > 0)
+    .sort((x, y) => x.preco - y.preco)[0];
+  return op ? op : { preco: 0, dorms: null };
+}
+
+/** Avaliação estimada para a unidade escolhida (proporcional à avaliação da mais barata). */
+function avaliacaoPara(d: Pick<DevCompat, "avaliacao_min" | "preco_min">, preco: number) {
+  const aval = Number(d.avaliacao_min || 0);
+  const base = Number(d.preco_min || 0);
+  return aval > 0 && base > 0 ? (aval * preco) / base : aval;
 }
 
 /** Parte da avaliação da unidade que a Caixa financia. */
@@ -114,9 +138,9 @@ export function atoMinimo(d: Pick<DevCompat, "construtora" | "ato_minimo">) {
 }
 
 /** Financiamento que dá para usar neste projeto: o aprovado, limitado a 80% da avaliação (se a avaliação estiver cadastrada). */
-export function financiamentoNoProjeto(a: Pick<Aprovado, "financiamento">, d: Pick<DevCompat, "avaliacao_min">) {
+export function financiamentoNoProjeto(a: Pick<Aprovado, "financiamento">, d: Pick<DevCompat, "avaliacao_min" | "preco_min">, preco?: number) {
   const fin = Number(a.financiamento || 0);
-  const aval = Number(d.avaliacao_min || 0);
+  const aval = preco ? avaliacaoPara(d, preco) : Number(d.avaliacao_min || 0);
   return aval > 0 ? Math.min(fin, aval * COTA_AVALIACAO) : fin;
 }
 
@@ -164,16 +188,18 @@ export function entradaParcelavelAprovado(
 }
 
 /** Avalia um empreendimento para o aprovado: recursos + entrada parcelada (até 20% do preço e parcela até 30% da renda). */
-export function avaliarDev(a: Pick<Aprovado, "poder_compra" | "renda_familiar" | "financiamento">, d: DevCompat, regra: RegraEntrada, tolerancia = 0, hoje = new Date()) {
-  const preco = Number(d.preco_min || 0);
+export function avaliarDev(a: Pick<Aprovado, "poder_compra" | "renda_familiar" | "financiamento" | "dormitorios_min">, d: DevCompat, regra: RegraEntrada, tolerancia = 0, hoje = new Date()) {
+  // unidade mais barata com os dormitórios que o cliente quer (quando o tabelão informa)
+  const { preco, dorms } = precoParaAprovado(a, d);
   // o financiamento usado no projeto vai até 80% da avaliação da unidade
-  const recursos = Number(a.poder_compra || 0) - Number(a.financiamento || 0) + financiamentoNoProjeto(a, d);
+  const recursos = Number(a.poder_compra || 0) - Number(a.financiamento || 0) + financiamentoNoProjeto(a, d, preco);
   const ep = entradaParcelavelAprovado(a, d, preco, regra, hoje);
   const falta = Math.max(0, preco - recursos);
   const limite = recursos + ep.valorMax;
   const meses = ep.mesesObra + (falta > ep.parcelaObra * ep.mesesObra ? ep.mesesPos : 0);
   return {
     preco,
+    dorms,
     limite,
     folga: limite - preco,
     cabe: preco > 0 && limite >= preco * (1 - tolerancia),
@@ -218,7 +244,7 @@ export function compativeis(a: Aprovado, devs: DevCompat[], tolerancia = 0, regr
       const dormOk = !a.dormitorios_min || (d.dormitorios ?? []).some((n) => n >= a.dormitorios_min!);
       return { dev: d, regiaoOk, dormOk, folga: av.folga, acimaDoPoder: av.folga < 0, av };
     })
-    .sort((x, y) => Number(y.regiaoOk && y.dormOk) - Number(x.regiaoOk && x.dormOk) || Number(y.dev.oferta_destaque) - Number(x.dev.oferta_destaque) || Number(x.dev.preco_min) - Number(y.dev.preco_min));
+    .sort((x, y) => Number(y.regiaoOk && y.dormOk) - Number(x.regiaoOk && x.dormOk) || Number(y.dev.oferta_destaque) - Number(x.dev.oferta_destaque) || x.av.preco - y.av.preco);
 }
 
 /**
@@ -226,14 +252,14 @@ export function compativeis(a: Aprovado, devs: DevCompat[], tolerancia = 0, regr
  * e a parcela estimada do financiamento (proporcional à da aprovação).
  */
 export function preSimulacao(a: Aprovado, d: DevCompat, regra: RegraEntrada, hoje = new Date()) {
-  const preco = Number(d.preco_min || 0);
+  const { preco, dorms } = precoParaAprovado(a, d);
   if (!preco) return null;
   const sub = Number(a.subsidio || 0);
   const fgts = Number(a.fgts || 0);
   const vista = Number(a.entrada || 0);
   const ato = atoMinimo(d);
   // financia o necessário (deixando ao menos o ato), até o aprovado e até 80% da avaliação
-  const finMax = financiamentoNoProjeto(a, d);
+  const finMax = financiamentoNoProjeto(a, d, preco);
   const financiamento = Math.max(0, Math.min(finMax, preco - sub - fgts - Math.max(ato, vista)));
   const entradaTotal = Math.max(0, preco - financiamento - sub - fgts);
   const atoValor = Math.min(entradaTotal, Math.max(ato, vista));
@@ -247,6 +273,7 @@ export function preSimulacao(a: Aprovado, d: DevCompat, regra: RegraEntrada, hoj
   const parcelaFin = a.parcela_max && finAprov > 0 ? (Number(a.parcela_max) * financiamento) / finAprov : null;
   return {
     preco,
+    dorms,
     financiamento: Math.round(financiamento),
     subsidio: sub,
     fgts,
@@ -266,7 +293,10 @@ export function preSimulacao(a: Aprovado, d: DevCompat, regra: RegraEntrada, hoj
 
 /** Bloco de texto da pré-simulação para o WhatsApp. */
 export function textoPreSimulacao(p: NonNullable<ReturnType<typeof preSimulacao>>) {
-  const L: string[] = ["📋 *Sua pré-simulação*", `• Valor do imóvel: ${formatBRL(p.preco)}`];
+  const L: string[] = [
+    "📋 *Sua pré-simulação*",
+    `• Valor do imóvel${p.dorms ? ` (${p.dorms} ${p.dorms === 1 ? "dormitório" : "dormitórios"})` : ""}: ${formatBRL(p.preco)}`,
+  ];
   if (p.financiamento > 0) L.push(`• Financiamento Caixa (já aprovado): ${formatBRL(p.financiamento)}`);
   if (p.subsidio > 0) L.push(`• Subsídio: ${formatBRL(p.subsidio)}`);
   if (p.fgts > 0) L.push(`• FGTS: ${formatBRL(p.fgts)}`);

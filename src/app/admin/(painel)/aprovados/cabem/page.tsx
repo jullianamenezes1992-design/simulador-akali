@@ -83,6 +83,7 @@ export default async function CabemPage({ searchParams }: { searchParams: Promis
                   <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${cl.cor}`}>{cl.label}</span>
                   <p className="text-xs text-ink-soft">
                     {maskPhone(a.telefone)} · recursos {formatBRL(Number(a.poder_compra))}
+                    {av.dorms ? ` · unidade de ${av.dorms} dorm. a partir de ${formatBRL(av.preco)}` : ""}
                     {av.entradaParcelar > 0 ? ` · entrada a parcelar ${formatBRL(av.entradaParcelar)}${av.meses ? ` (≈ ${av.meses}x de ${formatBRL(av.parcelaEntrada)})` : ""}` : ""}
                     {falta > 0 ? <span className="font-semibold text-amber-700"> · faltam {formatBRL(falta)}</span> : ""}
                     {a.vencimento ? ` · vence ${formatDate(`${a.vencimento}T12:00:00Z`)}` : ""}

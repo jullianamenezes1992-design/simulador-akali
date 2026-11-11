@@ -160,7 +160,7 @@ export async function sincronizarTabelao(origem: "automatico" | "manual" = "auto
     res.dados_de = uni.geradoEm ?? null;
     const C = uni.campos;
     const ix = (k: string) => C.indexOf(k);
-    const [iN, iArea, iValor, iTipo, iBloco, iUnid] = [ix("n"), ix("area"), ix("valor"), ix("tipo"), ix("bloco"), ix("unidade")];
+    const [iN, iArea, iValor, iTipo, iBloco, iUnid, iDorms] = [ix("n"), ix("area"), ix("valor"), ix("tipo"), ix("bloco"), ix("unidade"), ix("dorms")];
     // unidades não residenciais (NR, fachada ativa/lojas, garagem) não entram no MCMV nem no "a partir de"
     const NAO_RESID = /\bNR|fachada|garagem|loja/i;
     const blocos = uni.blocos ?? [];
@@ -168,6 +168,8 @@ export async function sincronizarTabelao(origem: "automatico" | "manual" = "auto
 
     // unidades residenciais válidas por empreendimento (ignora garagem, loja e valores quebrados)
     const porEmp = new Map<number, number[]>();
+    // unidade mais barata por número de dormitórios (para a pré-simulação dos aprovados)
+    const porDorm = new Map<number, Record<string, number>>();
     for (const r of uni.rows) {
       const n = Number(r[iN]);
       const valor = Number(r[iValor]);
@@ -177,7 +179,16 @@ export async function sincronizarTabelao(origem: "automatico" | "manual" = "auto
       const bloco = iBloco >= 0 ? (typeof r[iBloco] === "number" ? (blocos[r[iBloco] as number] ?? "") : String(r[iBloco] ?? "")) : "";
       const unid = iUnid >= 0 ? String(r[iUnid] ?? "") : "";
       if (NAO_RESID.test(bloco) || NAO_RESID.test(unid)) continue;
-      if ((tipo === 0 || tipo == null) && valor >= 80000 && valor <= 5000000 && area >= 20) porEmp.get(n)!.push(valor);
+      if ((tipo === 0 || tipo == null) && valor >= 80000 && valor <= 5000000 && area >= 20) {
+        porEmp.get(n)!.push(valor);
+        const dm = iDorms >= 0 ? Number(r[iDorms]) : NaN;
+        if (dm >= 0 && dm <= 6) {
+          const m = porDorm.get(n) ?? {};
+          const k = String(dm);
+          if (!(m[k] <= valor)) m[k] = Math.round(valor * 100) / 100;
+          porDorm.set(n, m);
+        }
+      }
     }
     const consultados = new Set(uni.consultados.map(Number));
     const tetos = await tetosFaixas();
@@ -185,7 +196,7 @@ export async function sincronizarTabelao(origem: "automatico" | "manual" = "auto
     const slugs = Object.values(MAPA_TABELAO);
     const { data: atuais, error } = await db
       .from("developments")
-      .select("id, slug, nome, preco_min, preco_max, faixas, status_obra, previsao_entrega, vagas, unidades_disponiveis, disponivel, condicoes_comerciais, meses_pos_chaves, avaliacao_min")
+      .select("id, slug, nome, preco_min, preco_max, faixas, status_obra, previsao_entrega, vagas, unidades_disponiveis, disponivel, condicoes_comerciais, meses_pos_chaves, avaliacao_min, precos_por_dorm")
       .in("slug", slugs);
     if (error) throw new Error(error.message);
     const porSlug = new Map((atuais ?? []).map((d) => [d.slug as string, d]));
@@ -220,7 +231,14 @@ export async function sincronizarTabelao(origem: "automatico" | "manual" = "auto
       const novo: Record<string, unknown> = {};
       const muda = (campo: string, valor: unknown, rotulo = campo) => {
         const velho = (atual as Record<string, unknown>)[campo];
-        const igual = Array.isArray(valor) ? JSON.stringify(valor) === JSON.stringify(velho) : typeof valor === "number" ? Math.abs(Number(velho ?? -1) - valor) < 1 : velho === valor;
+        const ordena = (o: unknown) => JSON.stringify(Object.entries((o ?? {}) as Record<string, unknown>).sort(([x], [y]) => x.localeCompare(y)).map(([k, v]) => [k, Number(v)]));
+        const igual = Array.isArray(valor)
+          ? JSON.stringify(valor) === JSON.stringify(velho)
+          : typeof valor === "number"
+            ? Math.abs(Number(velho ?? -1) - valor) < 1
+            : valor && typeof valor === "object"
+              ? ordena(valor) === ordena(velho)
+              : velho === valor;
         if (igual) return;
         novo[campo] = valor;
         if (["preco_min", "disponivel", "status_obra", "previsao_entrega", "meses_pos_chaves"].includes(campo))
@@ -236,6 +254,7 @@ export async function sincronizarTabelao(origem: "automatico" | "manual" = "auto
       muda("disponivel", !esgotado, "à venda");
       if (posChaves.has(n)) muda("meses_pos_chaves", posChaves.get(n)!, "parcelas pós-chaves");
       if (avaliacoes.has(n)) muda("avaliacao_min", avaliacoes.get(n)!, "avaliação");
+      if (unidades !== null) muda("precos_por_dorm", unidades.length ? (porDorm.get(n) ?? {}) : {});
       if (esgotado) res.esgotados++;
       if (precoMin && !esgotado) {
         const pMin = Math.round(precoMin * 100) / 100;

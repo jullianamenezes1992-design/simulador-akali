@@ -60,7 +60,16 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
             {c.dev.nome} <ExternalLink size={12} className="inline" />
           </Link>
           <p className="text-xs text-ink-soft">
-            {[c.dev.bairro, regiaoLabel(c.dev.regiao)].filter(Boolean).join(" · ")} · a partir de <strong>{formatBRL(Number(c.dev.preco_min))}</strong>
+            {[c.dev.bairro, regiaoLabel(c.dev.regiao)].filter(Boolean).join(" · ")} ·{" "}
+            {c.av.dorms ? (
+              <>
+                {c.av.dorms} dorm. a partir de <strong>{formatBRL(c.av.preco)}</strong>
+              </>
+            ) : (
+              <>
+                a partir de <strong>{formatBRL(Number(c.dev.preco_min))}</strong>
+              </>
+            )}
             {c.folga < 0 ? ` · faltam ${formatBRL(-c.folga)}` : ""}
           </p>
           <p className="text-xs text-ink-soft">
