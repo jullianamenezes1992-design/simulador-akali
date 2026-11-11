@@ -271,7 +271,8 @@ export function textoPreSimulacao(p: NonNullable<ReturnType<typeof preSimulacao>
   if (p.subsidio > 0) L.push(`• Subsídio: ${formatBRL(p.subsidio)}`);
   if (p.fgts > 0) L.push(`• FGTS: ${formatBRL(p.fgts)}`);
   if (p.aParcelar <= 0) {
-    L.push(p.ato > 0 ? `• Só o ato de *${formatBRL(p.ato)}* na assinatura: o financiamento${p.fgts > 0 ? " e o FGTS" : ""} cobrem o resto` : `• Sem entrada: o financiamento${p.fgts > 0 ? " e o FGTS" : ""} cobrem o valor`);
+    const quem = p.fgts > 0 || p.subsidio > 0 ? "o financiamento e o " + (p.fgts > 0 ? "FGTS" : "subsídio") + " cobrem" : "o financiamento cobre";
+    L.push(p.ato > 0 ? `• Só o ato de *${formatBRL(p.ato)}* na assinatura: ${quem} o resto` : `• Sem entrada: ${quem} o valor`);
   } else {
     const partes = [p.ato > 0 ? `ato de ${formatBRL(p.ato)}` : null, p.mesesObra ? `*${p.mesesObra}x de ${formatBRL(p.parcelaObra)}* até as chaves` : null, p.mesesPos ? `*${p.mesesPos}x de ${formatBRL(p.parcelaPos)}* depois das chaves` : null].filter(Boolean);
     L.push(`• Entrada com a construtora: ${formatBRL(p.entradaTotal)} (${partes.join(" + ")})`);
