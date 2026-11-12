@@ -22,6 +22,7 @@ import { NovaTarefaForm, TarefaItem } from "@/components/admin/Agenda";
 import DadosSalesforce from "@/components/admin/DadosSalesforce";
 import AnaliseCliente from "@/components/admin/AnaliseCliente";
 import AguardandoDocs from "@/components/admin/AguardandoDocs";
+import SimulacaoProjeto from "@/components/admin/SimulacaoProjeto";
 import { agoraMs, diaSP, type Tarefa } from "@/lib/agenda";
 
 const simNao = (v: boolean | null | undefined) => (v == null ? "—" : v ? "Sim" : "Não");
@@ -72,6 +73,12 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
 
   const { data: l } = await supabase.from("leads").select("*, escolhido:escolhido_id(id, nome, slug)").eq("id", id).maybeSingle();
   if (!l) notFound();
+
+  // etapa "Simulação": lista de projetos para escolher qual simular
+  const devsSimulacao =
+    l.status === "simulacao"
+      ? ((await supabase.from("developments").select("id, nome, bairro, regiao, preco_min").eq("ativo", true).not("preco_min", "is", null).order("nome")).data ?? [])
+      : [];
 
   const [eventos, notas, equipe, auditoria, recomendados, tarefas, msgSalvas, aprovadoReg] = await Promise.all([
     supabase.from("lead_events").select("id, tipo, dados, created_at, development:development_id(nome, slug)").eq("lead_id", id).order("created_at", { ascending: false }).limit(200),
@@ -354,6 +361,12 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
               <ResponsavelSelect leadId={l.id} atual={l.responsavel_id} equipe={equipe.data ?? []} />
             </div>
           </Bloco>
+
+          {l.status === "simulacao" && !anonimizado && (
+            <Bloco titulo="Simular um projeto">
+              <SimulacaoProjeto leadId={l.id} telefone={l.telefone} devs={devsSimulacao} escolhidoId={null} />
+            </Bloco>
+          )}
 
           {!anonimizado && (
             <Bloco titulo="Mensagens prontas">

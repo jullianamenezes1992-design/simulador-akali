@@ -28,6 +28,11 @@ export const MENSAGENS_PADRAO: Record<string, MensagemPronta[]> = {
     { ordem: 2, titulo: "Gerar interesse", texto: `{nome}, as unidades do {imovel} estão saindo rápido e as condições podem mudar a qualquer momento. Não queria que você perdesse essa oportunidade!\n\nVeja de novo aqui: {link}\n\nConsigo te ajudar ainda hoje?${A}` },
     { ordem: 3, titulo: "Última tentativa", texto: `{nome}, não quero te incomodar 🙏\n\nVou deixar o seu atendimento em aberto. Quando for um bom momento para pensar na casa própria, é só me chamar aqui que eu retomo de onde paramos. Combinado?${A}` },
   ],
+  simulacao: [
+    { ordem: 1, titulo: "Enviar a simulação", texto: `Oi, {nome}! Fiz a sua simulação no {imovel} 😊\n\nVeja o projeto aqui: {link}\n\nQuer que eu te explique como ficam a entrada e a parcela?${A}` },
+    { ordem: 2, titulo: "Tirar dúvidas", texto: `{nome}, conseguiu ver a simulação do {imovel}? Se quiser, ajusto com outro valor de entrada ou outra unidade. Me fala o que achou!${A}` },
+    { ordem: 3, titulo: "Próximo passo", texto: `{nome}, para confirmar esses valores o próximo passo é a análise de crédito na Caixa, *sem custo e sem compromisso*. Me manda seus documentos que eu já dou entrada? 📄${A}` },
+  ],
   documentacao: [
     { ordem: 1, titulo: "Pedir os documentos", texto: `Oi, {nome}! Para fazer a sua análise de crédito na Caixa, preciso destes documentos (foto pelo WhatsApp mesmo):\n\n📄 RG e CPF (ou CNH)\n📄 Comprovante de estado civil\n📄 Comprovante de residência\n📄 3 últimos holerites ou extrato de renda\n📄 Carteira de trabalho (página da foto e do último registro)\n📄 Extrato do FGTS, se tiver\n\nQualquer dúvida, me chama!${A}` },
     { ordem: 2, titulo: "Lembrete dos documentos", texto: `{nome}, tudo bem? Passando para lembrar dos documentos para a sua análise na Caixa 😊\n\nSe ficar mais fácil, pode mandar aos poucos, do jeito que conseguir. Eu vou conferindo e te aviso se faltar alguma coisa!${A}` },

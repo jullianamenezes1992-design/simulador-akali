@@ -12,7 +12,7 @@ type SP = Promise<Record<string, string | undefined>>;
 
 // Até onde o cliente chegou no funil (para o resumo por rede)
 const NIVEL: Record<string, number> = {
-  novo: 0, em_atendimento: 0, sem_resposta: 0, perdido: 0,
+  novo: 0, em_atendimento: 0, sem_resposta: 0, simulacao: 0, perdido: 0,
   documentacao: 1, analise_credito: 1, serasa_bacen: 1, aprovado: 1, reprovado: 1,
   visita: 2, proposta: 2, vendido: 3,
 };

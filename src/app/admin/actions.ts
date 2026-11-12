@@ -535,7 +535,7 @@ export async function testarNotificacoes(): Promise<{ email?: string; whatsapp?:
 // ---------------------------------------------------------------------------
 
 const UUID_RE = /^[0-9a-f-]{36}$/i;
-const STATUS_ANTES_DA_VISITA = ["novo", "em_atendimento", "sem_resposta", "documentacao", "analise_credito", "aprovado"];
+const STATUS_ANTES_DA_VISITA = ["novo", "em_atendimento", "sem_resposta", "simulacao", "documentacao", "analise_credito", "aprovado"];
 
 function revalidarAgenda(leadId?: string) {
   revalidatePath("/admin/agenda");
@@ -1189,4 +1189,115 @@ export async function marcarAguardandoDocs(leadId: string, ligar: boolean) {
   if (error) throw new Error(error.message);
   revalidatePath("/admin/montagem");
   revalidatePath(`/admin/leads/${leadId}`);
+}
+
+/**
+ * Etapa "Simulação": simula um projeto escolhido para o cliente (com a renda/FGTS que ele informou)
+ * e devolve o resumo e a mensagem de WhatsApp. Também marca o projeto como o escolhido do cliente.
+ */
+export async function simularProjetoLead(leadId: string, devId: string) {
+  const { supabase } = await assertAdmin();
+  if (!UUID_RE.test(leadId) || !UUID_RE.test(devId)) return { erro: "Escolha um projeto." };
+  const [{ data: l }, { data: d }] = await Promise.all([
+    supabase
+      .from("leads")
+      .select("nome, simulacao, renda_principal, renda_composicao, renda_total, data_nascimento, idade_informada, fgts_saldo, fgts_tres_anos, entrada_disponivel, dormitorios_min, possui_imovel, financiamento_ativo, ja_beneficiado, restricao_credito")
+      .eq("id", leadId)
+      .maybeSingle(),
+    supabase.from("developments").select("id, slug, nome, bairro, regiao, preco_min, dormitorios, oferta_destaque, oferta_texto, unidades_disponiveis, status_obra, previsao_entrega, meses_pos_chaves, construtora, avaliacao_min, ato_minimo, precos_por_dorm").eq("id", devId).maybeSingle(),
+  ]);
+  if (!l || !d) return { erro: "Cliente ou projeto não encontrado." };
+  if (!d.preco_min) return { erro: "Esse projeto está sem preço cadastrado." };
+
+  const { getActiveParams, getSettings } = await import("@/lib/data");
+  const { simular } = await import("@/lib/simulacao/engine");
+  const { preSimulacao, textoPreSimulacao, regraEntrada } = await import("@/lib/aprovados");
+  const { siteUrl } = await import("@/lib/server/notificacoes");
+  const ativo = await getActiveParams();
+  if (!ativo) return { erro: "Parâmetros da simulação não configurados." };
+
+  // usa a simulação que o cliente fez; se não tiver, calcula com a renda e a idade da ficha
+  type Sim = import("@/lib/simulacao/types").SimulationResult;
+  let sim = l.simulacao as Sim | null;
+  if (!sim) {
+    const renda = Number(l.renda_principal || l.renda_total || 0);
+    const idadeAnos = l.data_nascimento
+      ? Math.floor((Date.now() - new Date(`${l.data_nascimento}T12:00:00Z`).getTime()) / (365.25 * 864e5))
+      : Number(l.idade_informada || 0);
+    if (!(renda > 0) || !(idadeAnos >= 18)) return { erro: "Para simular, preencha a renda e a idade (ou data de nascimento) do cliente." };
+    sim = simular(
+      {
+        rendaPrincipal: renda,
+        rendaComposicao: Number(l.renda_composicao || 0),
+        idadeMeses: idadeAnos * 12,
+        fgtsSaldo: Number(l.fgts_saldo || 0),
+        fgtsTresAnos: !!l.fgts_tres_anos,
+        entrada: Number(l.entrada_disponivel || 0),
+        possuiImovel: !!l.possui_imovel,
+        financiamentoAtivo: !!l.financiamento_ativo,
+        jaBeneficiado: !!l.ja_beneficiado,
+        restricaoCredito: (l.restricao_credito ?? "nao_sei") as "nao" | "sim" | "nao_sei",
+      },
+      ativo.params,
+      ativo.versao
+    );
+  }
+
+  // o cliente "como se fosse aprovado" com os valores estimados (subsídio fica de fora da conta: não é garantido)
+  const regra = regraEntrada(ativo.params);
+  const comoAprovado = {
+    financiamento: sim.financiamentoMax,
+    subsidio: 0,
+    fgts: sim.fgtsConsiderado,
+    entrada: sim.entrada,
+    poder_compra: sim.financiamentoMax + sim.fgtsConsiderado + sim.entrada,
+    renda_familiar: sim.rendaTotal,
+    parcela_max: sim.parcelaMax,
+    dormitorios_min: l.dormitorios_min ?? null,
+  } as unknown as import("@/lib/aprovados").Aprovado;
+  const ps = preSimulacao(comoAprovado, d as import("@/lib/aprovados").DevCompat, regra);
+  if (!ps) return { erro: "Não foi possível simular esse projeto." };
+
+  const nome = (String(l.nome).trim().split(/\s+/)[0] || "").replace(/^./, (c) => c.toUpperCase());
+  const s = await getSettings();
+  const link = `${siteUrl()}/empreendimentos/${d.slug}?utm_source=whatsapp&utm_medium=corretora&utm_content=simulacao`;
+  const texto = [
+    `Oi, ${nome}! Tudo bem? 😊`,
+    "",
+    `Fiz a sua simulação no *${d.nome}*${d.bairro ? ` (${d.bairro})` : ""}:`,
+    "",
+    textoPreSimulacao(ps, { estimado: true, subsidioPossivel: sim.subsidioPotencial }),
+    "",
+    `Veja fotos e plantas: ${link}`,
+    "",
+    `Quer que eu separe a melhor unidade e já faça a sua análise de crédito na Caixa (sem custo)? 💙`,
+    "",
+    `*${s.corretora_nome || s.empresa_nome}*`,
+  ].join("\n");
+
+  await supabase.from("leads").update({ escolhido_id: d.id }).eq("id", leadId);
+  revalidatePath(`/admin/leads/${leadId}`);
+  return {
+    ok: true as const,
+    texto,
+    resumo: {
+      projeto: d.nome,
+      preco: ps.preco,
+      dorms: ps.dorms,
+      financiamento: ps.financiamento,
+      fgts: ps.fgts,
+      ato: ps.ato,
+      entradaTotal: ps.entradaTotal,
+      aParcelar: ps.aParcelar,
+      mesesObra: ps.mesesObra,
+      parcelaObra: ps.parcelaObra,
+      mesesPos: ps.mesesPos,
+      parcelaPos: ps.parcelaPos,
+      parcelaFinanciamento: ps.parcelaFinanciamento,
+      subsidioPossivel: sim.subsidioPotencial,
+      excede: ps.excede,
+      semAvaliacao: ps.semAvaliacao,
+      faixa: sim.faixa?.nome ?? null,
+    },
+  };
 }

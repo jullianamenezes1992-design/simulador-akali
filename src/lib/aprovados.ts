@@ -292,12 +292,12 @@ export function preSimulacao(a: Aprovado, d: DevCompat, regra: RegraEntrada, hoj
 }
 
 /** Bloco de texto da pré-simulação para o WhatsApp. */
-export function textoPreSimulacao(p: NonNullable<ReturnType<typeof preSimulacao>>) {
+export function textoPreSimulacao(p: NonNullable<ReturnType<typeof preSimulacao>>, opc: { estimado?: boolean; subsidioPossivel?: number } = {}) {
   const L: string[] = [
-    "📋 *Sua pré-simulação*",
+    opc.estimado ? "📋 *Sua simulação*" : "📋 *Sua pré-simulação*",
     `• Valor do imóvel${p.dorms ? ` (${p.dorms} ${p.dorms === 1 ? "dormitório" : "dormitórios"})` : ""}: ${formatBRL(p.preco)}`,
   ];
-  if (p.financiamento > 0) L.push(`• Financiamento Caixa (já aprovado): ${formatBRL(p.financiamento)}`);
+  if (p.financiamento > 0) L.push(`• Financiamento Caixa (${opc.estimado ? "estimado" : "já aprovado"}): ${formatBRL(p.financiamento)}`);
   if (p.subsidio > 0) L.push(`• Subsídio: ${formatBRL(p.subsidio)}`);
   if (p.fgts > 0) L.push(`• FGTS: ${formatBRL(p.fgts)}`);
   if (p.aParcelar <= 0) {
@@ -308,7 +308,14 @@ export function textoPreSimulacao(p: NonNullable<ReturnType<typeof preSimulacao>
     L.push(`• Entrada com a construtora: ${formatBRL(p.entradaTotal)} (${partes.join(" + ")})`);
   }
   if (p.parcelaFinanciamento) L.push(`• Parcela do financiamento depois das chaves: cerca de *${formatBRL(p.parcelaFinanciamento)}/mês*`);
-  L.push("", "_Valores estimados com base na sua aprovação e na tabela de hoje; a unidade e as condições finais são confirmadas na proposta._");
+  if (opc.subsidioPossivel && opc.subsidioPossivel > 0)
+    L.push(`• Pelo Minha Casa Minha Vida você pode ter *subsídio de até ${formatBRL(opc.subsidioPossivel)}*, que diminui a entrada (depende da análise da Caixa)`);
+  L.push(
+    "",
+    opc.estimado
+      ? "_Simulação estimada com a renda informada e a tabela de hoje. Os valores finais dependem da análise e aprovação da Caixa._"
+      : "_Valores estimados com base na sua aprovação e na tabela de hoje; a unidade e as condições finais são confirmadas na proposta._"
+  );
   return L.join("\n");
 }
 
