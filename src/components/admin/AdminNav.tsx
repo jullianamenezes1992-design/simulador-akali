@@ -57,19 +57,20 @@ export default function AdminNav() {
       {/* Computador: menu lateral */}
       <div className="hidden lg:flex lg:h-[calc(100dvh-120px)] lg:flex-col">
         <div className="px-5 pt-5 pb-3 text-sm font-extrabold text-caixa">Painel da corretora</div>
-        <nav className="flex flex-col gap-1 p-3">
+        {/* rola por dentro se a tela for baixa (não sobrepõe o nome/sair embaixo) */}
+        <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-3">
           {ITENS.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold ${
+              className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold ${
                 ativo(href) ? "bg-caixa text-white" : "text-ink hover:bg-mist"
               }`}
             >
               <Icon size={16} /> {label}
             </Link>
           ))}
-          <Link href="/" target="_blank" className="mt-4 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-ink-soft hover:bg-mist">
+          <Link href="/" target="_blank" className="mt-3 flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-ink-soft hover:bg-mist">
             <ExternalLink size={16} /> Ver site
           </Link>
         </nav>
