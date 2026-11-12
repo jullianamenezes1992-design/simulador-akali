@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AtSign, Download, Trash2 } from "lucide-react";
+import { AtSign, BadgeCheck, Download, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/admin/ui";
 import { LEAD_STATUS, leadStatusInfo } from "@/lib/constants";
 import { formatBRL, formatDate, maskPhone } from "@/lib/format";
@@ -27,6 +27,8 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
     .select("id, codigo, nome, telefone, renda_total, simulacao, simulacao_completa, etapa_parou, status, origem, utm_campaign, created_at, escolhido:escolhido_id(nome)", {
       count: "exact",
     })
+    // quem já está em "Clientes aprovados" fica só lá
+    .eq("em_aprovados", false)
     .order("created_at", { ascending: false })
     .range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1);
   if (status) query = query.eq("status", status);
@@ -42,9 +44,18 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
   if (de) query = query.gte("created_at", `${de}T00:00:00-03:00`);
   if (ate) query = query.lte("created_at", `${ate}T23:59:59-03:00`);
 
-  const [contagens, totalIncompletas] = await Promise.all([
-    Promise.all(LEAD_STATUS.map((s) => supabase.from("leads").select("id", { count: "exact", head: true }).eq("status", s.value))),
-    supabase.from("leads").select("id", { count: "exact", head: true }).eq("simulacao_completa", false),
+  const [contagens, totalIncompletas, totalAprovados, achadosEmAprovados] = await Promise.all([
+    Promise.all(LEAD_STATUS.map((s) => supabase.from("leads").select("id", { count: "exact", head: true }).eq("status", s.value).eq("em_aprovados", false))),
+    supabase.from("leads").select("id", { count: "exact", head: true }).eq("simulacao_completa", false).eq("em_aprovados", false),
+    supabase.from("aprovados").select("id", { count: "exact", head: true }).in("status", ["ativo", "negociando"]),
+    // a busca também avisa se o cliente procurado está em Aprovados
+    q
+      ? supabase
+          .from("leads")
+          .select("id", { count: "exact", head: true })
+          .eq("em_aprovados", true)
+          .or([`nome.ilike.%${q}%`, `codigo.ilike.%${q}%`, q.replace(/\D/g, "").length >= 4 ? `telefone.ilike.%${q.replace(/\D/g, "")}%` : null].filter(Boolean).join(","))
+      : Promise.resolve({ count: 0 }),
   ]);
   const { data: leads, count } = await query;
   const totalPaginas = Math.max(1, Math.ceil((count ?? 0) / POR_PAGINA));
@@ -104,7 +115,11 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
             {s.label} <span className="ml-1 opacity-70">{contagens[i].count ?? 0}</span>
           </Link>
         ))}
+        <Link href="/admin/aprovados" className="chip shrink-0 border-emerald-300 bg-emerald-50 px-3 py-1.5 text-emerald-900">
+          <BadgeCheck size={14} className="mr-1" /> Em Aprovados <span className="ml-1 opacity-70">{totalAprovados.count ?? 0}</span> →
+        </Link>
       </div>
+      <p className="-mt-2 mb-3 text-xs text-ink-soft">Clientes com crédito aprovado ficam só na aba Aprovados.</p>
 
       <form method="get" className="card mb-4 grid gap-3 p-3 sm:grid-cols-[1fr_auto_auto_auto]">
         {status && <input type="hidden" name="status" value={status} />}
@@ -114,6 +129,16 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
         <input type="date" name="ate" defaultValue={ate} className="input" aria-label="Data final" />
         <button className="btn-primary">Filtrar</button>
       </form>
+
+      {q && (achadosEmAprovados.count ?? 0) > 0 && (
+        <p className="mb-3 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          {achadosEmAprovados.count} cliente(s) com essa busca estão em{" "}
+          <Link href={`/admin/aprovados?q=${encodeURIComponent(q)}`} className="font-semibold underline">
+            Clientes aprovados
+          </Link>
+          .
+        </p>
+      )}
 
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
