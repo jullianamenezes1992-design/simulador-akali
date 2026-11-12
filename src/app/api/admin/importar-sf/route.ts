@@ -7,7 +7,20 @@ import { gravarCPF, limparCodigoSF } from "@/lib/server/salesforce";
  * da oportunidade, AR e AB. Localiza o cliente pelo ID da oportunidade ou pelo telefone.
  * Uso interno do painel (sessão de administrador).
  */
-type Item = { telefone?: string; nome?: string; cpf?: string; oportunidade?: string; ar?: string; ab?: string };
+type Item = {
+  telefone?: string;
+  nome?: string;
+  cpf?: string;
+  oportunidade?: string;
+  ar?: string;
+  ab?: string;
+  /** resultado da análise (AR): "Aprovado", "Reprovado"… */
+  ar_status?: string;
+  parecer?: string;
+  motivo?: string;
+  /** data da análise, dd/mm/aaaa */
+  data?: string;
+};
 
 export async function POST(req: Request) {
   // só aceita chamadas JSON do próprio site (evita envio a partir de outra página)
@@ -24,7 +37,7 @@ export async function POST(req: Request) {
   const { supabase } = ctx;
   const body = (await req.json().catch(() => null)) as { itens?: Item[] } | null;
   const itens = Array.isArray(body?.itens) ? body!.itens.slice(0, 1000) : [];
-  const r = { leads: 0, aprovados: 0, cpfs: 0, nao_encontrados: [] as string[], cpf_invalido: [] as string[] };
+  const r = { leads: 0, aprovados: 0, cpfs: 0, reprovados: 0, nao_encontrados: [] as string[], cpf_invalido: [] as string[] };
 
   for (const it of itens) {
     let tel = String(it.telefone ?? "").replace(/\D/g, "");
@@ -48,6 +61,24 @@ export async function POST(req: Request) {
       if (!error) r.leads++;
       const { data: ap } = await supabase.from("aprovados").update(nums).or(`lead_id.eq.${leadId}${/^\d{10,11}$/.test(tel) ? `,telefone.eq.${tel}` : ""}`).select("id");
       r.aprovados += ap?.length ?? 0;
+    }
+    if (it.ar_status) {
+      const st = String(it.ar_status).trim().slice(0, 60);
+      const m = String(it.data ?? "").match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+      const an: Record<string, unknown> = { ar_status: st };
+      if (/reprov/i.test(st)) {
+        an.parecer_reprovacao = String(it.parecer ?? "").trim().slice(0, 200) || null;
+        an.motivo_reprovacao = String(it.motivo ?? "").trim().slice(0, 2000) || null;
+        if (m) an.reprovado_em = `${m[3]}-${m[2]}-${m[1]}`;
+      }
+      const { data: atual } = await supabase.from("leads").select("status").eq("id", leadId).maybeSingle();
+      // reprovado na análise: sai da montagem de pasta e vai para Reprovados
+      if (/reprov/i.test(st) && atual?.status === "documentacao") an.status = "reprovado";
+      const { error } = await supabase.from("leads").update(an).eq("id", leadId);
+      if (!error && an.status) {
+        r.reprovados++;
+        await supabase.from("lead_events").insert({ lead_id: leadId, tipo: "status_alterado", dados: { de: "documentacao", para: "reprovado", origem: "Salesforce" } });
+      }
     }
     if (it.cpf) {
       const g = await gravarCPF(leadId, it.cpf);

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AtSign, BadgeCheck, ChevronRight, ExternalLink, History, LogOut, MessageSquareText, Settings, SlidersHorizontal } from "lucide-react";
+import { AtSign, BadgeCheck, ChevronRight, FolderOpen, XCircle, ExternalLink, History, LogOut, MessageSquareText, Settings, SlidersHorizontal } from "lucide-react";
 import AppCelular from "@/components/admin/AppCelular";
 import Backups from "@/components/admin/Backups";
 import { listarBackups } from "@/lib/server/backup";
@@ -12,7 +12,9 @@ import { sair } from "../../actions";
 export const metadata: Metadata = { title: "Mais" };
 
 const LINKS = [
+  { href: "/admin/montagem", label: "Montagem de pasta", desc: "Clientes juntando documentos e em análise", icon: FolderOpen },
   { href: "/admin/aprovados", label: "Clientes aprovados", desc: "Poder de compra, projetos que cabem e oportunidades", icon: BadgeCheck },
+  { href: "/admin/reprovados", label: "Reprovados", desc: "Motivo da reprovação e quando tentar de novo", icon: XCircle },
   { href: "/admin/redes", label: "Redes sociais", desc: "Cadastrar e acompanhar os contatos do Instagram, TikTok…", icon: AtSign },
   { href: "/admin/mensagens", label: "Mensagens prontas", desc: "Textos de WhatsApp para cada etapa do atendimento", icon: MessageSquareText },
   { href: "/admin/configuracoes", label: "Configurações", desc: "WhatsApp, avisos, CRECI e textos do site", icon: Settings },

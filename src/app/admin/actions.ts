@@ -1155,3 +1155,28 @@ export async function atualizarInteresse(leadId: string, dados: { regioes: strin
   revalidatePath("/admin/leads");
   return { recomendados: (upd.recomendados as string[] | undefined)?.length ?? null };
 }
+
+/** Resultado da análise (pasta/crédito) do cliente: status da AR, motivo da reprovação, reanálise e o que falta. */
+export async function salvarAnalise(leadId: string, _prev: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const { supabase } = await assertAdmin();
+    if (!UUID_RE.test(leadId)) return { erro: "Cadastro inválido." };
+    const txt = (k: string, max: number) => String(fd.get(k) ?? "").trim().slice(0, max) || null;
+    const upd = {
+      ar_status: txt("ar_status", 60),
+      parecer_reprovacao: txt("parecer_reprovacao", 200),
+      motivo_reprovacao: txt("motivo_reprovacao", 2000),
+      reprovado_em: dataISO(fd.get("reprovado_em")),
+      reanalise_em: dataISO(fd.get("reanalise_em")),
+      pendencias: txt("pendencias", 1000),
+    };
+    const { error } = await supabase.from("leads").update(upd).eq("id", leadId);
+    if (error) return { erro: error.message };
+    revalidatePath(`/admin/leads/${leadId}`);
+    revalidatePath("/admin/montagem");
+    revalidatePath("/admin/reprovados");
+    return { ok: true, mensagem: "Análise salva." };
+  } catch (e) {
+    return { erro: msg(e) };
+  }
+}

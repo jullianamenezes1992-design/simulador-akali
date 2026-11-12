@@ -20,6 +20,7 @@ import { requireAdmin } from "@/lib/server/auth";
 import type { SimulationResult } from "@/lib/simulacao/types";
 import { NovaTarefaForm, TarefaItem } from "@/components/admin/Agenda";
 import DadosSalesforce from "@/components/admin/DadosSalesforce";
+import AnaliseCliente from "@/components/admin/AnaliseCliente";
 import { agoraMs, diaSP, type Tarefa } from "@/lib/agenda";
 
 const simNao = (v: boolean | null | undefined) => (v == null ? "—" : v ? "Sim" : "Não");
@@ -164,8 +165,8 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
 
   return (
     <>
-      <Link href="/admin/leads" className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-caixa hover:underline">
-        <ArrowLeft size={14} /> Leads
+      <Link href={l.status === "documentacao" ? "/admin/montagem" : l.status === "reprovado" ? "/admin/reprovados" : l.em_aprovados ? "/admin/aprovados" : "/admin/leads"} className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-caixa hover:underline">
+        <ArrowLeft size={14} /> {l.status === "documentacao" ? "Montagem de pasta" : l.status === "reprovado" ? "Reprovados" : l.em_aprovados ? "Clientes aprovados" : "Leads"}
       </Link>
 
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
@@ -224,6 +225,22 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
           {!anonimizado && (
             <Bloco titulo="Salesforce Plano&Plano">
               <DadosSalesforce leadId={l.id} oportunidade={l.oportunidade_sf ?? null} ar={l.ar_numero ?? null} ab={l.ab_numero ?? null} temCpf={!!l.cpf_final} />
+            </Bloco>
+          )}
+
+          {!anonimizado && (
+            <Bloco titulo={l.status === "reprovado" ? "Análise (reprovado)" : "Análise e pasta"}>
+              <AnaliseCliente
+                leadId={l.id}
+                dados={{
+                  ar_status: l.ar_status ?? null,
+                  parecer_reprovacao: l.parecer_reprovacao ?? null,
+                  motivo_reprovacao: l.motivo_reprovacao ?? null,
+                  reprovado_em: l.reprovado_em ?? null,
+                  reanalise_em: l.reanalise_em ?? null,
+                  pendencias: l.pendencias ?? null,
+                }}
+              />
             </Bloco>
           )}
 

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AtSign, BadgeCheck, Download, Trash2 } from "lucide-react";
+import { AtSign, BadgeCheck, Download, FolderOpen, Trash2, XCircle } from "lucide-react";
 import { PageHeader } from "@/components/admin/ui";
 import { LEAD_STATUS, leadStatusInfo } from "@/lib/constants";
 import { formatBRL, formatDate, maskPhone } from "@/lib/format";
@@ -9,6 +9,13 @@ import { requireAdmin } from "@/lib/server/auth";
 export const metadata: Metadata = { title: "Leads" };
 
 const POR_PAGINA = 30;
+
+/** Etapas que têm aba própria (saem da lista de Leads). */
+const ABA_PROPRIA: Record<string, { href: string; label: string }> = {
+  documentacao: { href: "/admin/montagem", label: "Montagem de pasta" },
+  reprovado: { href: "/admin/reprovados", label: "Reprovados" },
+};
+const FORA_DE_LEADS = `(${Object.keys(ABA_PROPRIA).join(",")})`;
 
 type SP = Promise<Record<string, string | undefined>>;
 
@@ -27,8 +34,9 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
     .select("id, codigo, nome, telefone, renda_total, simulacao, simulacao_completa, etapa_parou, status, origem, utm_campaign, created_at, escolhido:escolhido_id(nome)", {
       count: "exact",
     })
-    // quem já está em "Clientes aprovados" fica só lá
+    // quem já está em "Clientes aprovados", "Montagem de pasta" ou "Reprovados" fica só lá
     .eq("em_aprovados", false)
+    .not("status", "in", FORA_DE_LEADS)
     .order("created_at", { ascending: false })
     .range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1);
   if (status) query = query.eq("status", status);
@@ -44,18 +52,20 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
   if (de) query = query.gte("created_at", `${de}T00:00:00-03:00`);
   if (ate) query = query.lte("created_at", `${ate}T23:59:59-03:00`);
 
-  const [contagens, totalIncompletas, totalAprovados, achadosEmAprovados] = await Promise.all([
+  const [contagens, totalIncompletas, totalAprovados, achadosEmAprovados, totalPasta, totalReprov] = await Promise.all([
     Promise.all(LEAD_STATUS.map((s) => supabase.from("leads").select("id", { count: "exact", head: true }).eq("status", s.value).eq("em_aprovados", false))),
-    supabase.from("leads").select("id", { count: "exact", head: true }).eq("simulacao_completa", false).eq("em_aprovados", false),
+    supabase.from("leads").select("id", { count: "exact", head: true }).eq("simulacao_completa", false).eq("em_aprovados", false).not("status", "in", FORA_DE_LEADS),
     supabase.from("aprovados").select("id", { count: "exact", head: true }).in("status", ["ativo", "negociando"]),
     // a busca também avisa se o cliente procurado está em Aprovados
     q
       ? supabase
           .from("leads")
           .select("id", { count: "exact", head: true })
-          .eq("em_aprovados", true)
+          .or(`em_aprovados.eq.true,status.in.${FORA_DE_LEADS}`)
           .or([`nome.ilike.%${q}%`, `codigo.ilike.%${q}%`, q.replace(/\D/g, "").length >= 4 ? `telefone.ilike.%${q.replace(/\D/g, "")}%` : null].filter(Boolean).join(","))
       : Promise.resolve({ count: 0 }),
+    supabase.from("leads").select("id", { count: "exact", head: true }).eq("status", "documentacao").eq("em_aprovados", false),
+    supabase.from("leads").select("id", { count: "exact", head: true }).eq("status", "reprovado").eq("em_aprovados", false),
   ]);
   const { data: leads, count } = await query;
   const totalPaginas = Math.max(1, Math.ceil((count ?? 0) / POR_PAGINA));
@@ -106,20 +116,28 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
         >
           Simulação incompleta <span className="ml-1 opacity-70">{totalIncompletas.count ?? 0}</span>
         </Link>
-        {LEAD_STATUS.map((s, i) => (
-          <Link
-            key={s.value}
-            href={link({ status: s.value, p: null })}
-            className={`chip shrink-0 px-3 py-1.5 ${status === s.value ? "bg-caixa text-white" : "bg-white text-ink"}`}
-          >
-            {s.label} <span className="ml-1 opacity-70">{contagens[i].count ?? 0}</span>
-          </Link>
-        ))}
+        {LEAD_STATUS.map((s, i) =>
+          ABA_PROPRIA[s.value] ? null : (
+            <Link
+              key={s.value}
+              href={link({ status: s.value, p: null })}
+              className={`chip shrink-0 px-3 py-1.5 ${status === s.value ? "bg-caixa text-white" : "bg-white text-ink"}`}
+            >
+              {s.label} <span className="ml-1 opacity-70">{contagens[i].count ?? 0}</span>
+            </Link>
+          )
+        )}
+        <Link href="/admin/montagem" className="chip shrink-0 border-violet-300 bg-violet-50 px-3 py-1.5 text-violet-900">
+          <FolderOpen size={14} className="mr-1" /> Montagem de pasta <span className="ml-1 opacity-70">{totalPasta.count ?? 0}</span> →
+        </Link>
         <Link href="/admin/aprovados" className="chip shrink-0 border-emerald-300 bg-emerald-50 px-3 py-1.5 text-emerald-900">
           <BadgeCheck size={14} className="mr-1" /> Em Aprovados <span className="ml-1 opacity-70">{totalAprovados.count ?? 0}</span> →
         </Link>
+        <Link href="/admin/reprovados" className="chip shrink-0 border-red-300 bg-red-50 px-3 py-1.5 text-red-900">
+          <XCircle size={14} className="mr-1" /> Reprovados <span className="ml-1 opacity-70">{totalReprov.count ?? 0}</span> →
+        </Link>
       </div>
-      <p className="-mt-2 mb-3 text-xs text-ink-soft">Clientes com crédito aprovado ficam só na aba Aprovados.</p>
+      <p className="-mt-2 mb-3 text-xs text-ink-soft">Clientes em documentação, aprovados e reprovados ficam nas abas próprias.</p>
 
       <form method="get" className="card mb-4 grid gap-3 p-3 sm:grid-cols-[1fr_auto_auto_auto]">
         {status && <input type="hidden" name="status" value={status} />}
@@ -132,11 +150,10 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
 
       {q && (achadosEmAprovados.count ?? 0) > 0 && (
         <p className="mb-3 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-          {achadosEmAprovados.count} cliente(s) com essa busca estão em{" "}
-          <Link href={`/admin/aprovados?q=${encodeURIComponent(q)}`} className="font-semibold underline">
-            Clientes aprovados
-          </Link>
-          .
+          {achadosEmAprovados.count} cliente(s) com essa busca estão em outra aba:{" "}
+          <Link href={`/admin/montagem?q=${encodeURIComponent(q)}`} className="font-semibold underline">Montagem de pasta</Link>,{" "}
+          <Link href={`/admin/aprovados?q=${encodeURIComponent(q)}`} className="font-semibold underline">Aprovados</Link> ou{" "}
+          <Link href={`/admin/reprovados?q=${encodeURIComponent(q)}`} className="font-semibold underline">Reprovados</Link>.
         </p>
       )}
 

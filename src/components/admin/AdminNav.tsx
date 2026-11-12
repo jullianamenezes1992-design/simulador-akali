@@ -11,7 +11,9 @@ import {
   Menu,
   AtSign,
   BadgeCheck,
+  FolderOpen,
   MessageSquareText,
+  XCircle,
   Settings,
   SlidersHorizontal,
   Smartphone,
@@ -22,7 +24,9 @@ const ITENS = [
   { href: "/admin", label: "Visão geral", icon: LayoutDashboard },
   { href: "/admin/agenda", label: "Agenda", icon: CalendarDays },
   { href: "/admin/leads", label: "Leads", icon: Users },
+  { href: "/admin/montagem", label: "Montagem de pasta", icon: FolderOpen },
   { href: "/admin/aprovados", label: "Aprovados", icon: BadgeCheck },
+  { href: "/admin/reprovados", label: "Reprovados", icon: XCircle },
   { href: "/admin/redes", label: "Redes sociais", icon: AtSign },
   { href: "/admin/empreendimentos", label: "Empreendimentos", icon: Building2 },
   { href: "/admin/mensagens", label: "Mensagens prontas", icon: MessageSquareText },
@@ -41,7 +45,7 @@ const ABAS = [
   { href: "/admin/mais", label: "Mais", icon: Menu },
 ];
 
-const MAIS = ["/admin/mais", "/admin/aprovados", "/admin/mensagens", "/admin/redes", "/admin/parametros", "/admin/configuracoes", "/admin/historico"];
+const MAIS = ["/admin/mais", "/admin/montagem", "/admin/aprovados", "/admin/reprovados", "/admin/mensagens", "/admin/redes", "/admin/parametros", "/admin/configuracoes", "/admin/historico"];
 
 export default function AdminNav() {
   const path = usePathname();
