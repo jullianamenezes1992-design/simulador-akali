@@ -120,7 +120,7 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
         </p>
       )}
 
-      <div className="grid gap-4 xl:grid-cols-[1fr_1.1fr]">
+      <div className="grid gap-4 [overflow-wrap:anywhere] xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
         <section className="card p-4">
           <h2 className="mb-1 font-bold">Projetos que cabem ({cabem.length})</h2>
           <p className="mb-2 text-xs text-ink-soft">

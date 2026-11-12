@@ -89,7 +89,7 @@ export default async function Dashboard() {
         </p>
       )}
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <section className="card overflow-hidden">
           <div className="flex items-center justify-between border-b border-line px-4 py-3">
             <h2 className="font-bold">Leads recentes</h2>

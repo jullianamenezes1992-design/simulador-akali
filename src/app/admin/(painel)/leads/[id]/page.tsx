@@ -203,8 +203,9 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
         <p className="mb-4 rounded-xl bg-slate-100 px-4 py-3 text-sm">Dados pessoais anonimizados em {formatDate(l.anonimizado_em, true)}.</p>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
-        <div className="space-y-4">
+      {/* minmax(0, …) + quebra de palavras: links longos (ex.: anúncios com fbclid) não alargam a coluna */}
+      <div className="grid gap-4 [overflow-wrap:anywhere] lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <div className="min-w-0 space-y-4">
           <Bloco titulo="Dados pessoais">
             <Linhas
               itens={[
@@ -323,7 +324,7 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
           </Bloco>
         </div>
 
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <Bloco titulo="Atendimento">
             <div className="space-y-3">
               <StatusSelect leadId={l.id} status={l.status} />
