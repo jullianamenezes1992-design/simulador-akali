@@ -5,6 +5,7 @@ import { PageHeader, StatCard } from "@/components/admin/ui";
 import { formatDate, maskPhone } from "@/lib/format";
 import { requireAdmin } from "@/lib/server/auth";
 import { clientesDaEtapa, diasDesde } from "@/lib/server/abas-clientes";
+import AguardandoDocs from "@/components/admin/AguardandoDocs";
 
 export const metadata: Metadata = { title: "Montagem de pasta" };
 
@@ -18,7 +19,7 @@ export default async function MontagemPage({ searchParams }: { searchParams: SP 
   const { supabase } = await requireAdmin();
   const sp = await searchParams;
   const q = sp.q ?? "";
-  const filtro = ["sem_ar", "em_analise", "parados"].includes(sp.f ?? "") ? sp.f! : "";
+  const filtro = ["aguardando", "sem_ar", "em_analise", "parados"].includes(sp.f ?? "") ? sp.f! : "";
   const todos = await clientesDaEtapa(supabase, "documentacao", q);
 
   // dias na pasta: desde a última atualização do cadastro
@@ -26,15 +27,17 @@ export default async function MontagemPage({ searchParams }: { searchParams: SP 
   const semAR = comDias.filter(({ c }) => !c.ar_numero);
   const emAnalise = comDias.filter(({ c }) => c.ar_numero && !/aprovad|reprov/i.test(c.ar_status ?? ""));
   const parados = comDias.filter(({ dias }) => dias >= 7);
-  const lista = (filtro === "sem_ar" ? semAR : filtro === "em_analise" ? emAnalise : filtro === "parados" ? parados : comDias).sort((x, y) => y.dias - x.dias);
+  const aguardando = comDias.filter(({ c }) => c.aguardando_docs_em);
+  const lista = (filtro === "aguardando" ? aguardando : filtro === "sem_ar" ? semAR : filtro === "em_analise" ? emAnalise : filtro === "parados" ? parados : comDias).sort((x, y) => y.dias - x.dias);
   const link = (f: string) => `/admin/montagem?${new URLSearchParams({ ...(f ? { f } : {}), ...(q ? { q } : {}) })}`;
 
   return (
     <>
       <PageHeader titulo="Montagem de pasta" descricao="Clientes juntando documentos e em análise de renda/crédito. Quem está parado há mais tempo aparece primeiro." />
 
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
         <StatCard label="Na pasta" valor={todos.length} />
+        <StatCard label="Aguardando documentos" valor={aguardando.length} sub="prometeram e não enviaram" />
         <StatCard label="Sem AR ainda" valor={semAR.length} sub="documentos não enviados" />
         <StatCard label="Em análise" valor={emAnalise.length} />
         <StatCard label="Parados 7+ dias" valor={parados.length} sub="cobrar documentos" />
@@ -43,6 +46,7 @@ export default async function MontagemPage({ searchParams }: { searchParams: SP 
       <div className="mb-3 flex flex-wrap gap-2">
         {[
           ["", "Todos"],
+          ["aguardando", `⏳ Aguardando documentos (${aguardando.length})`],
           ["sem_ar", "Sem AR"],
           ["em_analise", "Em análise"],
           ["parados", "Parados 7+ dias"],
@@ -75,6 +79,10 @@ export default async function MontagemPage({ searchParams }: { searchParams: SP 
                   <FolderOpen size={12} className="mr-1 inline" />
                   {dias === 0 ? "hoje" : `${dias} dia${dias === 1 ? "" : "s"}`}
                 </span>
+              </div>
+              <div className="mt-2">
+                <AguardandoDocs leadId={c.id} desde={c.aguardando_docs_em} />
+                {c.aguardando_docs_em && <span className="ml-2 text-xs text-ink-soft">desde {formatDate(c.aguardando_docs_em)}</span>}
               </div>
               <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-sm [overflow-wrap:anywhere]">
                 <dt className="text-ink-soft">Imóvel</dt>

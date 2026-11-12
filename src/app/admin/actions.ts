@@ -1180,3 +1180,13 @@ export async function salvarAnalise(leadId: string, _prev: ActionState, fd: Form
     return { erro: msg(e) };
   }
 }
+
+/** Liga/desliga a etiqueta "Aguardando documentos" (cliente prometeu os documentos e ainda não enviou). */
+export async function marcarAguardandoDocs(leadId: string, ligar: boolean) {
+  const { supabase } = await assertAdmin();
+  if (!UUID_RE.test(leadId)) throw new Error("Cliente inválido.");
+  const { error } = await supabase.from("leads").update({ aguardando_docs_em: ligar ? new Date().toISOString() : null }).eq("id", leadId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/montagem");
+  revalidatePath(`/admin/leads/${leadId}`);
+}

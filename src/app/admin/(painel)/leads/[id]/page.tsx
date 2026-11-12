@@ -21,6 +21,7 @@ import type { SimulationResult } from "@/lib/simulacao/types";
 import { NovaTarefaForm, TarefaItem } from "@/components/admin/Agenda";
 import DadosSalesforce from "@/components/admin/DadosSalesforce";
 import AnaliseCliente from "@/components/admin/AnaliseCliente";
+import AguardandoDocs from "@/components/admin/AguardandoDocs";
 import { agoraMs, diaSP, type Tarefa } from "@/lib/agenda";
 
 const simNao = (v: boolean | null | undefined) => (v == null ? "—" : v ? "Sim" : "Não");
@@ -230,6 +231,11 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
 
           {!anonimizado && (
             <Bloco titulo={l.status === "reprovado" ? "Análise (reprovado)" : "Análise e pasta"}>
+              {l.status !== "reprovado" && (
+                <div className="mb-3">
+                  <AguardandoDocs leadId={l.id} desde={l.aguardando_docs_em ?? null} />
+                </div>
+              )}
               <AnaliseCliente
                 leadId={l.id}
                 dados={{
