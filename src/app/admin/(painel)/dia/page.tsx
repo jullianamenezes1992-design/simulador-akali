@@ -6,6 +6,7 @@ import {
   FinalizarDia,
   MarcarBloco,
 } from "@/components/admin/RotinaControles";
+import { AcoesBaseFria } from "@/components/admin/BaseFriaControles";
 import { getSettings } from "@/lib/data";
 import { maskPhone } from "@/lib/format";
 import { requireAdmin } from "@/lib/server/auth";
@@ -89,7 +90,9 @@ export default async function MeuDiaPage() {
                     )}
                     {b.meta && (
                       <span className="rounded-full bg-mist px-2 text-xs font-bold text-ink-soft">
-                        {b.item === "carteira" ? b.meta : `meta: ${b.meta}`}
+                        {b.item === "carteira" || b.item === "base_fria"
+                          ? b.meta
+                          : `meta: ${b.meta}`}
                       </span>
                     )}
                   </h2>
@@ -131,7 +134,14 @@ export default async function MeuDiaPage() {
                           </span>
                         )}
                       </Link>
-                      {b.item === "carteira" ? (
+                      {b.item === "base_fria" ? (
+                        <AcoesBaseFria
+                          id={c.id}
+                          telefone={c.telefone}
+                          situacao={c.status ?? "fila"}
+                          texto={c.texto ?? ""}
+                        />
+                      ) : b.item === "carteira" ? (
                         <ChamarCarteira
                           leadId={c.id}
                           telefone={c.telefone}

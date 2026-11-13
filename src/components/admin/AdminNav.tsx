@@ -18,6 +18,7 @@ import {
   Settings,
   SlidersHorizontal,
   Smartphone,
+  Snowflake,
   Users,
 } from "lucide-react";
 
@@ -29,6 +30,7 @@ const ITENS = [
   { href: "/admin/montagem", label: "Montagem de pasta", icon: FolderOpen },
   { href: "/admin/aprovados", label: "Aprovados", icon: BadgeCheck },
   { href: "/admin/reprovados", label: "Reprovados", icon: XCircle },
+  { href: "/admin/base-fria", label: "Base fria", icon: Snowflake },
   { href: "/admin/redes", label: "Redes sociais", icon: AtSign },
   { href: "/admin/empreendimentos", label: "Empreendimentos", icon: Building2 },
   { href: "/admin/mensagens", label: "Mensagens prontas", icon: MessageSquareText },
@@ -47,7 +49,7 @@ const ABAS = [
   { href: "/admin/mais", label: "Mais", icon: Menu },
 ];
 
-const MAIS = ["/admin/mais", "/admin/montagem", "/admin/aprovados", "/admin/reprovados", "/admin/mensagens", "/admin/redes", "/admin/parametros", "/admin/configuracoes", "/admin/historico"];
+const MAIS = ["/admin/mais", "/admin/montagem", "/admin/aprovados", "/admin/reprovados", "/admin/base-fria", "/admin/mensagens", "/admin/redes", "/admin/parametros", "/admin/configuracoes", "/admin/historico"];
 
 export default function AdminNav() {
   const path = usePathname();

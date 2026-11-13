@@ -1,13 +1,15 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { diaSP } from "@/lib/agenda";
+import { mensagemBaseFria } from "@/lib/base-fria";
+import { filaBaseFria } from "@/lib/server/base-fria";
 
 /**
  * "Meu dia": a rotina da corretora em blocos, na ordem do dia, com os clientes de cada bloco.
  * Um bloco fica feito quando não há mais ninguém para tocar nele hoje, ou quando ela marca como feito.
  */
 
-export type ClienteDia = { id: string; nome: string; telefone: string; detalhe?: string | null; href?: string; status?: string };
+export type ClienteDia = { id: string; nome: string; telefone: string; detalhe?: string | null; href?: string; status?: string; texto?: string };
 export type Bloco = {
   item: string;
   hora: string;
@@ -45,7 +47,7 @@ const ROTULO_CARTEIRA: Record<string, string> = {
 };
 const ATIVOS = ["novo", "em_atendimento", "sem_resposta", "simulacao", "documentacao", "analise_credito", "serasa_bacen", "aprovado", "visita", "proposta"];
 
-export async function montarMeuDia(db: SupabaseClient, hoje = diaSP()) {
+export async function montarMeuDia(db: SupabaseClient, hoje = diaSP(), assinatura = "") {
   const inicio = new Date(`${hoje}T00:00:00-03:00`).toISOString();
   const fim = new Date(`${hoje}T23:59:59-03:00`).toISOString();
   const d30 = new Date(Date.now() - 30 * 864e5).toISOString();
@@ -92,6 +94,13 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP()) {
   const feitos = new Map((feitosQ.data ?? []).map((f) => [f.item as string, (f.nota as string | null) ?? null]));
   const tocados = new Set((eventosQ.data ?? []).map((e) => e.lead_id as string));
   const comFutura = new Set((futurasQ.data ?? []).map((t) => t.lead_id as string));
+  // base fria (planilha antiga), chamada pelo número da carteira
+  const { data: cfg } = await db.from("site_settings").select("base_fria_dia, corretora_nome, empresa_nome").eq("id", 1).maybeSingle();
+  const metaBF = cfg?.base_fria_dia ?? 30;
+  const { count: totalBF } = await db.from("base_fria").select("id", { count: "exact", head: true }).in("situacao", ["fila", "chamado"]);
+  const bf = totalBF ? await filaBaseFria(db, metaBF, hoje) : { meta: metaBF, feitos: 0, falta: 0, fila: [] };
+  const assin = assinatura || cfg?.corretora_nome || cfg?.empresa_nome || "";
+
   type L = { id: string; nome: string; telefone: string; status: string; updated_at: string; origem: string | null; aguardando_docs_em: string | null; escolhido: { nome: string } | null };
   const naoTocado = (l: L) => !tocados.has(l.id) && l.updated_at < inicio;
   const cli = (l: L, detalhe?: string | null): ClienteDia => ({ id: l.id, nome: l.nome, telefone: l.telefone, detalhe: detalhe ?? l.escolhido?.nome ?? null, href: `/admin/leads/${l.id}` });
@@ -205,6 +214,27 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP()) {
       total: faltaCarteira,
       feito: faltaCarteira === 0 || tamCarteira === 0 || feitos.has("carteira"),
       meta: `${rebatidosHoje.length}/${metaCarteira}`,
+    },
+    {
+      item: "base_fria",
+      hora: "16h",
+      titulo: "Base fria (nº da carteira)",
+      dica: totalBF
+        ? `Chame ${bf.meta} contato(s) da planilha antiga pelo WhatsApp da carteira. Hoje: ${bf.feitos} de ${bf.meta}. Quem responder, marque “Respondeu” na tela da Base fria.`
+        : "Importe a planilha da carteira na tela Base fria para começar.",
+      link: { href: "/admin/base-fria", label: "Abrir Base fria" },
+      clientes: bf.fila.map((c) => ({
+        id: c.id,
+        nome: c.nome,
+        telefone: c.telefone,
+        detalhe: [c.bairro || c.zona, c.renda_texto && `renda ${c.renda_texto}`].filter(Boolean).join(" · ") || null,
+        href: "/admin/base-fria",
+        status: c.situacao,
+        texto: mensagemBaseFria(c, assin, c.situacao === "chamado" ? c.tentativas + 1 : 1),
+      })),
+      total: bf.falta,
+      feito: !totalBF || bf.falta === 0 || feitos.has("base_fria"),
+      meta: `${bf.feitos}/${bf.meta}`,
     },
     {
       item: "redes",

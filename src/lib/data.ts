@@ -33,6 +33,8 @@ export interface SiteSettings {
   meta_pixel_id: string | null;
   corretora_nome?: string | null;
   corretora_foto_url?: string | null;
+  /** contatos da base fria a chamar por dia */
+  base_fria_dia?: number;
   /** Perfis nas redes: { instagram: "@perfil", tiktok: "@perfil", facebook: "...", youtube: "..." } */
   redes_sociais?: Partial<Record<RedeSocial, string>> | null;
   landing_conteudo: LandingConteudo;

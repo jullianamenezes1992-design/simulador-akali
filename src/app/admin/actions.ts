@@ -1306,7 +1306,7 @@ export async function simularProjetoLead(leadId: string, devId: string) {
 // Meu dia (rotina diária)
 // ---------------------------------------------------------------------------
 
-const ITENS_ROTINA = ["agenda", "novos", "quentes", "sem_resposta", "pasta", "conteudo", "aprovados", "carteira", "redes", "fechamento", "dia_finalizado"];
+const ITENS_ROTINA = ["agenda", "novos", "quentes", "sem_resposta", "pasta", "conteudo", "aprovados", "carteira", "base_fria", "redes", "fechamento", "dia_finalizado"];
 
 /** Marca/desmarca um bloco da rotina de hoje (com uma anotação opcional, ex.: o vídeo gravado). */
 export async function marcarRotina(item: string, feito: boolean, nota?: string | null) {
@@ -1329,5 +1329,113 @@ export async function rebaterCliente(leadId: string) {
   if (!UUID_RE.test(leadId)) throw new Error("Cliente inválido.");
   await supabase.from("leads").update({ rebatido_em: new Date().toISOString() }).eq("id", leadId);
   await supabase.from("lead_events").insert({ lead_id: leadId, tipo: "carteira_rebatida", dados: {} });
+  revalidatePath("/admin/dia");
+}
+
+// ---------------------------------------------------------------------------
+// Base fria (carteira antiga da planilha, chamada pelo número da carteira)
+// ---------------------------------------------------------------------------
+
+/** Abriu o WhatsApp para o contato: marca como chamado e agenda nova tentativa (se não responder). */
+export async function chamarBaseFria(id: string) {
+  const { supabase } = await assertAdmin();
+  if (!UUID_RE.test(id)) throw new Error("Contato inválido.");
+  const { DIAS_PARA_NOVA_TENTATIVA } = await import("@/lib/base-fria");
+  const { data: c } = await supabase.from("base_fria").select("tentativas, situacao").eq("id", id).maybeSingle();
+  if (!c || !["fila", "chamado"].includes(c.situacao)) return;
+  const agora = new Date();
+  await supabase
+    .from("base_fria")
+    .update({
+      situacao: "chamado",
+      chamado_em: agora.toISOString(),
+      tentativas: (c.tentativas ?? 0) + 1,
+      proxima_em: new Date(agora.getTime() + DIAS_PARA_NOVA_TENTATIVA * 864e5).toISOString(),
+    })
+    .eq("id", id);
+  revalidatePath("/admin/base-fria");
+  revalidatePath("/admin/dia");
+}
+
+/** Resultado do contato: número errado, não quer mais, ou desfazer (volta para chamado/fila). */
+export async function marcarBaseFria(id: string, resultado: "numero_errado" | "nao_quer" | "desfazer") {
+  const { supabase } = await assertAdmin();
+  if (!UUID_RE.test(id)) throw new Error("Contato inválido.");
+  if (resultado === "desfazer") {
+    const { data: c } = await supabase.from("base_fria").select("chamado_em").eq("id", id).maybeSingle();
+    await supabase.from("base_fria").update({ situacao: c?.chamado_em ? "chamado" : "fila", resolvido_em: null }).eq("id", id);
+  } else if (resultado === "numero_errado" || resultado === "nao_quer") {
+    await supabase.from("base_fria").update({ situacao: resultado, resolvido_em: new Date().toISOString(), proxima_em: null }).eq("id", id);
+  } else throw new Error("Resultado inválido.");
+  revalidatePath("/admin/base-fria");
+}
+
+/** O contato respondeu com interesse: vira lead (origem "Base fria") e sai da base fria. */
+export async function reativarBaseFria(id: string): Promise<{ leadId?: string; erro?: string }> {
+  try {
+    const { supabase, userId } = await assertAdmin();
+    if (!UUID_RE.test(id)) return { erro: "Contato inválido." };
+    const { regioesDaZona } = await import("@/lib/base-fria");
+    const { data: c } = await supabase.from("base_fria").select("*").eq("id", id).maybeSingle();
+    if (!c) return { erro: "Contato não encontrado." };
+    if (c.lead_id) return { leadId: c.lead_id };
+
+    const db = createAdminClient();
+    const { data: existe } = await db.from("leads").select("id").eq("telefone", c.telefone).is("excluido_em", null).limit(1).maybeSingle();
+    let leadId = existe?.id as string | undefined;
+    if (!leadId) {
+      const { data: lead, error } = await db
+        .from("leads")
+        .insert({
+          nome: c.nome,
+          telefone: c.telefone,
+          email: c.email,
+          regioes: regioesDaZona(c.zona),
+          regiao_detalhe: c.bairro,
+          prazo_compra: c.prazo_compra,
+          origem: "Base fria",
+          utm_source: "base_fria",
+          utm_campaign: "Base reativada (nº carteira)",
+          status: "em_atendimento",
+          responsavel_id: userId,
+          cadastro_manual: true,
+          consentimento_em: new Date().toISOString(),
+          consentimento_versao: "base-fria-reativado",
+        })
+        .select("id")
+        .single();
+      if (error || !lead) return { erro: error?.message ?? "Não foi possível criar o lead." };
+      leadId = lead.id as string;
+      const info = [
+        "📞 Veio da Base fria (respondeu no número da carteira).",
+        c.renda_texto && `Renda informada na época: ${c.renda_texto}`,
+        c.prazo_compra && `Prazo de compra: ${c.prazo_compra}`,
+        c.bairro && `Bairro de interesse: ${c.bairro}`,
+        c.ultima_entrada && `Último cadastro: ${new Date(c.ultima_entrada).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}`,
+        c.campanhas && `Campanha(s): ${c.campanhas}`,
+        c.observacoes && `Obs. da planilha: ${c.observacoes}`,
+      ]
+        .filter(Boolean)
+        .join("\n");
+      await db.from("lead_notes").insert({ lead_id: leadId, autor_id: userId, texto: info });
+    }
+    await db.from("lead_events").insert({ lead_id: leadId, tipo: "base_fria_reativado", dados: { base_fria_id: id } });
+    await supabase.from("base_fria").update({ situacao: "virou_lead", lead_id: leadId, resolvido_em: new Date().toISOString(), proxima_em: null }).eq("id", id);
+    revalidatePath("/admin/base-fria");
+    revalidatePath("/admin/leads");
+    return { leadId };
+  } catch (e) {
+    return { erro: msg(e) };
+  }
+}
+
+/** Quantos contatos da base fria chamar por dia. */
+export async function salvarMetaBaseFria(n: number) {
+  const { supabase } = await assertAdmin(true);
+  const v = Math.round(Number(n));
+  if (!Number.isFinite(v) || v < 0 || v > 300) throw new Error("Use um número de 0 a 300.");
+  const { error } = await supabase.from("site_settings").update({ base_fria_dia: v }).eq("id", 1);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/base-fria");
   revalidatePath("/admin/dia");
 }
