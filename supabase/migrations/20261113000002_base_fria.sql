@@ -46,7 +46,7 @@ alter table public.site_settings add column if not exists base_fria_dia int not 
 create or replace function public.base_fria_marcar_no_crm()
 returns int
 language sql
-security definer
+security invoker
 set search_path = public
 as $$
   with m as (
