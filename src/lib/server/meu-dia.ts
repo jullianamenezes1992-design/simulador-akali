@@ -72,7 +72,7 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP(), assinatur
     base().eq("status", "novo").eq("em_aprovados", false).order("created_at", { ascending: false }).limit(100),
     base().in("status", ["em_atendimento", "simulacao"]).eq("em_aprovados", false).order("updated_at").limit(200),
     base().eq("status", "sem_resposta").eq("em_aprovados", false).order("updated_at").limit(200),
-    base().eq("status", "documentacao").eq("em_aprovados", false).or(`aguardando_docs_em.not.is.null,updated_at.lt.${d7}`).order("updated_at").limit(200),
+    base().eq("status", "documentacao").eq("em_aprovados", false).order("updated_at").limit(200),
     db.from("oportunidades").select("id", { count: "exact", head: true }).is("visto_em", null),
     db.from("aprovados").select("id, nome, telefone, vencimento").in("status", ["ativo", "negociando"]).gte("vencimento", hoje).lte("vencimento", d15).order("vencimento").limit(30),
     db
@@ -157,16 +157,68 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP(), assinatur
   const rebatidosHoje = rebatidosHojeQ.data ?? [];
   const faltaCarteira = Math.max(0, metaCarteira - rebatidosHoje.length);
 
+  // revisão de pasta + análise, 2x ao dia (manhã e tarde)
+  const clientesRevisao = (): ClienteDia[] => [
+    ...pasta.map((l) => ({
+      id: l.id,
+      nome: l.nome,
+      telefone: l.telefone,
+      detalhe: ["Montagem de pasta", l.aguardando_docs_em ? "⏳ aguardando documentos" : null, `há ${diasParado(l.updated_at)} dia(s) parado`].filter(Boolean).join(" · "),
+      href: `/admin/leads/${l.id}`,
+    })),
+    ...analise.map((l) => ({
+      id: l.id,
+      nome: l.nome,
+      telefone: l.telefone,
+      detalhe: [
+        l.status === "serasa_bacen" ? "Serasa - Bacen (60+ dias)" : "Análise de crédito",
+        l.ar_numero && (/^AR/i.test(l.ar_numero) ? l.ar_numero : `AR ${l.ar_numero}`),
+        l.ar_status,
+        `há ${diasParado(desde(l))} dia(s) nesta etapa`,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      href: `/admin/leads/${l.id}`,
+    })),
+  ];
+  const revisao = (turno: "manha" | "tarde"): Bloco => {
+    const item = turno === "manha" ? "revisao_manha" : "revisao_tarde";
+    const lista = clientesRevisao();
+    return {
+      item,
+      hora: turno === "manha" ? "10h30" : "16h30",
+      titulo: `Revisar pastas e análises · ${turno === "manha" ? "manhã" : "tarde"}`,
+      dica:
+        turno === "manha"
+          ? "Todos em montagem de pasta e em análise: cobre documentos, confira a AR no Salesforce e atualize a etapa."
+          : "Segunda revisão do dia: veja o que mudou desde a manhã e dê retorno aos clientes.",
+      link: { href: "/admin/montagem", label: "Abrir Montagem de pasta" },
+      clientes: lista,
+      total: lista.length,
+      feito: lista.length === 0 || feitos.has(item),
+    };
+  };
+
   type T = { id: string; tipo: string; quando: string; descricao: string | null; lead: { id: string; nome: string; telefone: string } };
   const tarefas = (tarefasQ.data ?? []) as unknown as T[];
   // novos: basta não ter recebido mensagem ainda (o cadastro de hoje já vem com data de hoje)
   const novos = ((novosQ.data ?? []) as unknown as L[]).filter((l) => !tocados.has(l.id));
   const quentes = ((quentesQ.data ?? []) as unknown as L[]).filter(naoTocado);
   const semResp = ((semRespQ.data ?? []) as unknown as L[]).filter(naoTocado);
-  const pasta = ((pastaQ.data ?? []) as unknown as L[]).filter(naoTocado);
-  type LA = { id: string; nome: string; telefone: string; status: string; updated_at: string; ar_numero: string | null; ar_status: string | null };
-  const analise = ((analiseD ?? []) as LA[]).filter((l) => !tocados.has(l.id));
+  // montagem de pasta: todos, revisados 2x ao dia
+  const pasta = (pastaQ.data ?? []) as unknown as L[];
   const diasParado = (iso: string) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 864e5));
+  type LA = { id: string; nome: string; telefone: string; status: string; updated_at: string; ar_numero: string | null; ar_status: string | null };
+  // Serasa-Bacen só volta para a revisão 60 dias depois de marcado nessa etapa
+  const serasaIds = ((analiseD ?? []) as LA[]).filter((l) => l.status === "serasa_bacen").map((l) => l.id);
+  const desdeSerasa = new Map<string, string>();
+  if (serasaIds.length) {
+    const { data: ev } = await db.from("lead_events").select("lead_id, created_at, dados").eq("tipo", "status_alterado").in("lead_id", serasaIds).order("created_at", { ascending: false }).limit(1000);
+    for (const e of ev ?? []) if ((e.dados as { para?: string } | null)?.para === "serasa_bacen" && !desdeSerasa.has(e.lead_id)) desdeSerasa.set(e.lead_id, e.created_at);
+  }
+  const desde = (l: LA) => (l.status === "serasa_bacen" ? (desdeSerasa.get(l.id) ?? l.updated_at) : l.updated_at);
+  const analise = ((analiseD ?? []) as LA[]).filter((l) => l.status === "analise_credito" || diasParado(desde(l)) >= 60);
+
   const vencendo = vencendoQ.data ?? [];
   const ofertas = ofertaQ.data ?? [];
   const opsNovas = opsQ.count ?? 0;
@@ -216,31 +268,7 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP(), assinatur
       total: semResp.length,
       feito: semResp.length === 0 || feitos.has("sem_resposta"),
     },
-    {
-      item: "pasta",
-      hora: "10h30",
-      titulo: "Montagem de pasta",
-      dica: "Cobrar quem prometeu documentos e quem está parado há 7+ dias.",
-      link: { href: "/admin/montagem", label: "Abrir Montagem de pasta" },
-      clientes: pasta.map((l) => cli(l, l.aguardando_docs_em ? "⏳ aguardando documentos" : "parado há 7+ dias")),
-      total: pasta.length,
-      feito: pasta.length === 0 || feitos.has("pasta"),
-    },
-    {
-      item: "analise",
-      hora: "10h45",
-      titulo: "Clientes em análise",
-      dica: "Confira no Salesforce como está a análise (AR) de cada um, dê retorno ao cliente e atualize a etapa: aprovado, reprovado ou pendência.",
-      clientes: analise.map((l) => ({
-        id: l.id,
-        nome: l.nome,
-        telefone: l.telefone,
-        detalhe: [l.status === "serasa_bacen" ? "Serasa - Bacen" : "Análise de crédito", l.ar_numero && (/^AR/i.test(l.ar_numero) ? l.ar_numero : `AR ${l.ar_numero}`), l.ar_status, `há ${diasParado(l.updated_at)} dia(s) nesta etapa`].filter(Boolean).join(" · "),
-        href: `/admin/leads/${l.id}`,
-      })),
-      total: analise.length,
-      feito: analise.length === 0 || feitos.has("analise"),
-    },
+    revisao("manha"),
     blocoBF("manha"),
     {
       item: "conteudo",
@@ -277,6 +305,7 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP(), assinatur
       feito: faltaCarteira === 0 || tamCarteira === 0 || feitos.has("carteira"),
       meta: `${rebatidosHoje.length}/${metaCarteira}`,
     },
+    revisao("tarde"),
     blocoBF("tarde"),
     {
       item: "redes",
