@@ -1327,8 +1327,16 @@ export async function marcarRotina(item: string, feito: boolean, nota?: string |
 export async function rebaterCliente(leadId: string) {
   const { supabase } = await assertAdmin();
   if (!UUID_RE.test(leadId)) throw new Error("Cliente inválido.");
-  await supabase.from("leads").update({ rebatido_em: new Date().toISOString() }).eq("id", leadId);
-  await supabase.from("lead_events").insert({ lead_id: leadId, tipo: "carteira_rebatida", dados: {} });
+  const { data: l } = await supabase.from("leads").select("status").eq("id", leadId).maybeSingle();
+  const agora = new Date();
+  const upd: Record<string, unknown> = { rebatido_em: agora.toISOString() };
+  // reprovado: reanálise feita hoje; a próxima fica para daqui a 2 meses
+  if (l?.status === "reprovado") {
+    const prox = new Date(agora.getTime() + 60 * 864e5);
+    upd.reanalise_em = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(prox);
+  }
+  await supabase.from("leads").update(upd).eq("id", leadId);
+  await supabase.from("lead_events").insert({ lead_id: leadId, tipo: "carteira_rebatida", dados: l?.status === "reprovado" ? { reanalise: true, proxima: upd.reanalise_em } : {} });
   revalidatePath("/admin/dia");
 }
 

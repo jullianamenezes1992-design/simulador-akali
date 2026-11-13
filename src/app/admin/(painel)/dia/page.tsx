@@ -134,7 +134,9 @@ export default async function MeuDiaPage() {
                   {b.clientes
                     .slice(
                       0,
-                      b.item.startsWith("revisao") || b.item === "pasta"
+                      b.item.startsWith("revisao") ||
+                        b.item === "pasta" ||
+                        b.item === "carteira"
                         ? 60
                         : MOSTRAR,
                     )
@@ -183,7 +185,9 @@ export default async function MeuDiaPage() {
                       </li>
                     ))}
                   {b.clientes.length >
-                    (b.item.startsWith("revisao") || b.item === "pasta"
+                    (b.item.startsWith("revisao") ||
+                    b.item === "pasta" ||
+                    b.item === "carteira"
                       ? 60
                       : MOSTRAR) && (
                     <li className="px-3 py-2 text-xs text-ink-soft">

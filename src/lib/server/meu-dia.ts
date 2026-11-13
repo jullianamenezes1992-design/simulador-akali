@@ -92,7 +92,7 @@ export async function montarMeuDia(
   const d7 = new Date(Date.now() - 7 * 864e5).toISOString();
   const d15 = new Date(Date.now() + 15 * 864e5).toISOString().slice(0, 10);
   const d15atras = new Date(Date.now() - 15 * 864e5).toISOString();
-  const d90atras = new Date(Date.now() - 90 * 864e5).toISOString();
+  const d180atras = new Date(Date.now() - 180 * 864e5).toISOString();
 
   const base = () =>
     db
@@ -193,14 +193,18 @@ export async function montarMeuDia(
       .or(`ultima_oferta_em.is.null,ultima_oferta_em.lt.${d7}`)
       .order("ultima_oferta_em", { ascending: true, nullsFirst: true })
       .limit(OFERTAS_DIA),
-    // reanálises (reprovados com data de reanálise chegando) e indicações (quem comprou, a cada 90 dias)
+    // reanálises (reprovados com data de reanálise chegando) e indicações (quem comprou, a cada 6 meses)
     db
       .from("leads")
-      .select("id, nome, telefone, status, updated_at, reanalise_em, rebatido_em")
+      .select(
+        "id, nome, telefone, status, updated_at, reanalise_em, rebatido_em",
+      )
       .is("excluido_em", null)
       .is("anonimizado_em", null)
       .eq("em_aprovados", false)
-      .or(`and(status.eq.reprovado,reanalise_em.lte.${hoje}),and(status.eq.vendido,or(rebatido_em.is.null,rebatido_em.lt.${d90atras}))`)
+      .or(
+        `and(status.eq.reprovado,or(reanalise_em.is.null,reanalise_em.lte.${hoje})),and(status.eq.vendido,or(rebatido_em.is.null,rebatido_em.lt.${d180atras})))`,
+      )
       .order("reanalise_em", { ascending: true, nullsFirst: false })
       .order("rebatido_em", { ascending: true, nullsFirst: true })
       .limit(300),
@@ -340,12 +344,25 @@ export async function montarMeuDia(
   const contatados15 = new Set(
     (contatos15Q.data ?? []).map((e) => e.lead_id as string),
   );
-  type LC = { id: string; nome: string; telefone: string; status: string; updated_at: string; reanalise_em: string | null; rebatido_em: string | null };
+  type LC = {
+    id: string;
+    nome: string;
+    telefone: string;
+    status: string;
+    updated_at: string;
+    reanalise_em: string | null;
+    rebatido_em: string | null;
+  };
   const lc = ((carteiraQ.data ?? []) as LC[]).filter((l) => !tocados.has(l.id));
-  // reprovado: aparece a partir da data de reanálise, até você chamar (depois só numa nova data)
-  const reanalises = lc.filter((l) => l.status === "reprovado" && l.reanalise_em && (!l.rebatido_em || l.rebatido_em.slice(0, 10) < l.reanalise_em));
-  // já comprou: pedido de indicação a cada 90 dias, poucos por dia
-  const indicacoes = lc.filter((l) => l.status === "vendido" && !contatados15.has(l.id)).slice(0, INDICACOES_DIA);
+  // reprovado: sem data de reanálise ou com a data chegando; ao chamar, a próxima fica para daqui a 2 meses
+  const reanalises = lc.filter(
+    (l) =>
+      l.status === "reprovado" && (!l.reanalise_em || l.reanalise_em <= hoje),
+  );
+  // já comprou: pedido de indicação a cada 6 meses, poucos por dia
+  const indicacoes = lc
+    .filter((l) => l.status === "vendido" && !contatados15.has(l.id))
+    .slice(0, INDICACOES_DIA);
   const carteiraTodos = [...reanalises, ...indicacoes];
   const tamCarteira = carteiraTodos.length;
   const metaCarteira = tamCarteira;
@@ -599,12 +616,17 @@ export async function montarMeuDia(
       item: "carteira",
       hora: "15h30",
       titulo: "Reanálises e indicações",
-      dica: `Reprovados com a data de reanálise chegando (${reanalises.length}) e até ${INDICACOES_DIA} cliente(s) que já compraram para pedir indicação (cada um no máximo a cada 3 meses). Os perdidos vão para a Base fria.`,
+      dica: `Reanálise dos reprovados (${reanalises.length}): veja se a renda mudou ou se limpou o nome. Ao tocar em “Chamar”, fica registrada a reanálise de hoje e a próxima volta em 2 meses. Depois, até ${INDICACOES_DIA} cliente(s) que já compraram para pedir indicação (a cada 6 meses).`,
       clientes: carteira.map((l) => ({
         id: l.id,
         nome: l.nome,
         telefone: l.telefone,
-        detalhe: l.status === "reprovado" ? `reanálise: ${l.reanalise_em ? l.reanalise_em.split("-").reverse().join("/") : ""}` : (ROTULO_CARTEIRA[l.status] ?? null),
+        detalhe:
+          l.status === "reprovado"
+            ? l.reanalise_em
+              ? `reanálise prevista para ${l.reanalise_em.split("-").reverse().join("/")}`
+              : "reprovado: primeira reanálise (sem data ainda)"
+            : (ROTULO_CARTEIRA[l.status] ?? null),
         href: `/admin/leads/${l.id}`,
         status: l.status,
       })),
