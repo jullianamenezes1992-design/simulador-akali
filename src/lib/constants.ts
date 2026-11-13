@@ -24,9 +24,9 @@ export const statusObraLabel = (v: string | null | undefined) =>
 
 export const LEAD_STATUS = [
   { value: "novo", label: "Novo", cor: "bg-sky-100 text-sky-800" },
+  { value: "simulacao", label: "Simulação", cor: "bg-cyan-100 text-cyan-900" },
   { value: "em_atendimento", label: "Em atendimento", cor: "bg-indigo-100 text-indigo-800" },
   { value: "sem_resposta", label: "Não respondeu", cor: "bg-yellow-100 text-yellow-900" },
-  { value: "simulacao", label: "Simulação", cor: "bg-cyan-100 text-cyan-900" },
   { value: "documentacao", label: "Documentação", cor: "bg-violet-100 text-violet-800" },
   { value: "analise_credito", label: "Análise de crédito", cor: "bg-amber-100 text-amber-800" },
   { value: "serasa_bacen", label: "Serasa - Bacen", cor: "bg-rose-100 text-rose-800" },
