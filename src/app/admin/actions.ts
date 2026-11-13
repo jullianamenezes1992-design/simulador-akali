@@ -1472,6 +1472,13 @@ export async function atualizarDadosLead(leadId: string, _prev: ActionState, fd:
     if (!nome || nome.length < 2) return { erro: "Preencha o nome do cliente." };
     const email = texto("email", 200);
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { erro: "E-mail inválido." };
+    let tel = String(fd.get("telefone") ?? "").replace(/\D/g, "");
+    if (tel.length >= 12 && tel.startsWith("55")) tel = tel.slice(2);
+    if (!/^[1-9]{2}9?\d{8}$/.test(tel)) return { erro: "Telefone com DDD inválido (ex.: 11 91234-5678)." };
+    if (tel !== l.telefone) {
+      const { data: outro } = await supabase.from("leads").select("nome").eq("telefone", tel).is("excluido_em", null).neq("id", leadId).limit(1).maybeSingle();
+      if (outro) return { erro: `Este telefone já está cadastrado em outro cliente: ${outro.nome}.` };
+    }
     const idadeTxt = String(fd.get("idade") ?? "").trim();
     const idade = idadeTxt ? Number(idadeTxt) : null;
     if (idade != null && (!Number.isInteger(idade) || idade < 16 || idade > 100)) return { erro: "Idade inválida." };
@@ -1486,6 +1493,7 @@ export async function atualizarDadosLead(leadId: string, _prev: ActionState, fd:
     const upd: Record<string, unknown> = {
       nome,
       email,
+      telefone: tel,
       estado_civil: ESTADOS_CIVIS.some((e) => e.value === estado) ? estado : null,
       profissao: texto("profissao", 120),
       tipo_renda: VINCULOS.some((v) => v.value === vinculo) ? vinculo : null,
@@ -1534,6 +1542,11 @@ export async function atualizarDadosLead(leadId: string, _prev: ActionState, fd:
     }
     const { error } = await supabase.from("leads").update(upd).eq("id", leadId);
     if (error) return { erro: error.message };
+    if (tel !== l.telefone) {
+      // mantém o aprovado vinculado com o mesmo número
+      await supabase.from("aprovados").update({ telefone: tel }).eq("lead_id", leadId);
+      await supabase.from("lead_events").insert({ lead_id: leadId, tipo: "nota", dados: { texto: `Telefone corrigido: ${l.telefone} → ${tel}` } });
+    }
     revalidatePath(`/admin/leads/${leadId}`);
     revalidatePath("/admin/leads");
     return { ok: true, mensagem: refez ? "Dados salvos e simulação atualizada." : "Dados salvos. Preencha renda e idade para o CRM fazer a simulação." };

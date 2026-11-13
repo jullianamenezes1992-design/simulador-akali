@@ -285,6 +285,7 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
                   abrir={l.origem === "Base fria" && !Number(l.renda_principal)}
                   dados={{
                     nome: l.nome,
+                    telefone: maskPhone(l.telefone),
                     email: l.email ?? null,
                     idade: l.data_nascimento ? Math.floor(idadeEmMeses(l.data_nascimento) / 12) : (l.idade_informada ?? null),
                     temNascimento: !!l.data_nascimento,
@@ -518,6 +519,7 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
                     {e.development ? `: ${e.development.nome}` : ""}
                     {e.tipo === "status_alterado" && e.dados?.para ? ` → ${leadStatusInfo(String(e.dados.para)).label}` : ""}
                     {e.tipo === "oferta_enviada" && e.dados?.empreendimento ? `: ${String(e.dados.empreendimento)}` : ""}
+                    {e.tipo === "nota" && e.dados?.texto ? `: ${String(e.dados.texto)}` : ""}
                     {e.tipo === "simulacao_enviada" && e.dados?.empreendimento
                       ? `: ${String(e.dados.empreendimento)}${e.dados.preco ? ` · imóvel ${formatBRL(Number(e.dados.preco))}` : ""}${e.dados.entrada ? ` · entrada ${formatBRL(Number(e.dados.entrada))}` : ""}${e.dados.parcela ? ` · parcela ~${formatBRL(Number(e.dados.parcela))}` : ""}${e.dados.como === "copiada" ? " (copiada)" : ""}`
                       : ""}
