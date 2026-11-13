@@ -345,3 +345,26 @@ export function mensagemOferta(a: Pick<Aprovado, "nome">, d: DevCompat, link: st
     .filter((l) => l !== null)
     .join("\n");
 }
+
+/** Nome usado no histórico de ofertas para a mensagem de reanálise. */
+export const REANALISE = "Mensagem de reanálise";
+
+/**
+ * Quando nenhum projeto cabe (financiamento aprovado baixo): mensagem convidando para uma nova análise,
+ * com as mudanças do Minha Casa Minha Vida, atualização de renda, composição de renda e FGTS.
+ */
+export function mensagemReanalise(a: Pick<Aprovado, "nome">, assinatura: string) {
+  const nome = (a.nome.trim().split(/\s+/)[0] || "").replace(/^./, (c) => c.toUpperCase());
+  return [
+    `Oi, ${nome}! Tudo bem? 😊`,
+    "",
+    `Aqui é da ${assinatura}. Estava revisando a sua análise de crédito e vi que o financiamento aprovado na época ficou abaixo do necessário para fechar o seu apartamento.`,
+    "",
+    `O *Minha Casa Minha Vida* passou por mudanças e saíram condições novas, então pode ser que hoje dê para conseguir uma *aprovação melhor*. Ajuda também se:`,
+    `✅ a sua renda aumentou`,
+    `✅ dá para somar a renda de alguém da família`,
+    `✅ você tem saldo de FGTS`,
+    "",
+    `Quer que eu faça uma *nova simulação* para você? É rapidinho e sem compromisso 🏡`,
+  ].join("\n");
+}

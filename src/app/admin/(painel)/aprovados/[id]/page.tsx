@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/admin/ui";
 import AprovadoForm from "@/components/admin/AprovadoForm";
 import EnviarOferta from "@/components/admin/EnviarOferta";
 import ExcluirAprovado from "@/components/admin/ExcluirAprovado";
-import { STATUS_EM_ABERTO, compativeis, compraAte, diasParaVencer, mensagemOferta, ofertaDoProjeto, preSimulacao, ofertasPorProjeto, regraEntrada, type Aprovado, type OfertaEnviada } from "@/lib/aprovados";
+import { REANALISE, mensagemReanalise, STATUS_EM_ABERTO, compativeis, compraAte, diasParaVencer, mensagemOferta, ofertaDoProjeto, preSimulacao, ofertasPorProjeto, regraEntrada, type Aprovado, type OfertaEnviada } from "@/lib/aprovados";
 import { getActiveParams, getSettings } from "@/lib/data";
 import { regiaoLabel } from "@/lib/constants";
 import { formatBRL, formatDate } from "@/lib/format";
@@ -132,7 +132,22 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
           ) : cabem.length ? (
             <ul className="divide-y divide-line">{cabem.slice(0, 40).map(linha)}</ul>
           ) : (
-            <p className="text-sm text-ink-soft">Nenhum projeto cabe hoje. Você será avisada quando algum baixar de preço ou entrar em promoção.</p>
+            <div className="space-y-3">
+              <p className="text-sm text-ink-soft">Nenhum projeto cabe hoje. Você será avisada quando algum baixar de preço ou entrar em promoção.</p>
+              <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm">
+                <p className="font-bold text-amber-950">Tentar uma reanálise</p>
+                <p className="mb-2 text-amber-950">
+                  O financiamento aprovado ficou baixo. Mande a mensagem de reversão: novas condições do Minha Casa Minha Vida, renda atualizada, composição de renda e FGTS.
+                </p>
+                <EnviarOferta
+                  aprovadoId={a.id}
+                  telefone={a.telefone}
+                  devNome={REANALISE}
+                  jaEnviada={jaOfertado.get(REANALISE) ?? null}
+                  texto={mensagemReanalise(a, assinatura)}
+                />
+              </div>
+            </div>
           )}
           {cabem.some((c) => ofertaDoProjeto(jaOfertado, c.dev)) && (
             <p className="mt-2 text-xs text-ink-soft">Os projetos que você já ofereceu a este cliente ficam no fim da lista, marcados com 📤.</p>
