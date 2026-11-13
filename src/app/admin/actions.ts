@@ -1306,7 +1306,7 @@ export async function simularProjetoLead(leadId: string, devId: string) {
 // Meu dia (rotina diária)
 // ---------------------------------------------------------------------------
 
-const ITENS_ROTINA = ["agenda", "novos", "quentes", "sem_resposta", "pasta", "conteudo", "aprovados", "carteira", "base_fria_manha", "base_fria_tarde", "redes", "fechamento", "dia_finalizado"];
+const ITENS_ROTINA = ["agenda", "novos", "quentes", "sem_resposta", "pasta", "analise", "conteudo", "aprovados", "carteira", "base_fria_manha", "base_fria_tarde", "redes", "fechamento", "dia_finalizado"];
 
 /** Marca/desmarca um bloco da rotina de hoje (com uma anotação opcional, ex.: o vídeo gravado). */
 export async function marcarRotina(item: string, feito: boolean, nota?: string | null) {

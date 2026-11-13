@@ -133,6 +133,17 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP(), assinatur
     };
   };
 
+  // clientes em análise de crédito / Serasa-Bacen: conferir o andamento todo dia
+  const { data: analiseD } = await db
+    .from("leads")
+    .select("id, nome, telefone, status, updated_at, ar_numero, ar_status")
+    .is("excluido_em", null)
+    .is("anonimizado_em", null)
+    .eq("em_aprovados", false)
+    .in("status", ["analise_credito", "serasa_bacen"])
+    .order("updated_at")
+    .limit(100);
+
   type L = { id: string; nome: string; telefone: string; status: string; updated_at: string; origem: string | null; aguardando_docs_em: string | null; escolhido: { nome: string } | null };
   const naoTocado = (l: L) => !tocados.has(l.id) && l.updated_at < inicio;
   const cli = (l: L, detalhe?: string | null): ClienteDia => ({ id: l.id, nome: l.nome, telefone: l.telefone, detalhe: detalhe ?? l.escolhido?.nome ?? null, href: `/admin/leads/${l.id}` });
@@ -153,6 +164,9 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP(), assinatur
   const quentes = ((quentesQ.data ?? []) as unknown as L[]).filter(naoTocado);
   const semResp = ((semRespQ.data ?? []) as unknown as L[]).filter(naoTocado);
   const pasta = ((pastaQ.data ?? []) as unknown as L[]).filter(naoTocado);
+  type LA = { id: string; nome: string; telefone: string; status: string; updated_at: string; ar_numero: string | null; ar_status: string | null };
+  const analise = ((analiseD ?? []) as LA[]).filter((l) => !tocados.has(l.id));
+  const diasParado = (iso: string) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 864e5));
   const vencendo = vencendoQ.data ?? [];
   const ofertas = ofertaQ.data ?? [];
   const opsNovas = opsQ.count ?? 0;
@@ -211,6 +225,21 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP(), assinatur
       clientes: pasta.map((l) => cli(l, l.aguardando_docs_em ? "⏳ aguardando documentos" : "parado há 7+ dias")),
       total: pasta.length,
       feito: pasta.length === 0 || feitos.has("pasta"),
+    },
+    {
+      item: "analise",
+      hora: "10h45",
+      titulo: "Clientes em análise",
+      dica: "Confira no Salesforce como está a análise (AR) de cada um, dê retorno ao cliente e atualize a etapa: aprovado, reprovado ou pendência.",
+      clientes: analise.map((l) => ({
+        id: l.id,
+        nome: l.nome,
+        telefone: l.telefone,
+        detalhe: [l.status === "serasa_bacen" ? "Serasa - Bacen" : "Análise de crédito", l.ar_numero && `AR ${l.ar_numero}`, l.ar_status, `há ${diasParado(l.updated_at)} dia(s) nesta etapa`].filter(Boolean).join(" · "),
+        href: `/admin/leads/${l.id}`,
+      })),
+      total: analise.length,
+      feito: analise.length === 0 || feitos.has("analise"),
     },
     blocoBF("manha"),
     {
