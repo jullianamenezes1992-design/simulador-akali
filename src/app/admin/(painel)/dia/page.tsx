@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CheckCircle2, ChevronRight } from "lucide-react";
 import {
   ChamarCarteira,
+  CobrarDocs,
   FinalizarDia,
   MarcarBloco,
 } from "@/components/admin/RotinaControles";
@@ -130,45 +131,61 @@ export default async function MeuDiaPage() {
 
               {!b.feito && b.clientes.length > 0 && (
                 <ul className="mt-3 divide-y divide-line rounded-xl border border-line">
-                  {b.clientes.slice(0, b.item.startsWith("revisao") ? 60 : MOSTRAR).map((c) => (
-                    <li
-                      key={`${b.item}-${c.id}`}
-                      className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm"
-                    >
-                      <Link
-                        href={c.href ?? `/admin/leads/${c.id}`}
-                        className="min-w-0 flex-1 hover:text-caixa"
+                  {b.clientes
+                    .slice(
+                      0,
+                      b.item.startsWith("revisao") || b.item === "pasta"
+                        ? 60
+                        : MOSTRAR,
+                    )
+                    .map((c) => (
+                      <li
+                        key={`${b.item}-${c.id}`}
+                        className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm"
                       >
-                        <span className="font-semibold">{c.nome}</span>
-                        <span className="text-ink-soft">
-                          {" "}
-                          · {maskPhone(c.telefone)}
-                        </span>
-                        {c.detalhe && (
-                          <span className="block text-xs text-ink-soft [overflow-wrap:anywhere]">
-                            {c.detalhe}
+                        <Link
+                          href={c.href ?? `/admin/leads/${c.id}`}
+                          className="min-w-0 flex-1 hover:text-caixa"
+                        >
+                          <span className="font-semibold">{c.nome}</span>
+                          <span className="text-ink-soft">
+                            {" "}
+                            · {maskPhone(c.telefone)}
                           </span>
+                          {c.detalhe && (
+                            <span className="block text-xs text-ink-soft [overflow-wrap:anywhere]">
+                              {c.detalhe}
+                            </span>
+                          )}
+                        </Link>
+                        {b.item.startsWith("base_fria") ? (
+                          <AcoesBaseFria
+                            id={c.id}
+                            telefone={c.telefone}
+                            situacao={c.status ?? "fila"}
+                            texto={c.texto ?? ""}
+                          />
+                        ) : b.item === "pasta" ? (
+                          <CobrarDocs
+                            leadId={c.id}
+                            telefone={c.telefone}
+                            texto={c.texto ?? ""}
+                          />
+                        ) : b.item === "carteira" ? (
+                          <ChamarCarteira
+                            leadId={c.id}
+                            telefone={c.telefone}
+                            texto={msgCarteira(c.nome, c.status)}
+                          />
+                        ) : (
+                          <ChevronRight size={16} className="text-ink-soft" />
                         )}
-                      </Link>
-                      {b.item.startsWith("base_fria") ? (
-                        <AcoesBaseFria
-                          id={c.id}
-                          telefone={c.telefone}
-                          situacao={c.status ?? "fila"}
-                          texto={c.texto ?? ""}
-                        />
-                      ) : b.item === "carteira" ? (
-                        <ChamarCarteira
-                          leadId={c.id}
-                          telefone={c.telefone}
-                          texto={msgCarteira(c.nome, c.status)}
-                        />
-                      ) : (
-                        <ChevronRight size={16} className="text-ink-soft" />
-                      )}
-                    </li>
-                  ))}
-                  {b.clientes.length > (b.item.startsWith("revisao") ? 60 : MOSTRAR) && (
+                      </li>
+                    ))}
+                  {b.clientes.length >
+                    (b.item.startsWith("revisao") || b.item === "pasta"
+                      ? 60
+                      : MOSTRAR) && (
                     <li className="px-3 py-2 text-xs text-ink-soft">
                       + {b.clientes.length - MOSTRAR} cliente(s)
                     </li>

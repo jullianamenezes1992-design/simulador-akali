@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Check, Circle, Loader2, MessageCircle, PartyPopper } from "lucide-react";
-import { marcarRotina, rebaterCliente } from "@/app/admin/actions";
+import { marcarRotina, rebaterCliente, registrarCobrancaDocs } from "@/app/admin/actions";
 
 /** Botão "Feito" de um bloco da rotina (com anotação opcional). */
 export function MarcarBloco({ item, feito, auto, pedirNota, nota }: { item: string; feito: boolean; auto?: boolean; pedirNota?: string; nota?: string | null }) {
@@ -55,6 +55,26 @@ export function ChamarCarteira({ leadId, telefone, texto }: { leadId: string; te
       className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold ${feito ? "bg-emerald-100 text-emerald-800" : "bg-[#25D366] text-white"}`}
     >
       {feito ? <Check size={13} /> : <MessageCircle size={13} />} {feito ? "Chamado" : "Chamar"}
+    </a>
+  );
+}
+
+/** Cobrar documentos pendentes (montagem de pasta). */
+export function CobrarDocs({ leadId, telefone, texto }: { leadId: string; telefone: string; texto: string }) {
+  const [feito, setFeito] = useState(false);
+  const [, start] = useTransition();
+  return (
+    <a
+      href={`https://wa.me/55${telefone.replace(/\D/g, "")}?text=${encodeURIComponent(texto)}`}
+      target="_blank"
+      rel="noreferrer"
+      onClick={() => {
+        setFeito(true);
+        start(() => registrarCobrancaDocs(leadId).catch(() => undefined));
+      }}
+      className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold ${feito ? "bg-emerald-100 text-emerald-800" : "bg-[#25D366] text-white"}`}
+    >
+      {feito ? <Check size={13} /> : <MessageCircle size={13} />} {feito ? "Cobrado" : "Cobrar"}
     </a>
   );
 }

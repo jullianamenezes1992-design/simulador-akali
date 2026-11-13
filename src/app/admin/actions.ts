@@ -1554,3 +1554,12 @@ export async function atualizarDadosLead(leadId: string, _prev: ActionState, fd:
     return { erro: msg(e) };
   }
 }
+
+/** Cobrança de documentos enviada (Meu dia): fica no histórico e tira o cliente da lista de hoje. */
+export async function registrarCobrancaDocs(leadId: string) {
+  const { supabase } = await assertAdmin();
+  if (!UUID_RE.test(leadId)) return;
+  await supabase.from("lead_events").insert({ lead_id: leadId, tipo: "nota", dados: { texto: "Cobrança de documentos enviada" } });
+  revalidatePath("/admin/dia");
+  revalidatePath(`/admin/leads/${leadId}`);
+}
