@@ -29,8 +29,10 @@ export default function WhatsAppDesktopFix() {
         const url = new URL(a.href);
         const texto = url.searchParams.get("text");
         if (!texto) return;
-        url.searchParams.set("text", semEmoji(texto));
-        a.href = url.toString();
+        // monta à mão: URLSearchParams troca espaço por "+", que o WhatsApp mostraria como "+"
+        const outros = [...url.searchParams.entries()].filter(([k]) => k !== "text").map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
+        const novo = `${url.origin}${url.pathname}?${[...outros, `text=${encodeURIComponent(semEmoji(texto))}`].join("&")}`;
+        if (novo !== a.href) a.href = novo;
       } catch {
         /* link inválido: deixa como está */
       }
