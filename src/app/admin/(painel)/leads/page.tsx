@@ -40,6 +40,8 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
     .order("created_at", { ascending: false })
     .range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1);
   if (status) query = query.eq("status", status);
+  // arquivados (sem potencial) só aparecem no filtro deles ou na busca
+  else if (!q) query = query.neq("status", "arquivado");
   if (incompletas) query = query.eq("simulacao_completa", false);
   if (q) {
     const dig = q.replace(/\D/g, "");
@@ -54,7 +56,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: SP }) 
 
   const [contagens, totalIncompletas, totalAprovados, achadosEmAprovados, totalPasta, totalReprov] = await Promise.all([
     Promise.all(LEAD_STATUS.map((s) => supabase.from("leads").select("id", { count: "exact", head: true }).eq("status", s.value).eq("em_aprovados", false))),
-    supabase.from("leads").select("id", { count: "exact", head: true }).eq("simulacao_completa", false).eq("em_aprovados", false).not("status", "in", FORA_DE_LEADS),
+    supabase.from("leads").select("id", { count: "exact", head: true }).eq("simulacao_completa", false).eq("em_aprovados", false).not("status", "in", FORA_DE_LEADS).neq("status", "arquivado"),
     supabase.from("aprovados").select("id", { count: "exact", head: true }).in("status", ["ativo", "negociando"]),
     // a busca também avisa se o cliente procurado está em Aprovados
     q

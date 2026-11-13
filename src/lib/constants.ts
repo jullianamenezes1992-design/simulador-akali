@@ -36,6 +36,7 @@ export const LEAD_STATUS = [
   { value: "proposta", label: "Proposta", cor: "bg-orange-100 text-orange-800" },
   { value: "vendido", label: "Vendido", cor: "bg-green-200 text-green-900" },
   { value: "perdido", label: "Perdido", cor: "bg-slate-200 text-slate-700" },
+  { value: "arquivado", label: "Arquivado (sem potencial)", cor: "bg-zinc-300 text-zinc-800" },
 ] as const;
 
 export type LeadStatus = (typeof LEAD_STATUS)[number]["value"];
