@@ -213,6 +213,48 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
         <p className="mb-4 rounded-xl bg-slate-100 px-4 py-3 text-sm">Dados pessoais anonimizados em {formatDate(l.anonimizado_em, true)}.</p>
       )}
 
+      {/* Observações no topo: o último atendimento aparece assim que abre o cliente */}
+      <div className="mb-4">
+        <Bloco titulo="Observações do atendimento">
+          {(() => {
+            const lista = notas.data ?? [];
+            const autor = (n: (typeof lista)[number]) => (n.autor as unknown as { nome: string } | null)?.nome ?? "—";
+            const [ultima, ...antigas] = lista;
+            return (
+              <>
+                {ultima ? (
+                  <div className="mb-3 rounded-xl border-l-4 border-caixa bg-sky-50 p-3 text-sm">
+                    <p className="mb-1 text-xs font-bold uppercase tracking-wide text-caixa">Último atendimento</p>
+                    <p className="whitespace-pre-line">{ultima.texto}</p>
+                    <p className="mt-1 text-xs text-ink-soft">
+                      {autor(ultima)} • {formatDate(ultima.created_at, true)}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mb-3 text-sm text-ink-soft">Nenhuma observação ainda. Anote aqui o que conversou com o cliente.</p>
+                )}
+                <NoteForm leadId={l.id} />
+                {antigas.length > 0 && (
+                  <details className="mt-3">
+                    <summary className="cursor-pointer text-sm font-semibold text-caixa">Ver observações anteriores ({antigas.length})</summary>
+                    <ul className="mt-3 space-y-3">
+                      {antigas.map((n) => (
+                        <li key={n.id} className="rounded-xl bg-mist p-3 text-sm">
+                          <p className="whitespace-pre-line">{n.texto}</p>
+                          <p className="mt-1 text-xs text-ink-soft">
+                            {autor(n)} • {formatDate(n.created_at, true)}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+              </>
+            );
+          })()}
+        </Bloco>
+      </div>
+
       {/* minmax(0, …) + quebra de palavras: links longos (ex.: anúncios com fbclid) não alargam a coluna */}
       <div className="grid gap-4 [overflow-wrap:anywhere] lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-4">
@@ -412,20 +454,6 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
                 </>
               );
             })()}
-          </Bloco>
-
-          <Bloco titulo="Observações">
-            <NoteForm leadId={l.id} />
-            <ul className="mt-4 space-y-3">
-              {(notas.data ?? []).map((n) => (
-                <li key={n.id} className="rounded-xl bg-mist p-3 text-sm">
-                  <p className="whitespace-pre-line">{n.texto}</p>
-                  <p className="mt-1 text-xs text-ink-soft">
-                    {(n.autor as unknown as { nome: string } | null)?.nome ?? "—"} • {formatDate(n.created_at, true)}
-                  </p>
-                </li>
-              ))}
-            </ul>
           </Bloco>
 
           <Bloco titulo="Origem e campanha">
