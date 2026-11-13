@@ -214,6 +214,16 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
             </a>
           </div>
         )}
+        {!anonimizado && l.status === "aprovado" && !aprovadoReg.data && (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+            <p>
+              <b>Crédito aprovado, mas ainda não está na aba Aprovados.</b> Registre os dados da aprovação (financiamento, subsídio, vencimento) para o CRM sugerir os projetos que cabem.
+            </p>
+            <Link href={`/admin/aprovados/novo?lead=${l.id}`} className="btn-primary !py-2">
+              <BadgeCheck size={16} /> Registrar aprovação
+            </Link>
+          </div>
+        )}
       </div>
 
       {anonimizado && (
