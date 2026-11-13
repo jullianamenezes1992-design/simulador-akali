@@ -235,7 +235,7 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP(), assinatur
         id: l.id,
         nome: l.nome,
         telefone: l.telefone,
-        detalhe: [l.status === "serasa_bacen" ? "Serasa - Bacen" : "Análise de crédito", l.ar_numero && `AR ${l.ar_numero}`, l.ar_status, `há ${diasParado(l.updated_at)} dia(s) nesta etapa`].filter(Boolean).join(" · "),
+        detalhe: [l.status === "serasa_bacen" ? "Serasa - Bacen" : "Análise de crédito", l.ar_numero && (/^AR/i.test(l.ar_numero) ? l.ar_numero : `AR ${l.ar_numero}`), l.ar_status, `há ${diasParado(l.updated_at)} dia(s) nesta etapa`].filter(Boolean).join(" · "),
         href: `/admin/leads/${l.id}`,
       })),
       total: analise.length,
