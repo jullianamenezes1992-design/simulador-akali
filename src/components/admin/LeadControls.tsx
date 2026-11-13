@@ -191,7 +191,7 @@ export function CopiarAtendimentoButton({ texto }: { texto: string }) {
   );
 }
 
-const ORIGENS = ["TikTok", "Instagram", "Facebook", "WhatsApp", "Google Ads", "Google (orgânico)", "Meta Ads", "Indicação", "Plantão / stand", "Direto"];
+const ORIGENS = ["TikTok", "Instagram", "Facebook", "WhatsApp", "Google Ads", "Google (orgânico)", "Meta Ads", "Indicação", "Plantão / stand", "Base fria", "Direto"];
 
 export function OrigemEditor({ leadId, atual }: { leadId: string; atual: string | null }) {
   const lista = atual && !ORIGENS.includes(atual) ? [atual, ...ORIGENS] : ORIGENS;
