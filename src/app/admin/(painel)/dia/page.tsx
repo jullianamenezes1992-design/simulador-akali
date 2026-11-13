@@ -90,7 +90,7 @@ export default async function MeuDiaPage() {
                     )}
                     {b.meta && (
                       <span className="rounded-full bg-mist px-2 text-xs font-bold text-ink-soft">
-                        {b.item === "carteira" || b.item === "base_fria"
+                        {b.item === "carteira" || b.item.startsWith("base_fria")
                           ? b.meta
                           : `meta: ${b.meta}`}
                       </span>
@@ -134,7 +134,7 @@ export default async function MeuDiaPage() {
                           </span>
                         )}
                       </Link>
-                      {b.item === "base_fria" ? (
+                      {b.item.startsWith("base_fria") ? (
                         <AcoesBaseFria
                           id={c.id}
                           telefone={c.telefone}

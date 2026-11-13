@@ -100,6 +100,38 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP(), assinatur
   const { count: totalBF } = await db.from("base_fria").select("id", { count: "exact", head: true }).in("situacao", ["fila", "chamado"]);
   const bf = totalBF ? await filaBaseFria(db, metaBF, hoje) : { meta: metaBF, feitos: 0, falta: 0, fila: [] };
   const assin = assinatura || cfg?.corretora_nome || cfg?.empresa_nome || "";
+  // dividida em 2 turnos: metade de manhã, o resto no fim da tarde
+  const metaManha = Math.ceil(metaBF / 2);
+  const faltaManha = Math.max(0, metaManha - bf.feitos);
+  const clienteBF = (c: (typeof bf.fila)[number]): ClienteDia => ({
+    id: c.id,
+    nome: c.nome,
+    telefone: c.telefone,
+    detalhe: [c.bairro || c.zona, c.renda_texto && `renda ${c.renda_texto}`].filter(Boolean).join(" · ") || null,
+    href: "/admin/base-fria",
+    status: c.situacao,
+    texto: mensagemBaseFria(c, assin, c.situacao === "chamado" ? c.tentativas + 1 : 1),
+  });
+  const blocoBF = (turno: "manha" | "tarde"): Bloco => {
+    const manha = turno === "manha";
+    const lista = manha ? bf.fila.slice(0, faltaManha) : bf.fila.slice(faltaManha);
+    const meta = manha ? metaManha : metaBF - metaManha;
+    const feitosTurno = manha ? Math.min(bf.feitos, metaManha) : Math.max(0, bf.feitos - metaManha);
+    const item = manha ? "base_fria_manha" : "base_fria_tarde";
+    return {
+      item,
+      hora: manha ? "11h" : "17h",
+      titulo: `Base fria · ${manha ? "manhã" : "fim da tarde"} (nº da carteira)`,
+      dica: totalBF
+        ? `Chame ${meta} contato(s) da planilha antiga pelo WhatsApp da carteira. ${manha ? "Quem responder durante o dia, marque “Respondeu” na tela da Base fria." : "Aproveite e marque quem respondeu de manhã."}`
+        : "Importe a planilha da carteira na tela Base fria para começar.",
+      link: { href: "/admin/base-fria", label: "Abrir Base fria" },
+      clientes: lista.map(clienteBF),
+      total: lista.length,
+      feito: !totalBF || lista.length === 0 || feitos.has(item),
+      meta: `${feitosTurno}/${meta}`,
+    };
+  };
 
   type L = { id: string; nome: string; telefone: string; status: string; updated_at: string; origem: string | null; aguardando_docs_em: string | null; escolhido: { nome: string } | null };
   const naoTocado = (l: L) => !tocados.has(l.id) && l.updated_at < inicio;
@@ -180,6 +212,7 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP(), assinatur
       total: pasta.length,
       feito: pasta.length === 0 || feitos.has("pasta"),
     },
+    blocoBF("manha"),
     {
       item: "conteudo",
       hora: "11h30",
@@ -215,27 +248,7 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP(), assinatur
       feito: faltaCarteira === 0 || tamCarteira === 0 || feitos.has("carteira"),
       meta: `${rebatidosHoje.length}/${metaCarteira}`,
     },
-    {
-      item: "base_fria",
-      hora: "16h",
-      titulo: "Base fria (nº da carteira)",
-      dica: totalBF
-        ? `Chame ${bf.meta} contato(s) da planilha antiga pelo WhatsApp da carteira. Hoje: ${bf.feitos} de ${bf.meta}. Quem responder, marque “Respondeu” na tela da Base fria.`
-        : "Importe a planilha da carteira na tela Base fria para começar.",
-      link: { href: "/admin/base-fria", label: "Abrir Base fria" },
-      clientes: bf.fila.map((c) => ({
-        id: c.id,
-        nome: c.nome,
-        telefone: c.telefone,
-        detalhe: [c.bairro || c.zona, c.renda_texto && `renda ${c.renda_texto}`].filter(Boolean).join(" · ") || null,
-        href: "/admin/base-fria",
-        status: c.situacao,
-        texto: mensagemBaseFria(c, assin, c.situacao === "chamado" ? c.tentativas + 1 : 1),
-      })),
-      total: bf.falta,
-      feito: !totalBF || bf.falta === 0 || feitos.has("base_fria"),
-      meta: `${bf.feitos}/${bf.meta}`,
-    },
+    blocoBF("tarde"),
     {
       item: "redes",
       hora: "17h30",

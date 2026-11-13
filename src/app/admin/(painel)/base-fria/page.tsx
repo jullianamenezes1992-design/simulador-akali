@@ -194,9 +194,10 @@ export default async function BaseFriaPage({
             <MetaBaseFria valor={meta} />
           </div>
           <p className="text-xs text-ink-soft">
-            Vêm primeiro os cadastros mais recentes, com renda e região
-            informadas e prazo de compra mais curto. Quem não responder volta
-            para a fila em 90 dias (no máximo 2 tentativas).
+            No Meu dia, a meta é dividida: metade às 11h e metade às 17h. Vêm
+            primeiro os cadastros mais recentes, com renda e região informadas e
+            prazo de compra mais curto. Quem não responder volta para a fila em
+            90 dias (no máximo 2 tentativas).
           </p>
           <Lista
             assinatura={assinatura}
