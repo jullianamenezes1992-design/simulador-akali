@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { requireAdmin } from "@/lib/server/auth";
 import AdminNav from "@/components/admin/AdminNav";
+import WhatsAppDesktopFix from "@/components/admin/WhatsAppDesktopFix";
 import { sair } from "../actions";
 
 export const metadata: Metadata = { title: { default: "Painel", template: "%s | Painel" }, robots: { index: false } };
@@ -10,6 +11,7 @@ export default async function PainelLayout({ children }: { children: React.React
   const adm = await requireAdmin();
   return (
     <div className="min-h-dvh bg-mist lg:flex">
+      <WhatsAppDesktopFix />
       <aside className="border-b border-line bg-white lg:sticky lg:top-0 lg:h-dvh lg:w-60 lg:shrink-0 lg:border-r lg:border-b-0">
         <AdminNav />
         <div className="hidden border-t border-line p-4 text-xs text-ink-soft lg:block">
