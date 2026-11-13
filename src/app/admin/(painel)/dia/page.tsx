@@ -130,7 +130,7 @@ export default async function MeuDiaPage() {
 
               {!b.feito && b.clientes.length > 0 && (
                 <ul className="mt-3 divide-y divide-line rounded-xl border border-line">
-                  {b.clientes.slice(0, MOSTRAR).map((c) => (
+                  {b.clientes.slice(0, b.item.startsWith("revisao") ? 60 : MOSTRAR).map((c) => (
                     <li
                       key={`${b.item}-${c.id}`}
                       className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm"
@@ -168,7 +168,7 @@ export default async function MeuDiaPage() {
                       )}
                     </li>
                   ))}
-                  {b.clientes.length > MOSTRAR && (
+                  {b.clientes.length > (b.item.startsWith("revisao") ? 60 : MOSTRAR) && (
                     <li className="px-3 py-2 text-xs text-ink-soft">
                       + {b.clientes.length - MOSTRAR} cliente(s)
                     </li>
