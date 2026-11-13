@@ -159,13 +159,6 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP(), assinatur
 
   // revisão de pasta + análise, 2x ao dia (manhã e tarde)
   const clientesRevisao = (): ClienteDia[] => [
-    ...pasta.map((l) => ({
-      id: l.id,
-      nome: l.nome,
-      telefone: l.telefone,
-      detalhe: ["Montagem de pasta", l.aguardando_docs_em ? "⏳ aguardando documentos" : null, `há ${diasParado(l.updated_at)} dia(s) parado`].filter(Boolean).join(" · "),
-      href: `/admin/leads/${l.id}`,
-    })),
     ...analise.map((l) => ({
       id: l.id,
       nome: l.nome,
@@ -178,6 +171,13 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP(), assinatur
       ]
         .filter(Boolean)
         .join(" · "),
+      href: `/admin/leads/${l.id}`,
+    })),
+    ...pasta.map((l) => ({
+      id: l.id,
+      nome: l.nome,
+      telefone: l.telefone,
+      detalhe: ["Montagem de pasta", l.aguardando_docs_em ? "⏳ aguardando documentos" : null, `há ${diasParado(l.updated_at)} dia(s) parado`].filter(Boolean).join(" · "),
       href: `/admin/leads/${l.id}`,
     })),
   ];
