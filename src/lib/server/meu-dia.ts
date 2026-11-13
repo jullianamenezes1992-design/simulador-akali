@@ -23,6 +23,12 @@ export type Bloco = {
   meta?: string;
 };
 
+/** Pausas fixas do dia, mostradas entre os blocos (depois do bloco indicado). */
+export const PAUSAS: Record<string, string> = {
+  novos: "9h – 9h30 · Café ☕ (liberado no stand)",
+  aprovados: "14h30 · Almoço 🍽️",
+};
+
 /** Parte da carteira antiga para chamar por dia (5%), entre 3 e 15 clientes. */
 export const CARTEIRA_PCT = 0.05;
 const CARTEIRA_MIN = 3;
@@ -139,7 +145,7 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP()) {
     },
     {
       item: "quentes",
-      hora: "9h",
+      hora: "9h30",
       titulo: "Leads quentes (atendimento e simulação)",
       dica: "Responder, enviar a simulação e avançar a etapa.",
       clientes: quentes.map((l) => cli(l, l.status === "simulacao" ? "enviar simulação" : l.escolhido?.nome)),
@@ -148,7 +154,7 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP()) {
     },
     {
       item: "sem_resposta",
-      hora: "9h45",
+      hora: "10h15",
       titulo: "Não responderam",
       dica: "Mande a próxima mensagem da sequência (1, 2, 3).",
       clientes: semResp.map((l) => cli(l)),
@@ -157,7 +163,7 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP()) {
     },
     {
       item: "pasta",
-      hora: "10h",
+      hora: "10h30",
       titulo: "Montagem de pasta",
       dica: "Cobrar quem prometeu documentos e quem está parado há 7+ dias.",
       link: { href: "/admin/montagem", label: "Abrir Montagem de pasta" },
@@ -167,7 +173,7 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP()) {
     },
     {
       item: "conteudo",
-      hora: "11h",
+      hora: "11h30",
       titulo: "Gravar conteúdo para as redes",
       dica: "Pelo menos 1 vídeo por dia: tour, dica de MCMV, cliente que comprou… É de lá que vêm os leads.",
       clientes: [],
@@ -179,7 +185,7 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP()) {
     },
     {
       item: "aprovados",
-      hora: "14h",
+      hora: "13h30",
       titulo: "Aprovados: ofertas do dia",
       dica: `${opsNovas ? `${opsNovas} oportunidade(s) nova(s) (preço baixou ou promoção). ` : ""}${vencendo.length ? `${vencendo.length} aprovação(ões) vencendo em 15 dias. ` : ""}Ofereça um projeto para até ${OFERTAS_DIA} clientes.`,
       link: { href: "/admin/aprovados", label: "Abrir Aprovados" },
@@ -192,7 +198,7 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP()) {
     },
     {
       item: "carteira",
-      hora: "15h",
+      hora: "15h30",
       titulo: "Rebater carteira",
       dica: `Chame ${metaCarteira} cliente(s) da carteira por dia (5% de ${tamCarteira} sem contato há 15+ dias: perdidos, reprovados e quem já comprou). Hoje: ${rebatidosHoje.length} de ${metaCarteira}.`,
       clientes: carteira.map((l) => ({ ...cli(l, ROTULO_CARTEIRA[l.status] ?? "sem contato há 15+ dias"), status: l.status })),
