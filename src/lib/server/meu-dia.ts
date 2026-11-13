@@ -63,6 +63,8 @@ const OFERTAS_DIA = 5;
 
 /** Quem entra no "rebater carteira" (o resto já tem bloco próprio no dia). */
 const INDICACOES_DIA = 3;
+/** Reanálises de reprovados por dia. */
+const REANALISES_DIA = 5;
 const ROTULO_CARTEIRA: Record<string, string> = {
   reprovado: "reprovado: ver se dá para nova análise",
   vendido: "já comprou: pedir indicação",
@@ -221,9 +223,9 @@ export async function montarMeuDia(
       .limit(5000),
     db
       .from("leads")
-      .select("id, nome, telefone")
+      .select("id, nome, telefone, status")
       .gte("rebatido_em", inicio)
-      .limit(50),
+      .limit(200),
     db
       .from("leads")
       .select("id, nome, telefone, status")
@@ -355,9 +357,19 @@ export async function montarMeuDia(
   };
   const lc = ((carteiraQ.data ?? []) as LC[]).filter((l) => !tocados.has(l.id));
   // reprovado: sem data de reanálise ou com a data chegando; ao chamar, a próxima fica para daqui a 2 meses
-  const reanalises = lc.filter(
-    (l) =>
-      l.status === "reprovado" && (!l.reanalise_em || l.reanalise_em <= hoje),
+  // no máximo 5 por dia (primeiro quem tem data vencida, depois quem ainda não tem data)
+  const reanalisadosHoje = (rebatidosHojeQ.data ?? []).filter(
+    (l) => l.status === "reprovado",
+  ).length;
+  const reanalisesTodas = lc
+    .filter(
+      (l) =>
+        l.status === "reprovado" && (!l.reanalise_em || l.reanalise_em <= hoje),
+    )
+    .sort((a, b) => (a.reanalise_em ? 0 : 1) - (b.reanalise_em ? 0 : 1));
+  const reanalises = reanalisesTodas.slice(
+    0,
+    Math.max(0, REANALISES_DIA - reanalisadosHoje),
   );
   // já comprou: pedido de indicação a cada 6 meses, poucos por dia
   const indicacoes = lc
@@ -616,7 +628,7 @@ export async function montarMeuDia(
       item: "carteira",
       hora: "15h30",
       titulo: "Reanálises e indicações",
-      dica: `Reanálise dos reprovados (${reanalises.length}): veja se a renda mudou ou se limpou o nome. Ao tocar em “Chamar”, fica registrada a reanálise de hoje e a próxima volta em 2 meses. Depois, até ${INDICACOES_DIA} cliente(s) que já compraram para pedir indicação (a cada 6 meses).`,
+      dica: `Reanálise dos reprovados: ${REANALISES_DIA} por dia (hoje: ${reanalisadosHoje} de ${REANALISES_DIA}; ${reanalisesTodas.length} na fila). Veja se a renda mudou ou se limpou o nome. Ao tocar em “Chamar”, fica registrada a reanálise de hoje e a próxima volta em 2 meses. Depois, até ${INDICACOES_DIA} cliente(s) que já compraram para pedir indicação (a cada 6 meses).`,
       clientes: carteira.map((l) => ({
         id: l.id,
         nome: l.nome,
