@@ -18,6 +18,18 @@ export const dynamic = "force-dynamic";
 
 const MOSTRAR = 8;
 
+/** Bom dia / Boa tarde / Boa noite, pelo horário de São Paulo. */
+function saudacao() {
+  const h = Number(
+    new Intl.DateTimeFormat("pt-BR", {
+      hour: "numeric",
+      hour12: false,
+      timeZone: "America/Sao_Paulo",
+    }).format(new Date()),
+  );
+  return h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite";
+}
+
 export default async function MeuDiaPage() {
   const { supabase, nome } = await requireAdmin();
   const [{ hoje, blocos, finalizado }, s] = await Promise.all([
@@ -54,7 +66,8 @@ export default async function MeuDiaPage() {
           {dataLonga}
         </p>
         <h1 className="text-2xl font-extrabold">
-          Bom dia{nome ? `, ${nome.split(" ")[0]}` : ""}! Este é o seu dia
+          {saudacao()}
+          {nome ? `, ${nome.split(" ")[0]}` : ""}! Este é o seu dia
         </h1>
         <div className="mt-3 flex items-center gap-3">
           <div className="h-3 flex-1 overflow-hidden rounded-full bg-mist">
@@ -63,8 +76,11 @@ export default async function MeuDiaPage() {
               style={{ width: `${pct}%` }}
             />
           </div>
-          <span className="shrink-0 text-sm font-bold">
-            {feitos} de {blocos.length}
+          <span className="shrink-0 text-right text-sm font-bold">
+            <span className="text-lg text-emerald-700">{pct}%</span>{" "}
+            <span className="font-semibold text-ink-soft">
+              · {feitos} de {blocos.length}
+            </span>
           </span>
         </div>
       </div>
