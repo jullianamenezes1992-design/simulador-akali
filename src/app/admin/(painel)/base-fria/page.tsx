@@ -15,6 +15,7 @@ import {
   CAMPOS_BF,
   filaBaseFria,
   type ContatoBF,
+  sugestaoProjetoBF,
 } from "@/lib/server/base-fria";
 
 export const metadata: Metadata = { title: "Base fria" };
@@ -28,10 +29,12 @@ function Lista({
   itens,
   vazio,
   assinatura,
+  sugerir,
 }: {
   itens: ContatoBF[];
   vazio: string;
   assinatura: string;
+  sugerir: Awaited<ReturnType<typeof sugestaoProjetoBF>>;
 }) {
   return itens.length ? (
     <ul className="divide-y divide-line">
@@ -82,6 +85,7 @@ function Lista({
               c,
               assinatura,
               c.situacao === "chamado" ? c.tentativas + 1 : 1,
+              sugerir(c),
             )}
           />
         </li>
@@ -103,6 +107,7 @@ export default async function BaseFriaPage({
   const s = await getSettings();
   const meta = s.base_fria_dia ?? 30;
   const assinatura = s.corretora_nome || s.empresa_nome;
+  const sugerir = await sugestaoProjetoBF(supabase);
   const d7 = diasAtras(7);
 
   const digitos = q.replace(/\D/g, "");
@@ -201,6 +206,7 @@ export default async function BaseFriaPage({
           </p>
           <Lista
             assinatura={assinatura}
+            sugerir={sugerir}
             itens={hoje.fila}
             vazio={
               hoje.falta === 0
@@ -220,7 +226,12 @@ export default async function BaseFriaPage({
             Respondeu com interesse? Toque em “Respondeu”: o contato vira lead e
             abre a ficha dele.
           </p>
-          <Lista assinatura={assinatura} itens={aguardando} vazio="" />
+          <Lista
+            assinatura={assinatura}
+            sugerir={sugerir}
+            itens={aguardando}
+            vazio=""
+          />
         </section>
       )}
 
@@ -237,6 +248,7 @@ export default async function BaseFriaPage({
         {busca && (
           <Lista
             assinatura={assinatura}
+            sugerir={sugerir}
             itens={busca}
             vazio="Ninguém encontrado na base fria."
           />

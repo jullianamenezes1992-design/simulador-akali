@@ -1,7 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { diaSP } from "@/lib/agenda";
-import { MAX_TENTATIVAS } from "@/lib/base-fria";
+import { MAX_TENTATIVAS, type DevBF } from "@/lib/base-fria";
 
 export type ContatoBF = {
   id: string;
@@ -60,4 +60,27 @@ export async function filaBaseFria(
     }
   }
   return { meta, feitos, falta, fila };
+}
+
+/** Projetos ativos para sugerir nas mensagens da base fria + função que monta o projeto/link de cada contato. */
+export async function sugestaoProjetoBF(db: SupabaseClient) {
+  const { siteUrl } = await import("@/lib/server/notificacoes");
+  const { projetoParaContato } = await import("@/lib/base-fria");
+  const { data } = await db
+    .from("developments")
+    .select("id, slug, nome, bairro, regiao, preco_min, oferta_destaque")
+    .eq("ativo", true)
+    .neq("disponivel", false)
+    .not("preco_min", "is", null);
+  const devs = (data ?? []) as DevBF[];
+  const base = siteUrl();
+  return (c: { bairro?: string | null; zona?: string | null }) => {
+    const dev = projetoParaContato(c, devs);
+    return dev
+      ? {
+          dev,
+          link: `${base}/empreendimentos/${dev.slug}?utm_source=whatsapp&utm_medium=base_fria`,
+        }
+      : null;
+  };
 }

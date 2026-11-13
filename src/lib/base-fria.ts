@@ -198,11 +198,62 @@ export function regioesDaZona(zona: string | null | undefined): string[] {
     .filter(Boolean);
 }
 
-/** Mensagem do primeiro contato com a base fria. */
+export type DevBF = {
+  id: string;
+  slug: string;
+  nome: string;
+  bairro: string | null;
+  regiao: string | null;
+  preco_min: number | null;
+  oferta_destaque?: boolean | null;
+};
+
+const semAcento = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+/**
+ * Projeto para sugerir na mensagem: o do mesmo bairro, senão o da mesma zona
+ * (em oferta primeiro, depois o de menor preço). Sem região informada, nenhum.
+ */
+export function projetoParaContato(
+  c: { bairro?: string | null; zona?: string | null },
+  devs: DevBF[],
+): DevBF | null {
+  const ordem = (a: DevBF, b: DevBF) =>
+    Number(!!b.oferta_destaque) - Number(!!a.oferta_destaque) ||
+    (a.preco_min ?? Infinity) - (b.preco_min ?? Infinity);
+  if (c.bairro) {
+    const b = semAcento(c.bairro);
+    const noBairro = devs.filter(
+      (d) =>
+        d.bairro &&
+        (semAcento(d.bairro).includes(b) || b.includes(semAcento(d.bairro))),
+    );
+    if (noBairro.length) return [...noBairro].sort(ordem)[0];
+  }
+  const regioes = regioesDaZona(c.zona);
+  if (!regioes.length) return null;
+  const naZona = devs.filter((d) => d.regiao && regioes.includes(d.regiao));
+  return naZona.length ? [...naZona].sort(ordem)[0] : null;
+}
+
+const brl = (v: number) =>
+  v.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 0,
+  });
+
+/** Mensagem do primeiro contato com a base fria (com o link de um projeto da região, quando houver). */
 export function mensagemBaseFria(
   c: { nome: string; bairro?: string | null; zona?: string | null },
   assinatura: string,
   tentativa = 1,
+  projeto?: { dev: DevBF; link: string } | null,
 ): string {
   const p = primeiroNome(c.nome);
   const oi = p ? `Oi, ${p}! Tudo bem? 😊` : "Oi! Tudo bem? 😊";
@@ -211,7 +262,10 @@ export function mensagemBaseFria(
     : c.zona
       ? ` na *${c.zona}*`
       : "";
+  const proj = projeto
+    ? `\n\nSeparei uma opção ${projeto.dev.bairro ? `no *${projeto.dev.bairro}*` : "na sua região"}: *${projeto.dev.nome}*${projeto.dev.preco_min ? `, a partir de ${brl(projeto.dev.preco_min)}` : ""}.\nVeja fotos e plantas: ${projeto.link}`
+    : "";
   if (tentativa > 1)
-    return `${oi}\n\nAqui é da ${assinatura} de novo. Tem lançamento novo pelo *Minha Casa Minha Vida*${lugar}, com entrada facilitada e uso do FGTS.\n\nAinda faz sentido para você? Se quiser, te mando as opções 🏡\n\n_Se não quiser mais receber, é só me avisar._`;
-  return `${oi}\n\nAqui é da ${assinatura}. Um tempo atrás você se cadastrou procurando apartamento pelo *Minha Casa Minha Vida*${lugar}.\n\nSaíram condições novas este mês, com entrada facilitada e uso do FGTS. Você ainda tem interesse? Posso te mandar as opções que cabem no seu perfil 🏡\n\n_Se não quiser mais receber, é só me avisar._`;
+    return `${oi}\n\nAqui é da ${assinatura} de novo. Tem lançamento novo pelo *Minha Casa Minha Vida*${lugar}, com entrada facilitada e uso do FGTS.\n\nAinda faz sentido para você? Se quiser, te mando as opções 🏡${proj}\n\n_Se não quiser mais receber, é só me avisar._`;
+  return `${oi}\n\nAqui é da ${assinatura}. Um tempo atrás você se cadastrou procurando apartamento pelo *Minha Casa Minha Vida*${lugar}.\n\nSaíram condições novas este mês, com entrada facilitada e uso do FGTS. Você ainda tem interesse? Posso te mandar as opções que cabem no seu perfil 🏡${proj}\n\n_Se não quiser mais receber, é só me avisar._`;
 }

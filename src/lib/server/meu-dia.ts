@@ -2,7 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { diaSP } from "@/lib/agenda";
 import { mensagemBaseFria } from "@/lib/base-fria";
-import { filaBaseFria } from "@/lib/server/base-fria";
+import { filaBaseFria, sugestaoProjetoBF } from "@/lib/server/base-fria";
 
 /**
  * "Meu dia": a rotina da corretora em blocos, na ordem do dia, com os clientes de cada bloco.
@@ -268,6 +268,7 @@ export async function montarMeuDia(
     ? await filaBaseFria(db, metaBF, hoje)
     : { meta: metaBF, feitos: 0, falta: 0, fila: [] };
   const assin = assinatura || cfg?.corretora_nome || cfg?.empresa_nome || "";
+  const projetoBF = bf.fila.length ? await sugestaoProjetoBF(db) : () => null;
   // dividida em 2 turnos: metade de manhã, o resto no fim da tarde
   const metaManha = Math.ceil(metaBF / 2);
   const faltaManha = Math.max(0, metaManha - bf.feitos);
@@ -285,6 +286,7 @@ export async function montarMeuDia(
       c,
       assin,
       c.situacao === "chamado" ? c.tentativas + 1 : 1,
+      projetoBF(c),
     ),
   });
   const blocoBF = (turno: "manha" | "tarde"): Bloco => {
