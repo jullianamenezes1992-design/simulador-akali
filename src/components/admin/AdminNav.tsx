@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Building2,
   CalendarDays,
+  ListChecks,
   ExternalLink,
   History,
   LayoutDashboard,
@@ -21,6 +22,7 @@ import {
 } from "lucide-react";
 
 const ITENS = [
+  { href: "/admin/dia", label: "Meu dia", icon: ListChecks },
   { href: "/admin", label: "Visão geral", icon: LayoutDashboard },
   { href: "/admin/agenda", label: "Agenda", icon: CalendarDays },
   { href: "/admin/leads", label: "Leads", icon: Users },
@@ -38,7 +40,7 @@ const ITENS = [
 
 // Menu de baixo no celular (estilo app)
 const ABAS = [
-  { href: "/admin", label: "Início", icon: LayoutDashboard },
+  { href: "/admin/dia", label: "Meu dia", icon: ListChecks },
   { href: "/admin/agenda", label: "Agenda", icon: CalendarDays },
   { href: "/admin/leads", label: "Leads", icon: Users },
   { href: "/admin/empreendimentos", label: "Imóveis", icon: Building2 },
@@ -50,7 +52,8 @@ const MAIS = ["/admin/mais", "/admin/montagem", "/admin/aprovados", "/admin/repr
 export default function AdminNav() {
   const path = usePathname();
   const ativo = (href: string) => (href === "/admin" ? path === "/admin" : path.startsWith(href));
-  const abaAtiva = (href: string) => (href === "/admin/mais" ? MAIS.some((m) => path.startsWith(m)) : ativo(href));
+  // no celular, a Visão geral (/admin) fica dentro de "Mais"
+  const abaAtiva = (href: string) => (href === "/admin/mais" ? path === "/admin" || MAIS.some((m) => path.startsWith(m)) : ativo(href));
 
   return (
     <>

@@ -51,6 +51,7 @@ function Linhas({ itens }: { itens: [string, React.ReactNode][] }) {
 
 const TIPO_EVENTO: Record<string, string> = {
   compromisso_agendado: "Compromisso agendado",
+  carteira_rebatida: "Chamado no rebater carteira",
   origem_alterada: "Origem alterada",
   compromisso_concluido: "Compromisso concluído",
   simulacao_iniciada: "Iniciou a simulação (preencheu nome e WhatsApp)",

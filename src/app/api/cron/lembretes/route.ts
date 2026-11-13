@@ -120,46 +120,27 @@ ${t.lead && linkLead(t.lead.id) ? `<p><a href="${linkLead(t.lead.id)}" style="co
       .select("id")
       .maybeSingle();
     if (marcado) {
-      const fim = new Date(`${hoje}T23:59:59-03:00`).toISOString();
-      const { data } = await db
-        .from("lead_tasks")
-        .select("id, tipo, quando, descricao, lembrar_min, lead:lead_id!inner(id, nome, codigo, telefone, excluido_em)")
-        .is("lead.excluido_em", null)
-        .eq("status", "pendente")
-        .lte("quando", fim)
-        .order("quando", { ascending: true })
-        .limit(40);
-      const ts = (data ?? []) as unknown as Linha[];
-      if (ts.length) {
-        const inicioHoje = new Date(`${hoje}T00:00:00-03:00`).getTime();
-        const atrasados = ts.filter((t) => new Date(t.quando).getTime() < inicioHoje);
-        const deHoje = ts.filter((t) => new Date(t.quando).getTime() >= inicioHoje);
-        const linha = (t: Linha) => `• ${horaSP(t.quando)} ${tipoTarefaLabel(t.tipo)} – ${t.lead?.nome ?? ""}`;
-        const linhaAtrasada = (t: Linha) => `• ${new Date(t.quando).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })} ${tipoTarefaLabel(t.tipo)} – ${t.lead?.nome ?? ""}`;
-        const agenda = siteUrl() ? `${siteUrl()}/admin/agenda` : "";
-        const texto = [
-          `☀️ *Bom dia! Sua agenda de hoje*`,
-          deHoje.length ? deHoje.map(linha).join("\n") : "Nenhum compromisso marcado para hoje.",
-          atrasados.length ? `\n⚠️ *Atrasados (${atrasados.length})*\n${atrasados.map(linhaAtrasada).join("\n")}` : null,
-          agenda ? `\nAgenda: ${agenda}` : null,
-        ]
-          .filter(Boolean)
-          .join("\n");
-        const lista = (arr: Linha[], f: (t: Linha) => string) => `<ul style="padding-left:18px;margin:6px 0">${arr.map((t) => `<li style="margin:4px 0">${esc(f(t).slice(2))}</li>`).join("")}</ul>`;
-        const html = `<div style="font-family:Arial,sans-serif;color:#263746;max-width:520px">
-<h2 style="color:#005CA9;margin:0 0 8px">Sua agenda de hoje</h2>
-${deHoje.length ? lista(deHoje, linha) : "<p>Nenhum compromisso marcado para hoje.</p>"}
-${atrasados.length ? `<h3 style="color:#b91c1c;margin:14px 0 4px">Atrasados (${atrasados.length})</h3>${lista(atrasados, linhaAtrasada)}` : ""}
-${agenda ? `<p><a href="${agenda}" style="color:#005CA9;font-weight:bold">Abrir agenda no painel</a></p>` : ""}
+      // resumo da rotina "Meu dia": o que precisa ser feito hoje, bloco a bloco
+      const { montarMeuDia } = await import("@/lib/server/meu-dia");
+      const { blocos } = await montarMeuDia(db, hoje);
+      const pendentes = blocos.filter((b) => !b.feito);
+      const linhas = pendentes.map((b) => `• ${b.hora} ${b.titulo}${!b.manual && b.total ? `: ${b.total}` : ""}`);
+      const url = siteUrl() ? `${siteUrl()}/admin/dia` : "";
+      const texto = [`☀️ *Bom dia! O seu dia hoje*`, linhas.join("\n") || "Nada pendente por enquanto.", url ? `\nAbrir Meu dia: ${url}` : null].filter(Boolean).join("\n");
+      const html = `<div style="font-family:Arial,sans-serif;color:#263746;max-width:520px">
+<h2 style="color:#005CA9;margin:0 0 8px">O seu dia hoje</h2>
+<ul style="padding-left:18px;margin:6px 0">${pendentes.map((b) => `<li style="margin:4px 0"><b>${esc(b.hora)}</b> ${esc(b.titulo)}${!b.manual && b.total ? `: ${b.total}` : ""}</li>`).join("")}</ul>
+${url ? `<p><a href="${url}" style="color:#005CA9;font-weight:bold">Abrir Meu dia no painel</a></p>` : ""}
 </div>`;
-        await enviar(`Agenda de hoje: ${deHoje.length} compromisso(s)${atrasados.length ? `, ${atrasados.length} atrasado(s)` : ""}`, texto, html, {
-          title: "☀️ Sua agenda de hoje",
-          body: `${deHoje.length} compromisso(s) hoje${atrasados.length ? ` · ${atrasados.length} atrasado(s)` : ""}`,
-          url: "/admin/agenda",
-          tag: `resumo-${hoje}`,
-        });
-        resultado.resumo = true;
-      }
+      const agenda = blocos.find((b) => b.item === "agenda")?.total ?? 0;
+      const novos = blocos.find((b) => b.item === "novos")?.total ?? 0;
+      await enviar(`O seu dia: ${pendentes.length} bloco(s) para fazer`, texto, html, {
+        title: "☀️ O seu dia hoje",
+        body: `${agenda} compromisso(s) · ${novos} cadastro(s) novo(s) · ${pendentes.length} bloco(s) na rotina`,
+        url: "/admin/dia",
+        tag: `resumo-${hoje}`,
+      });
+      resultado.resumo = true;
     }
   }
 

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AtSign, BadgeCheck, ChevronRight, FolderOpen, XCircle, ExternalLink, History, LogOut, MessageSquareText, Settings, SlidersHorizontal } from "lucide-react";
+import { AtSign, BadgeCheck, ChevronRight, LayoutDashboard, FolderOpen, XCircle, ExternalLink, History, LogOut, MessageSquareText, Settings, SlidersHorizontal } from "lucide-react";
 import AppCelular from "@/components/admin/AppCelular";
 import Backups from "@/components/admin/Backups";
 import { listarBackups } from "@/lib/server/backup";
@@ -12,6 +12,7 @@ import { sair } from "../../actions";
 export const metadata: Metadata = { title: "Mais" };
 
 const LINKS = [
+  { href: "/admin", label: "Visão geral", desc: "Números do funil, conversão e cadastros recentes", icon: LayoutDashboard },
   { href: "/admin/montagem", label: "Montagem de pasta", desc: "Clientes juntando documentos e em análise", icon: FolderOpen },
   { href: "/admin/aprovados", label: "Clientes aprovados", desc: "Poder de compra, projetos que cabem e oportunidades", icon: BadgeCheck },
   { href: "/admin/reprovados", label: "Reprovados", desc: "Motivo da reprovação e quando tentar de novo", icon: XCircle },

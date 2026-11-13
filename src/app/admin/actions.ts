@@ -1301,3 +1301,33 @@ export async function simularProjetoLead(leadId: string, devId: string) {
     },
   };
 }
+
+// ---------------------------------------------------------------------------
+// Meu dia (rotina diária)
+// ---------------------------------------------------------------------------
+
+const ITENS_ROTINA = ["agenda", "novos", "quentes", "sem_resposta", "pasta", "conteudo", "aprovados", "carteira", "redes", "fechamento", "dia_finalizado"];
+
+/** Marca/desmarca um bloco da rotina de hoje (com uma anotação opcional, ex.: o vídeo gravado). */
+export async function marcarRotina(item: string, feito: boolean, nota?: string | null) {
+  const { supabase } = await assertAdmin();
+  if (!ITENS_ROTINA.includes(item)) throw new Error("Item inválido.");
+  const { diaSP } = await import("@/lib/agenda");
+  const dia = diaSP();
+  if (feito) {
+    const { error } = await supabase.from("rotina_dia").upsert({ dia, item, feito_em: new Date().toISOString(), nota: nota?.trim().slice(0, 500) || null }, { onConflict: "dia,item" });
+    if (error) throw new Error(error.message);
+  } else {
+    await supabase.from("rotina_dia").delete().eq("dia", dia).eq("item", item);
+  }
+  revalidatePath("/admin/dia");
+}
+
+/** Rebater carteira: registra que o cliente antigo foi chamado hoje (sem mudar a etapa). */
+export async function rebaterCliente(leadId: string) {
+  const { supabase } = await assertAdmin();
+  if (!UUID_RE.test(leadId)) throw new Error("Cliente inválido.");
+  await supabase.from("leads").update({ rebatido_em: new Date().toISOString() }).eq("id", leadId);
+  await supabase.from("lead_events").insert({ lead_id: leadId, tipo: "carteira_rebatida", dados: {} });
+  revalidatePath("/admin/dia");
+}
