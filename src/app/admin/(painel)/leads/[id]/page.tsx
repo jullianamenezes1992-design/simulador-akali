@@ -66,6 +66,8 @@ const TIPO_EVENTO: Record<string, string> = {
   cadastro_manual: "Cadastrado pela corretora (redes sociais)",
   aprovado_registrado: "Crédito aprovado registrado",
   oferta_enviada: "Oferta enviada ao aprovado",
+  simulacao_enviada: "Simulação enviada",
+  base_fria_reativado: "Reativado da Base fria (respondeu)",
 };
 
 export default async function LeadDetalhe({ params }: { params: Promise<{ id: string }> }) {
@@ -493,6 +495,9 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
                     {e.development ? `: ${e.development.nome}` : ""}
                     {e.tipo === "status_alterado" && e.dados?.para ? ` → ${leadStatusInfo(String(e.dados.para)).label}` : ""}
                     {e.tipo === "oferta_enviada" && e.dados?.empreendimento ? `: ${String(e.dados.empreendimento)}` : ""}
+                    {e.tipo === "simulacao_enviada" && e.dados?.empreendimento
+                      ? `: ${String(e.dados.empreendimento)}${e.dados.preco ? ` · imóvel ${formatBRL(Number(e.dados.preco))}` : ""}${e.dados.entrada ? ` · entrada ${formatBRL(Number(e.dados.entrada))}` : ""}${e.dados.parcela ? ` · parcela ~${formatBRL(Number(e.dados.parcela))}` : ""}${e.dados.como === "copiada" ? " (copiada)" : ""}`
+                      : ""}
                     {e.tipo === "mensagem_enviada" && e.dados?.titulo ? `: ${leadStatusInfo(String(e.dados.status)).label} · ${e.dados.ordem}. ${e.dados.titulo}` : ""}
                   </p>
                   <p className="text-xs text-ink-soft">{formatDate(e.created_at, true)}</p>

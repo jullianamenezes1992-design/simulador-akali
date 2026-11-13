@@ -1439,3 +1439,20 @@ export async function salvarMetaBaseFria(n: number) {
   revalidatePath("/admin/base-fria");
   revalidatePath("/admin/dia");
 }
+
+/** Simulação de um projeto enviada (ou copiada) para o cliente: fica no histórico com o projeto e os valores. */
+export async function registrarSimulacaoEnviada(
+  leadId: string,
+  dados: { empreendimento: string; devId?: string; preco?: number; entrada?: number; parcela?: number | null; como: "whatsapp" | "copiada" }
+) {
+  const { supabase } = await assertAdmin();
+  if (!UUID_RE.test(leadId)) throw new Error("Cliente inválido.");
+  const n = (v: unknown) => (Number.isFinite(Number(v)) ? Math.round(Number(v)) : null);
+  await supabase.from("lead_events").insert({
+    lead_id: leadId,
+    tipo: "simulacao_enviada",
+    development_id: dados.devId && UUID_RE.test(dados.devId) ? dados.devId : null,
+    dados: { empreendimento: String(dados.empreendimento).slice(0, 120), preco: n(dados.preco), entrada: n(dados.entrada), parcela: n(dados.parcela), como: dados.como === "copiada" ? "copiada" : "whatsapp" },
+  });
+  revalidatePath(`/admin/leads/${leadId}`);
+}
