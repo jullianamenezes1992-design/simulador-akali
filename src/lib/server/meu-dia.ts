@@ -58,13 +58,11 @@ export const PAUSAS: Record<string, string> = {
 
 /** Parte da carteira antiga para chamar por dia (5%), entre 3 e 15 clientes. */
 export const CARTEIRA_PCT = 0.05;
-const CARTEIRA_MIN = 3;
-const CARTEIRA_MAX = 15;
 /** Ofertas para aprovados por dia. */
 const OFERTAS_DIA = 5;
 
 /** Quem entra no "rebater carteira" (o resto já tem bloco próprio no dia). */
-const CARTEIRA_STATUS = ["perdido", "reprovado", "vendido"];
+const INDICACOES_DIA = 3;
 const ROTULO_CARTEIRA: Record<string, string> = {
   reprovado: "reprovado: ver se dá para nova análise",
   vendido: "já comprou: pedir indicação",
@@ -94,6 +92,7 @@ export async function montarMeuDia(
   const d7 = new Date(Date.now() - 7 * 864e5).toISOString();
   const d15 = new Date(Date.now() + 15 * 864e5).toISOString().slice(0, 10);
   const d15atras = new Date(Date.now() - 15 * 864e5).toISOString();
+  const d90atras = new Date(Date.now() - 90 * 864e5).toISOString();
 
   const base = () =>
     db
@@ -194,14 +193,17 @@ export async function montarMeuDia(
       .or(`ultima_oferta_em.is.null,ultima_oferta_em.lt.${d7}`)
       .order("ultima_oferta_em", { ascending: true, nullsFirst: true })
       .limit(OFERTAS_DIA),
-    // carteira: clientes fora do atendimento do dia a dia (perdidos, reprovados, vendidos, parados), sem contato há 15+ dias
-    base()
-      .in("status", CARTEIRA_STATUS)
+    // reanálises (reprovados com data de reanálise chegando) e indicações (quem comprou, a cada 90 dias)
+    db
+      .from("leads")
+      .select("id, nome, telefone, status, updated_at, reanalise_em, rebatido_em")
+      .is("excluido_em", null)
+      .is("anonimizado_em", null)
       .eq("em_aprovados", false)
-      .or(`rebatido_em.is.null,rebatido_em.lt.${d15atras}`)
+      .or(`and(status.eq.reprovado,reanalise_em.lte.${hoje}),and(status.eq.vendido,or(rebatido_em.is.null,rebatido_em.lt.${d90atras}))`)
+      .order("reanalise_em", { ascending: true, nullsFirst: false })
       .order("rebatido_em", { ascending: true, nullsFirst: true })
-      .order("updated_at")
-      .limit(500),
+      .limit(300),
     db
       .from("lead_events")
       .select("lead_id")
@@ -338,27 +340,16 @@ export async function montarMeuDia(
   const contatados15 = new Set(
     (contatos15Q.data ?? []).map((e) => e.lead_id as string),
   );
-  type LC = {
-    id: string;
-    nome: string;
-    telefone: string;
-    status: string;
-    updated_at: string;
-    origem: string | null;
-    aguardando_docs_em: string | null;
-    escolhido: { nome: string } | null;
-    created_at?: string;
-  };
-  const carteiraTodos = ((carteiraQ.data ?? []) as unknown as LC[]).filter(
-    (l) => !contatados15.has(l.id) && !tocados.has(l.id),
-  );
+  type LC = { id: string; nome: string; telefone: string; status: string; updated_at: string; reanalise_em: string | null; rebatido_em: string | null };
+  const lc = ((carteiraQ.data ?? []) as LC[]).filter((l) => !tocados.has(l.id));
+  // reprovado: aparece a partir da data de reanálise, até você chamar (depois só numa nova data)
+  const reanalises = lc.filter((l) => l.status === "reprovado" && l.reanalise_em && (!l.rebatido_em || l.rebatido_em.slice(0, 10) < l.reanalise_em));
+  // já comprou: pedido de indicação a cada 90 dias, poucos por dia
+  const indicacoes = lc.filter((l) => l.status === "vendido" && !contatados15.has(l.id)).slice(0, INDICACOES_DIA);
+  const carteiraTodos = [...reanalises, ...indicacoes];
   const tamCarteira = carteiraTodos.length;
-  const metaCarteira = Math.min(
-    CARTEIRA_MAX,
-    Math.max(CARTEIRA_MIN, Math.ceil(tamCarteira * CARTEIRA_PCT)),
-  );
+  const metaCarteira = tamCarteira;
   const rebatidosHoje = rebatidosHojeQ.data ?? [];
-  const faltaCarteira = Math.max(0, metaCarteira - rebatidosHoje.length);
 
   // revisão das análises (aprovando no sistema da Caixa), 2x ao dia
   const clientesAnalise = (turno: "manha" | "tarde"): ClienteDia[] =>
@@ -465,7 +456,7 @@ export async function montarMeuDia(
   const vencendo = vencendoQ.data ?? [];
   const ofertas = ofertaQ.data ?? [];
   const opsNovas = opsQ.count ?? 0;
-  const carteira = (carteiraTodos as unknown as L[]).slice(0, faltaCarteira);
+  const carteira = carteiraTodos;
   const rebatidosIds = new Set(
     (rebatidosHojeQ.data ?? []).map((l) => l.id as string),
   );
@@ -607,15 +598,19 @@ export async function montarMeuDia(
     {
       item: "carteira",
       hora: "15h30",
-      titulo: "Rebater carteira",
-      dica: `Chame ${metaCarteira} cliente(s) da carteira por dia (5% de ${tamCarteira} sem contato há 15+ dias: perdidos, reprovados e quem já comprou). Hoje: ${rebatidosHoje.length} de ${metaCarteira}.`,
+      titulo: "Reanálises e indicações",
+      dica: `Reprovados com a data de reanálise chegando (${reanalises.length}) e até ${INDICACOES_DIA} cliente(s) que já compraram para pedir indicação (cada um no máximo a cada 3 meses). Os perdidos vão para a Base fria.`,
       clientes: carteira.map((l) => ({
-        ...cli(l, ROTULO_CARTEIRA[l.status] ?? "sem contato há 15+ dias"),
+        id: l.id,
+        nome: l.nome,
+        telefone: l.telefone,
+        detalhe: l.status === "reprovado" ? `reanálise: ${l.reanalise_em ? l.reanalise_em.split("-").reverse().join("/") : ""}` : (ROTULO_CARTEIRA[l.status] ?? null),
+        href: `/admin/leads/${l.id}`,
         status: l.status,
       })),
-      total: faltaCarteira,
-      feito: faltaCarteira === 0 || tamCarteira === 0 || feitos.has("carteira"),
-      meta: `${rebatidosHoje.length}/${metaCarteira}`,
+      total: carteira.length,
+      feito: carteira.length === 0 || feitos.has("carteira"),
+      meta: `${rebatidosHoje.length} hoje`,
     },
     revisao("tarde"),
     blocoBF("tarde"),

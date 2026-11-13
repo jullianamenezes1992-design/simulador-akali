@@ -1378,9 +1378,21 @@ export async function reativarBaseFria(id: string): Promise<{ leadId?: string; e
     const { regioesDaZona } = await import("@/lib/base-fria");
     const { data: c } = await supabase.from("base_fria").select("*").eq("id", id).maybeSingle();
     if (!c) return { erro: "Contato não encontrado." };
-    if (c.lead_id) return { leadId: c.lead_id };
-
     const db = createAdminClient();
+    if (c.lead_id) {
+      // perdido do CRM que respondeu pela Base fria: volta para o atendimento
+      const { data: lead } = await db.from("leads").select("status").eq("id", c.lead_id).maybeSingle();
+      if (lead && ["perdido", "arquivado"].includes(lead.status)) {
+        await db.from("leads").update({ status: "em_atendimento" }).eq("id", c.lead_id);
+        await db.from("lead_events").insert({ lead_id: c.lead_id, tipo: "status_alterado", dados: { de: lead.status, para: "em_atendimento", origem: "Base fria" } });
+      }
+      await db.from("lead_events").insert({ lead_id: c.lead_id, tipo: "base_fria_reativado", dados: { base_fria_id: id } });
+      await supabase.from("base_fria").update({ situacao: "virou_lead", resolvido_em: new Date().toISOString(), proxima_em: null }).eq("id", id);
+      revalidatePath("/admin/base-fria");
+      revalidatePath("/admin/leads");
+      return { leadId: c.lead_id };
+    }
+
     const { data: existe } = await db.from("leads").select("id").eq("telefone", c.telefone).is("excluido_em", null).limit(1).maybeSingle();
     let leadId = existe?.id as string | undefined;
     if (!leadId) {
