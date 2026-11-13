@@ -7,7 +7,7 @@ import { diaSP } from "@/lib/agenda";
  * Um bloco fica feito quando não há mais ninguém para tocar nele hoje, ou quando ela marca como feito.
  */
 
-export type ClienteDia = { id: string; nome: string; telefone: string; detalhe?: string | null; href?: string };
+export type ClienteDia = { id: string; nome: string; telefone: string; detalhe?: string | null; href?: string; status?: string };
 export type Bloco = {
   item: string;
   hora: string;
@@ -30,6 +30,13 @@ const CARTEIRA_MAX = 15;
 /** Ofertas para aprovados por dia. */
 const OFERTAS_DIA = 5;
 
+/** Quem entra no "rebater carteira" (o resto já tem bloco próprio no dia). */
+const CARTEIRA_STATUS = ["perdido", "reprovado", "vendido"];
+const ROTULO_CARTEIRA: Record<string, string> = {
+  reprovado: "reprovado: ver se dá para nova análise",
+  vendido: "já comprou: pedir indicação",
+  perdido: "perdido: tentar reativar",
+};
 const ATIVOS = ["novo", "em_atendimento", "sem_resposta", "simulacao", "documentacao", "analise_credito", "serasa_bacen", "aprovado", "visita", "proposta"];
 
 export async function montarMeuDia(db: SupabaseClient, hoje = diaSP()) {
@@ -38,10 +45,11 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP()) {
   const d30 = new Date(Date.now() - 30 * 864e5).toISOString();
   const d7 = new Date(Date.now() - 7 * 864e5).toISOString();
   const d15 = new Date(Date.now() + 15 * 864e5).toISOString().slice(0, 10);
+  const d15atras = new Date(Date.now() - 15 * 864e5).toISOString();
 
   const base = () => db.from("leads").select("id, nome, telefone, status, updated_at, origem, aguardando_docs_em, escolhido:escolhido_id(nome)").is("excluido_em", null).is("anonimizado_em", null);
 
-  const [feitosQ, tarefasQ, eventosQ, novosQ, quentesQ, semRespQ, pastaQ, opsQ, vencendoQ, ofertaQ, carteiraQ, carteiraTotQ, rebatidosHojeQ, tocadosQ, futurasQ] = await Promise.all([
+  const [feitosQ, tarefasQ, eventosQ, novosQ, quentesQ, semRespQ, pastaQ, opsQ, vencendoQ, ofertaQ, carteiraQ, contatos15Q, rebatidosHojeQ, tocadosQ, futurasQ] = await Promise.all([
     db.from("rotina_dia").select("item, nota").eq("dia", hoje),
     db
       .from("lead_tasks")
@@ -67,8 +75,9 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP()) {
       .or(`ultima_oferta_em.is.null,ultima_oferta_em.lt.${d7}`)
       .order("ultima_oferta_em", { ascending: true, nullsFirst: true })
       .limit(OFERTAS_DIA),
-    base().in("status", ["novo", "em_atendimento", "sem_resposta", "simulacao", "perdido"]).eq("em_aprovados", false).lt("updated_at", d30).or(`rebatido_em.is.null,rebatido_em.lt.${d30}`).order("rebatido_em", { ascending: true, nullsFirst: true }).order("updated_at").limit(CARTEIRA_MAX),
-    db.from("leads").select("id", { count: "exact", head: true }).is("excluido_em", null).in("status", ["novo", "em_atendimento", "sem_resposta", "simulacao", "perdido"]).eq("em_aprovados", false).lt("updated_at", d30),
+    // carteira: clientes fora do atendimento do dia a dia (perdidos, reprovados, vendidos, parados), sem contato há 15+ dias
+    base().in("status", CARTEIRA_STATUS).eq("em_aprovados", false).or(`rebatido_em.is.null,rebatido_em.lt.${d15atras}`).order("rebatido_em", { ascending: true, nullsFirst: true }).order("updated_at").limit(500),
+    db.from("lead_events").select("lead_id").gte("created_at", d15atras).in("tipo", ["mensagem_enviada", "oferta_enviada", "carteira_rebatida", "clique_whatsapp"]).limit(5000),
     db.from("leads").select("id, nome, telefone").gte("rebatido_em", inicio).limit(50),
     db.from("leads").select("id, nome, telefone, status").is("excluido_em", null).gte("updated_at", inicio).in("status", ATIVOS).limit(200),
     db.from("lead_tasks").select("lead_id").eq("status", "pendente").gt("quando", fim).limit(2000),
@@ -81,8 +90,11 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP()) {
   const naoTocado = (l: L) => !tocados.has(l.id) && l.updated_at < inicio;
   const cli = (l: L, detalhe?: string | null): ClienteDia => ({ id: l.id, nome: l.nome, telefone: l.telefone, detalhe: detalhe ?? l.escolhido?.nome ?? null, href: `/admin/leads/${l.id}` });
 
-  // tamanho do "rebater carteira" de hoje
-  const tamCarteira = carteiraTotQ.count ?? 0;
+  // "rebater carteira": quem não recebeu nenhum contato nos últimos 15 dias e não foi cadastrado nesse período
+  const contatados15 = new Set((contatos15Q.data ?? []).map((e) => e.lead_id as string));
+  type LC = { id: string; nome: string; telefone: string; status: string; updated_at: string; origem: string | null; aguardando_docs_em: string | null; escolhido: { nome: string } | null; created_at?: string };
+  const carteiraTodos = ((carteiraQ.data ?? []) as unknown as LC[]).filter((l) => !contatados15.has(l.id) && !tocados.has(l.id));
+  const tamCarteira = carteiraTodos.length;
   const metaCarteira = Math.min(CARTEIRA_MAX, Math.max(CARTEIRA_MIN, Math.ceil(tamCarteira * CARTEIRA_PCT)));
   const rebatidosHoje = rebatidosHojeQ.data ?? [];
   const faltaCarteira = Math.max(0, metaCarteira - rebatidosHoje.length);
@@ -97,7 +109,7 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP()) {
   const vencendo = vencendoQ.data ?? [];
   const ofertas = ofertaQ.data ?? [];
   const opsNovas = opsQ.count ?? 0;
-  const carteira = ((carteiraQ.data ?? []) as unknown as L[]).filter((l) => !tocados.has(l.id)).slice(0, faltaCarteira);
+  const carteira = (carteiraTodos as unknown as L[]).slice(0, faltaCarteira);
   const rebatidosIds = new Set((rebatidosHojeQ.data ?? []).map((l) => l.id as string));
   const semProximo = ((tocadosQ.data ?? []) as { id: string; nome: string; telefone: string; status: string }[]).filter((l) => !comFutura.has(l.id) && !rebatidosIds.has(l.id));
 
@@ -182,8 +194,8 @@ export async function montarMeuDia(db: SupabaseClient, hoje = diaSP()) {
       item: "carteira",
       hora: "15h",
       titulo: "Rebater carteira",
-      dica: `Chame ${metaCarteira} cliente(s) antigo(s) por dia (5% da carteira parada há 30+ dias: ${tamCarteira}). Hoje: ${rebatidosHoje.length} de ${metaCarteira}.`,
-      clientes: carteira.map((l) => cli(l, `parado desde ${String(l.updated_at).slice(0, 10).split("-").reverse().join("/")}`)),
+      dica: `Chame ${metaCarteira} cliente(s) da carteira por dia (5% de ${tamCarteira} sem contato há 15+ dias: perdidos, reprovados e quem já comprou). Hoje: ${rebatidosHoje.length} de ${metaCarteira}.`,
+      clientes: carteira.map((l) => ({ ...cli(l, ROTULO_CARTEIRA[l.status] ?? "sem contato há 15+ dias"), status: l.status })),
       total: faltaCarteira,
       feito: faltaCarteira === 0 || tamCarteira === 0 || feitos.has("carteira"),
       meta: `${rebatidosHoje.length}/${metaCarteira}`,

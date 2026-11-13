@@ -19,8 +19,14 @@ export default async function MeuDiaPage() {
   const pct = Math.round((feitos / blocos.length) * 100);
   const dataLonga = new Date(`${hoje}T12:00:00-03:00`).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", timeZone: "America/Sao_Paulo" });
   const assinatura = s.corretora_nome || s.empresa_nome;
-  const msgCarteira = (n: string) =>
-    `Oi, ${(n.trim().split(/\s+/)[0] || "").replace(/^./, (c) => c.toUpperCase())}! Tudo bem? 😊\n\nAqui é da ${assinatura}. Saíram novas condições no *Minha Casa Minha Vida* e lançamentos com entrada facilitada.\n\nVocê ainda está procurando o seu apartamento? Posso te mandar as opções atualizadas? 🏡`;
+  const msgCarteira = (n: string, status?: string) => {
+    const p = (n.trim().split(/\s+/)[0] || "").replace(/^./, (c) => c.toUpperCase());
+    if (status === "vendido")
+      return `Oi, ${p}! Tudo bem? 😊\n\nAqui é da ${assinatura}. Passando para saber como está tudo com o seu apartamento! 🏡\n\nSe tiver algum amigo ou parente querendo sair do aluguel, me indica? Eu cuido de tudo com o mesmo carinho que tive com você 💙`;
+    if (status === "reprovado")
+      return `Oi, ${p}! Tudo bem? 😊\n\nAqui é da ${assinatura}. Lembrei de você: saíram novas condições no *Minha Casa Minha Vida* e às vezes dá para fazer uma *nova análise* (ou compor renda com alguém da família).\n\nQuer que eu veja se agora dá certo para você?`;
+    return `Oi, ${p}! Tudo bem? 😊\n\nAqui é da ${assinatura}. Saíram novas condições no *Minha Casa Minha Vida* e lançamentos com entrada facilitada.\n\nVocê ainda está procurando o seu apartamento? Posso te mandar as opções atualizadas? 🏡`;
+  };
 
   return (
     <>
@@ -72,7 +78,7 @@ export default async function MeuDiaPage() {
                       <span className="text-ink-soft"> · {maskPhone(c.telefone)}</span>
                       {c.detalhe && <span className="block text-xs text-ink-soft [overflow-wrap:anywhere]">{c.detalhe}</span>}
                     </Link>
-                    {b.item === "carteira" ? <ChamarCarteira leadId={c.id} telefone={c.telefone} texto={msgCarteira(c.nome)} /> : <ChevronRight size={16} className="text-ink-soft" />}
+                    {b.item === "carteira" ? <ChamarCarteira leadId={c.id} telefone={c.telefone} texto={msgCarteira(c.nome, c.status)} /> : <ChevronRight size={16} className="text-ink-soft" />}
                   </li>
                 ))}
                 {b.clientes.length > MOSTRAR && <li className="px-3 py-2 text-xs text-ink-soft">+ {b.clientes.length - MOSTRAR} cliente(s)</li>}
