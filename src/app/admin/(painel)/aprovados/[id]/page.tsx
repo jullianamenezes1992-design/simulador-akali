@@ -143,6 +143,7 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
                   aprovadoId={a.id}
                   telefone={a.telefone}
                   devNome={REANALISE}
+                  rotulo="Enviar mensagem"
                   jaEnviada={jaOfertado.get(REANALISE) ?? null}
                   texto={mensagemReanalise(a, assinatura)}
                 />

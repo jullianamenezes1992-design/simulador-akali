@@ -13,6 +13,7 @@ export default function EnviarOferta({
   devId,
   jaEnviada,
   compacto,
+  rotulo = "Enviar oferta",
 }: {
   aprovadoId: string;
   telefone: string;
@@ -22,6 +23,7 @@ export default function EnviarOferta({
   /** data da última vez que este projeto foi oferecido a este cliente */
   jaEnviada?: string | null;
   compacto?: boolean;
+  rotulo?: string;
 }) {
   const [, start] = useTransition();
   const [enviada, setEnviada] = useState(false);
@@ -39,7 +41,7 @@ export default function EnviarOferta({
         }}
         className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold ${jaEnviada && !enviada ? "border border-[#25D366] text-[#128C4B]" : "bg-[#25D366] text-white"}`}
       >
-        {enviada ? <Check size={15} /> : <MessageCircle size={15} />} {enviada ? "Oferta aberta" : jaEnviada ? "Enviar de novo" : "Enviar oferta"}
+        {enviada ? <Check size={15} /> : <MessageCircle size={15} />} {enviada ? "Mensagem aberta" : jaEnviada ? "Enviar de novo" : rotulo}
       </a>
       {!compacto && (
         <button
