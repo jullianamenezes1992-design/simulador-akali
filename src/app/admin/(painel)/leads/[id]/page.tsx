@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, BadgeCheck, MessageCircle, UserPlus } from "lucide-react";
 import { nomeContato } from "@/lib/contato";
+import DadosClienteEditor from "@/components/admin/DadosClienteEditor";
 import MensagensProntas from "@/components/admin/MensagensProntas";
 import { mensagensDaEtapa, preencherMensagem } from "@/lib/mensagens-prontas";
 import { siteUrl } from "@/lib/server/notificacoes";
@@ -277,6 +278,28 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
                 ["E-mail", l.email ?? "—"],
               ]}
             />
+            {!anonimizado && (
+              <div className="mt-3">
+                <DadosClienteEditor
+                  leadId={l.id}
+                  abrir={l.origem === "Base fria" && !Number(l.renda_principal)}
+                  dados={{
+                    nome: l.nome,
+                    email: l.email ?? null,
+                    idade: l.data_nascimento ? Math.floor(idadeEmMeses(l.data_nascimento) / 12) : (l.idade_informada ?? null),
+                    temNascimento: !!l.data_nascimento,
+                    estado_civil: l.estado_civil ?? null,
+                    profissao: l.profissao ?? null,
+                    tipo_renda: l.tipo_renda ?? null,
+                    renda_principal: Number(l.renda_principal ?? 0),
+                    compor_renda: !!l.compor_renda,
+                    relacao_composicao: l.relacao_composicao ?? null,
+                    renda_composicao: Number(l.renda_composicao ?? 0),
+                    fgts_saldo: Number(l.fgts_saldo ?? 0),
+                  }}
+                />
+              </div>
+            )}
           </Bloco>
 
           {!anonimizado && (

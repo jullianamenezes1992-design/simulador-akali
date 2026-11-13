@@ -1456,3 +1456,88 @@ export async function registrarSimulacaoEnviada(
   });
   revalidatePath(`/admin/leads/${leadId}`);
 }
+
+/** Atualiza os dados do cliente (pessoais e de renda) e refaz a simulação quando há renda e idade. */
+export async function atualizarDadosLead(leadId: string, _prev: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const { supabase } = await assertAdmin();
+    if (!UUID_RE.test(leadId)) return { erro: "Cliente inválido." };
+    const { VINCULOS, RELACOES_COMPOSICAO, ESTADOS_CIVIS } = await import("@/lib/constants");
+    const { data: l } = await supabase.from("leads").select("*").eq("id", leadId).maybeSingle();
+    if (!l) return { erro: "Cliente não encontrado." };
+    if (l.anonimizado_em) return { erro: "Cadastro anonimizado." };
+
+    const texto = (k: string, max = 120) => String(fd.get(k) ?? "").trim().replace(/\s+/g, " ").slice(0, max) || null;
+    const nome = texto("nome", 120);
+    if (!nome || nome.length < 2) return { erro: "Preencha o nome do cliente." };
+    const email = texto("email", 200);
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { erro: "E-mail inválido." };
+    const idadeTxt = String(fd.get("idade") ?? "").trim();
+    const idade = idadeTxt ? Number(idadeTxt) : null;
+    if (idade != null && (!Number.isInteger(idade) || idade < 16 || idade > 100)) return { erro: "Idade inválida." };
+    const vinculo = String(fd.get("vinculo") ?? "");
+    const estado = String(fd.get("estado_civil") ?? "");
+    const comporRenda = fd.get("compor_renda") === "sim";
+    const relacao = String(fd.get("relacao_composicao") ?? "");
+    const renda = numeroBR(fd.get("renda"));
+    const rendaComp = comporRenda ? numeroBR(fd.get("renda_composicao")) : 0;
+    const fgtsValor = numeroBR(fd.get("fgts"));
+
+    const upd: Record<string, unknown> = {
+      nome,
+      email,
+      estado_civil: ESTADOS_CIVIS.some((e) => e.value === estado) ? estado : null,
+      profissao: texto("profissao", 120),
+      tipo_renda: VINCULOS.some((v) => v.value === vinculo) ? vinculo : null,
+      renda_principal: renda,
+      compor_renda: comporRenda,
+      relacao_composicao: comporRenda && RELACOES_COMPOSICAO.some((r) => r.value === relacao) ? relacao : null,
+      renda_composicao: rendaComp,
+      renda_total: renda + rendaComp,
+      fgts_saldo: fgtsValor,
+      fgts_tres_anos: fgtsValor > 0 ? true : !!l.fgts_tres_anos,
+    };
+    // idade: se o cliente tem data de nascimento, ela continua valendo; senão guarda a idade informada
+    const idadeMeses = l.data_nascimento && !idade ? null : idade ? idade * 12 : null;
+    if (idade && !l.data_nascimento) upd.idade_informada = idade;
+    const { idadeEmMeses } = await import("@/lib/format");
+    const mesesParaSimular = l.data_nascimento ? idadeEmMeses(l.data_nascimento) : idadeMeses;
+
+    let refez = false;
+    if (renda > 0 && mesesParaSimular) {
+      const { getActiveParams } = await import("@/lib/data");
+      const { simular } = await import("@/lib/simulacao/engine");
+      const { listarAtivosParaMatch, ranquearDevs, prefsDoLead } = await import("@/lib/server/leads");
+      const ativo = await getActiveParams();
+      if (ativo) {
+        const r = simular(
+          {
+            rendaPrincipal: renda,
+            rendaComposicao: rendaComp,
+            idadeMeses: mesesParaSimular,
+            fgtsSaldo: fgtsValor,
+            fgtsTresAnos: fgtsValor > 0 || !!l.fgts_tres_anos,
+            entrada: Number(l.entrada_disponivel ?? 0),
+            possuiImovel: !!l.possui_imovel,
+            financiamentoAtivo: !!l.financiamento_ativo,
+            jaBeneficiado: !!l.ja_beneficiado,
+            restricaoCredito: (l.restricao_credito as "nao" | "sim" | "nao_sei") ?? "nao_sei",
+          },
+          ativo.params,
+          ativo.versao
+        );
+        const prefs = prefsDoLead({ regioes: l.regioes ?? [], dormitorios_min: l.dormitorios_min ?? null, precisa_vaga: !!l.precisa_vaga, preferencia_obra: l.preferencia_obra ?? "indiferente" });
+        const ranking = ranquearDevs(await listarAtivosParaMatch(), r, prefs);
+        Object.assign(upd, { simulacao: r, params_versao: ativo.versao, simulacao_completa: true, recomendados: ranking.compativeis.slice(0, 12).map((x) => x.dev.id) });
+        refez = true;
+      }
+    }
+    const { error } = await supabase.from("leads").update(upd).eq("id", leadId);
+    if (error) return { erro: error.message };
+    revalidatePath(`/admin/leads/${leadId}`);
+    revalidatePath("/admin/leads");
+    return { ok: true, mensagem: refez ? "Dados salvos e simulação atualizada." : "Dados salvos. Preencha renda e idade para o CRM fazer a simulação." };
+  } catch (e) {
+    return { erro: msg(e) };
+  }
+}
