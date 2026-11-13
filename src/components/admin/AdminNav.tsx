@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  BarChart3,
   Building2,
   CalendarDays,
   ListChecks,
@@ -25,6 +26,7 @@ import {
 const ITENS = [
   { href: "/admin/dia", label: "Meu dia", icon: ListChecks },
   { href: "/admin", label: "Visão geral", icon: LayoutDashboard },
+  { href: "/admin/numeros", label: "Números", icon: BarChart3 },
   { href: "/admin/agenda", label: "Agenda", icon: CalendarDays },
   { href: "/admin/leads", label: "Leads", icon: Users },
   { href: "/admin/montagem", label: "Montagem de pasta", icon: FolderOpen },
@@ -49,7 +51,7 @@ const ABAS = [
   { href: "/admin/mais", label: "Mais", icon: Menu },
 ];
 
-const MAIS = ["/admin/mais", "/admin/montagem", "/admin/aprovados", "/admin/reprovados", "/admin/base-fria", "/admin/mensagens", "/admin/redes", "/admin/parametros", "/admin/configuracoes", "/admin/historico"];
+const MAIS = ["/admin/mais", "/admin/montagem", "/admin/aprovados", "/admin/reprovados", "/admin/numeros", "/admin/base-fria", "/admin/mensagens", "/admin/redes", "/admin/parametros", "/admin/configuracoes", "/admin/historico"];
 
 export default function AdminNav() {
   const path = usePathname();
