@@ -632,7 +632,6 @@ export async function montarMeuDia(
       })),
       total: carteira.length,
       feito: carteira.length === 0 || feitos.has("carteira"),
-      meta: `${rebatidosHoje.length} hoje`,
     },
     revisao("tarde"),
     blocoBF("tarde"),
