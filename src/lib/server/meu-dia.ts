@@ -488,17 +488,6 @@ export async function montarMeuDia(
   const ofertas = ofertaQ.data ?? [];
   const opsNovas = opsQ.count ?? 0;
   const carteira = carteiraTodos;
-  const rebatidosIds = new Set(
-    (rebatidosHojeQ.data ?? []).map((l) => l.id as string),
-  );
-  const semProximo = (
-    (tocadosQ.data ?? []) as {
-      id: string;
-      nome: string;
-      telefone: string;
-      status: string;
-    }[]
-  ).filter((l) => !comFutura.has(l.id) && !rebatidosIds.has(l.id));
 
   const hora = (iso: string) =>
     new Intl.DateTimeFormat("pt-BR", {
@@ -663,17 +652,11 @@ export async function montarMeuDia(
     {
       item: "fechamento",
       hora: "17h45",
-      titulo: "Fechamento: todo cliente com próximo passo",
-      dica: "Clientes que você mexeu hoje e ainda não têm nada marcado na agenda.",
-      clientes: semProximo.map((l) => ({
-        id: l.id,
-        nome: l.nome,
-        telefone: l.telefone,
-        detalhe: "agendar próximo passo",
-        href: `/admin/leads/${l.id}`,
-      })),
-      total: semProximo.length,
-      feito: semProximo.length === 0 || feitos.has("fechamento"),
+      titulo: "Fechamento do dia",
+      dica: "Confira se ficou algo pendente e anote nas observações o que combinou com cada cliente. Quem precisa de retorno em data marcada, agende na Agenda; os outros seguem as etapas normais.",
+      clientes: [],
+      total: 0,
+      feito: feitos.has("fechamento"),
     },
   ];
   const finalizado = feitos.has("dia_finalizado");
