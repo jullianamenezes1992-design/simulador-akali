@@ -263,7 +263,7 @@ export function mensagemBaseFria(
       ? ` na *${c.zona}*`
       : "";
   const proj = projeto
-    ? `\n\nSeparei uma opção ${projeto.dev.bairro ? `no *${projeto.dev.bairro}*` : "na sua região"}: *${projeto.dev.nome}*${projeto.dev.preco_min ? `, a partir de ${brl(projeto.dev.preco_min)}` : ""}.\nVeja fotos e plantas: ${projeto.link}`
+    ? `\n\nSeparei uma opção na sua região: *${projeto.dev.nome}*${projeto.dev.bairro && !projeto.dev.nome.toLowerCase().includes(projeto.dev.bairro.toLowerCase()) ? ` (${projeto.dev.bairro})` : ""}${projeto.dev.preco_min ? `, a partir de ${brl(projeto.dev.preco_min)}` : ""}.\nVeja fotos e plantas: ${projeto.link}`
     : "";
   if (tentativa > 1)
     return `${oi}\n\nAqui é da ${assinatura} de novo. Tem lançamento novo pelo *Minha Casa Minha Vida*${lugar}, com entrada facilitada e uso do FGTS.\n\nAinda faz sentido para você? Se quiser, te mando as opções 🏡${proj}\n\n_Se não quiser mais receber, é só me avisar._`;
