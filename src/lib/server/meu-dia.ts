@@ -188,6 +188,8 @@ export async function montarMeuDia(
       .in("status", ["ativo", "negociando"])
       .gte("vencimento", hoje)
       .lte("vencimento", d15)
+      // quem recebeu oferta nos últimos 7 dias não volta só porque a aprovação está vencendo
+      .or(`ultima_oferta_em.is.null,ultima_oferta_em.lt.${d7}`)
       .order("vencimento")
       .limit(30),
     db
