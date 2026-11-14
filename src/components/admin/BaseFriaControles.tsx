@@ -92,7 +92,11 @@ export function AcoesBaseFria({
         rel="noreferrer"
         onClick={() => {
           setSituacao("chamado");
-          start(() => chamarBaseFria(id).catch(() => undefined));
+          // atualiza a contagem do dia (ex.: 8/15) assim que o contato é registrado
+          start(async () => {
+            await chamarBaseFria(id).catch(() => undefined);
+            router.refresh();
+          });
         }}
         className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold ${situacao === "chamado" ? "bg-emerald-100 text-emerald-800" : "bg-[#25D366] text-white"}`}
       >
