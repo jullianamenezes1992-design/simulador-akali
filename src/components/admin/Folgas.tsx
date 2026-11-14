@@ -4,11 +4,12 @@ import { useState, useTransition } from "react";
 import { CalendarOff, Loader2, Plus, X } from "lucide-react";
 import { marcarFolga } from "@/app/admin/actions";
 
-export type DiaEspecial = { dia: string; tipo: "folga" | "evento" | "meeting" };
+export type DiaEspecial = { dia: string; tipo: "folga" | "evento" | "meeting" | "live" };
 export const TIPOS_DIA = {
   folga: { emoji: "🌴", label: "Folga" },
   evento: { emoji: "🎪", label: "Evento" },
   meeting: { emoji: "💼", label: "Meeting" },
+  live: { emoji: "🎥", label: "Live" },
 } as const;
 
 const fmt = (d: string) =>
@@ -19,7 +20,7 @@ const fmt = (d: string) =>
     timeZone: "America/Sao_Paulo",
   });
 
-/** Folgas, eventos e meetings: marcar uma data e desmarcar. */
+/** Folgas, eventos, meetings e lives: marcar uma data e desmarcar. */
 export function Folgas({
   proximas,
   hoje,
@@ -45,7 +46,7 @@ export function Folgas({
     <div className="text-sm">
       <div className="flex flex-wrap items-center gap-2">
         <span className="inline-flex items-center gap-1 font-semibold">
-          <CalendarOff size={15} /> Folgas, eventos e meetings:
+          <CalendarOff size={15} /> Folgas, eventos, meetings e lives:
         </span>
         {proximas.length ? (
           proximas.map((d) => (
@@ -108,7 +109,7 @@ export function Folgas({
         )}
       </div>
       <p className="mt-2 text-xs text-ink-soft">
-        Folga: sem tarefas. Evento e meeting (dia externo): só o essencial
+        Folga: sem tarefas. Evento, meeting e live: só o essencial
         (agenda, novos cadastros e leads quentes).
       </p>
     </div>

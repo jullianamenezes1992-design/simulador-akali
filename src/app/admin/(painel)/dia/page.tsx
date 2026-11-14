@@ -47,7 +47,7 @@ export default async function MeuDiaPage() {
       supabase
         .from("rotina_dia")
         .select("dia, item")
-        .in("item", ["folga", "evento", "meeting"])
+        .in("item", ["folga", "evento", "meeting", "live"])
         .gte("dia", diaSP())
         .order("dia")
         .limit(60),
@@ -60,7 +60,7 @@ export default async function MeuDiaPage() {
   const ehFolga = especial === "folga";
   // evento / meeting (dia externo): só o essencial
   const blocos =
-    especial === "evento" || especial === "meeting"
+    especial && especial !== "folga"
       ? todosBlocos.filter((b) => ESSENCIAIS_EXTERNO.includes(b.item))
       : todosBlocos;
   const feitos = blocos.filter((b) => b.feito).length;
