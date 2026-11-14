@@ -115,6 +115,8 @@ function linkTabela(html: string): string | null {
   return html.match(re2)?.[1] ?? null;
 }
 
+const FIM_ENQ = /(?:^|[\s-])(HIS ?-?[12]|HMP|R2V|NR)\s*$/i;
+
 async function lerTabela(
   buf: ArrayBuffer,
 ): Promise<{ validade: string | null; unidades: Unid[] }> {
@@ -211,9 +213,18 @@ async function lerTabela(
         const n = perto(colVals[k], q.y);
         if (n && Math.abs(n.y - q.y) < 40) av[k] = n.v;
       }
+      // categoria: coluna "Enquadramento" ou o final do nome do tipo ("... - HIS2")
       const en = perto(enqs, q.y);
+      let enq = en && Math.abs(en.y - q.y) < 6 ? en.v : null;
+      if (!enq) {
+        const cand = it
+          .map((i) => ({ y: i.y, m: i.s.match(FIM_ENQ) }))
+          .filter((x) => x.m && Math.abs(x.y - q.y) < 8);
+        const c = perto(cand, q.y);
+        if (c?.m) enq = c.m[1].toUpperCase().replace(/[\s-]/g, "");
+      }
       unidades.push({
-        enq: en && Math.abs(en.y - q.y) < 6 ? en.v : null,
+        enq,
         preco: pr.v,
         qtd: Number(q.s),
         area: area ? Number(area.s.replace(",", ".")) : null,
