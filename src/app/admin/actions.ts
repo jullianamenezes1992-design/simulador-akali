@@ -1195,7 +1195,7 @@ export async function marcarAguardandoDocs(leadId: string, ligar: boolean) {
  * Etapa "Simulação": simula um projeto escolhido para o cliente (com a renda/FGTS que ele informou)
  * e devolve o resumo e a mensagem de WhatsApp. Também marca o projeto como o escolhido do cliente.
  */
-export async function simularProjetoLead(leadId: string, devId: string) {
+export async function simularProjetoLead(leadId: string, devId: string, tipo = -1) {
   const { supabase } = await assertAdmin();
   if (!UUID_RE.test(leadId) || !UUID_RE.test(devId)) return { erro: "Escolha um projeto." };
   const [{ data: l }, { data: d }] = await Promise.all([
@@ -1204,9 +1204,11 @@ export async function simularProjetoLead(leadId: string, devId: string) {
       .select("nome, simulacao, renda_principal, renda_composicao, renda_total, data_nascimento, idade_informada, fgts_saldo, fgts_tres_anos, entrada_disponivel, dormitorios_min, possui_imovel, financiamento_ativo, ja_beneficiado, restricao_credito")
       .eq("id", leadId)
       .maybeSingle(),
-    supabase.from("developments").select("id, slug, nome, bairro, regiao, preco_min, dormitorios, oferta_destaque, oferta_texto, unidades_disponiveis, status_obra, previsao_entrega, meses_pos_chaves, construtora, avaliacao_min, ato_minimo, precos_por_dorm").eq("id", devId).maybeSingle(),
+    supabase.from("developments").select("id, slug, nome, bairro, regiao, preco_min, dormitorios, oferta_destaque, oferta_texto, unidades_disponiveis, status_obra, previsao_entrega, meses_pos_chaves, construtora, avaliacao_min, ato_minimo, precos_por_dorm, avaliacoes, tipologias").eq("id", devId).maybeSingle(),
   ]);
   if (!l || !d) return { erro: "Cliente ou projeto não encontrado." };
+  const tipologias = (d.tipologias ?? []) as import("@/lib/aprovados").Tipologia[];
+  const unidade = tipo >= 0 ? (tipologias[tipo] ?? null) : null;
   if (!d.preco_min) return { erro: "Esse projeto está sem preço cadastrado." };
 
   const { getActiveParams, getSettings } = await import("@/lib/data");
@@ -1254,8 +1256,9 @@ export async function simularProjetoLead(leadId: string, devId: string) {
     renda_familiar: sim.rendaTotal,
     parcela_max: sim.parcelaMax,
     dormitorios_min: l.dormitorios_min ?? null,
+    faixa: sim.faixa?.id ?? null,
   } as unknown as import("@/lib/aprovados").Aprovado;
-  const ps = preSimulacao(comoAprovado, d as import("@/lib/aprovados").DevCompat, regra);
+  const ps = preSimulacao(comoAprovado, d as import("@/lib/aprovados").DevCompat, regra, new Date(), unidade);
   if (!ps) return { erro: "Não foi possível simular esse projeto." };
 
   const nome = (String(l.nome).trim().split(/\s+/)[0] || "").replace(/^./, (c) => c.toUpperCase());
@@ -1298,7 +1301,10 @@ export async function simularProjetoLead(leadId: string, devId: string) {
       excede: ps.excede,
       semAvaliacao: ps.semAvaliacao,
       faixa: sim.faixa?.nome ?? null,
+      rotulo: ps.rotulo,
     },
+    tipos: tipologias.map((t) => `${t.rotulo} — a partir de ${t.preco.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}`),
+    tipo,
   };
 }
 

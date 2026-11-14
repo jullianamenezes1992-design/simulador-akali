@@ -7,6 +7,7 @@ import AprovadoForm from "@/components/admin/AprovadoForm";
 import EnviarOferta from "@/components/admin/EnviarOferta";
 import ExcluirAprovado from "@/components/admin/ExcluirAprovado";
 import RespondeuOferta from "@/components/admin/RespondeuOferta";
+import OutraUnidade from "@/components/admin/OutraUnidade";
 import { REANALISE, mensagemReanalise, STATUS_EM_ABERTO, compativeis, compraAte, diasParaVencer, mensagemOferta, ofertaDoProjeto, preSimulacao, ofertasPorProjeto, regraEntrada, semRespostaSeguidas, type Aprovado, type OfertaEnviada } from "@/lib/aprovados";
 import { getActiveParams, getSettings } from "@/lib/data";
 import { regiaoLabel } from "@/lib/constants";
@@ -93,6 +94,7 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
           </p>
         </div>
         <EnviarOferta aprovadoId={a.id} telefone={a.telefone} devNome={c.dev.nome} devId={c.dev.id} jaEnviada={enviada} texto={mensagemOferta(a, c.dev, link, assinatura, psOk)} />
+        <OutraUnidade aprovado={a} dev={c.dev} regra={regra} link={link} assinatura={assinatura} jaEnviada={enviada} />
       </li>
     );
   };

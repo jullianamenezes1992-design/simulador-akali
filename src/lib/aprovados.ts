@@ -99,6 +99,18 @@ export const ofertaDoProjeto = (
   d: { id: string; nome: string },
 ) => m.get(d.id) ?? m.get(d.nome) ?? null;
 
+export interface Tipologia {
+  rotulo: string;
+  dorms: number | null;
+  area: number | null;
+  vaga?: boolean | null;
+  varanda?: boolean | null;
+  preco: number;
+  qtd?: number;
+  /** avaliações dessa unidade por enquadramento (Cury) */
+  avaliacoes?: Record<string, number> | null;
+}
+
 export interface DevCompat {
   id: string;
   slug: string;
@@ -116,6 +128,8 @@ export interface DevCompat {
   construtora?: string | null;
   /** valor de avaliação da unidade mais barata (o financiamento vai até 80% dele) */
   avaliacao_min?: number | null;
+  /** tipos de unidade (a mais barata de cada) para simular outra opção */
+  tipologias?: Tipologia[] | null;
   /** avaliação por enquadramento: mcmv (faixa 1), mcmv3 (faixa 2), mcmv4 (faixas 3 e 4), sbpe (acima do programa) */
   avaliacoes?: Record<string, number> | null;
   /** ato mínimo na assinatura (vazio = padrão da construtora) */
@@ -363,8 +377,20 @@ export function preSimulacao(
   d: DevCompat,
   regra: RegraEntrada,
   hoje = new Date(),
+  /** outro tipo de unidade (em vez da mais barata) */
+  unidade?: Tipologia | null,
 ) {
-  const { preco, dorms } = precoParaAprovado(a, d);
+  const base = precoParaAprovado(a, d);
+  const preco = unidade ? unidade.preco : base.preco;
+  const dorms = unidade ? unidade.dorms : base.dorms;
+  // a avaliação da própria unidade (Cury) vale mais que a estimada pelo preço
+  if (unidade?.avaliacoes && Object.keys(unidade.avaliacoes).length)
+    d = {
+      ...d,
+      avaliacoes: unidade.avaliacoes,
+      avaliacao_min: unidade.avaliacoes.mcmv ?? d.avaliacao_min,
+      preco_min: unidade.preco,
+    };
   if (!preco) return null;
   const sub = Number(a.subsidio || 0);
   const fgts = Number(a.fgts || 0);
@@ -396,6 +422,7 @@ export function preSimulacao(
   return {
     preco,
     dorms,
+    rotulo: unidade?.rotulo ?? null,
     financiamento: Math.round(financiamento),
     subsidio: sub,
     fgts,
@@ -420,7 +447,7 @@ export function textoPreSimulacao(
 ) {
   const L: string[] = [
     opc.estimado ? "📋 *Sua simulação*" : "📋 *Sua pré-simulação*",
-    `• Valor do imóvel${p.dorms ? ` (${p.dorms} ${p.dorms === 1 ? "dormitório" : "dormitórios"})` : ""}: ${formatBRL(p.preco)}`,
+    `• Valor do imóvel${p.rotulo ? ` (${p.rotulo})` : p.dorms ? ` (${p.dorms} ${p.dorms === 1 ? "dormitório" : "dormitórios"})` : ""}: ${formatBRL(p.preco)}`,
   ];
   if (p.financiamento > 0)
     L.push(

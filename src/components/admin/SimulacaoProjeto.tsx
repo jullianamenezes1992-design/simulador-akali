@@ -57,11 +57,11 @@ export default function SimulacaoProjeto({
     );
   }, [busca, devs]);
 
-  const simular = (id: string) => {
+  const simular = (id: string, tipo = -1) => {
     setDevId(id);
     setRes(null);
     if (!id) return;
-    start(async () => setRes(await simularProjetoLead(leadId, id)));
+    start(async () => setRes(await simularProjetoLead(leadId, id, tipo)));
   };
 
   const r = res && "ok" in res && res.ok ? (res as Ok) : null;
@@ -126,11 +126,32 @@ export default function SimulacaoProjeto({
               </span>
             ) : null}
           </p>
+          {r.tipos.length > 1 && (
+            <label className="mb-2 block">
+              <span className="label">Tipo de unidade</span>
+              <select
+                value={r.tipo}
+                onChange={(e) => simular(devId, Number(e.target.value))}
+                className="input"
+              >
+                <option value={-1}>Mais barata (padrão)</option>
+                {r.tipos.map((t, k) => (
+                  <option key={k} value={k}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
             <dt className="text-ink-soft">Valor do imóvel</dt>
             <dd className="font-semibold">
               {formatBRL(r.resumo.preco)}
-              {r.resumo.dorms ? ` (${r.resumo.dorms} dorm.)` : ""}
+              {r.resumo.rotulo
+                ? ` (${r.resumo.rotulo})`
+                : r.resumo.dorms
+                  ? ` (${r.resumo.dorms} dorm.)`
+                  : ""}
             </dd>
             <dt className="text-ink-soft">Financiamento estimado</dt>
             <dd>{formatBRL(r.resumo.financiamento)}</dd>
