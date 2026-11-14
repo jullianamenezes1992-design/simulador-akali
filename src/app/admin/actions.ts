@@ -1583,3 +1583,11 @@ export async function registrarCobrancaDocs(leadId: string) {
   revalidatePath("/admin/dia");
   revalidatePath(`/admin/leads/${leadId}`);
 }
+
+/** Abriu a conversa no WhatsApp pela ficha do cliente: conta como contato do dia. */
+export async function registrarConversa(leadId: string) {
+  const { supabase } = await assertAdmin();
+  if (!UUID_RE.test(leadId)) return;
+  await supabase.from("lead_events").insert({ lead_id: leadId, tipo: "nota", dados: { texto: "Conversa aberta no WhatsApp" } });
+  revalidatePath("/admin/dia");
+}

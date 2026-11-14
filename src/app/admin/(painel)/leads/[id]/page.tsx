@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, BadgeCheck, MessageCircle, UserPlus } from "lucide-react";
+import { ArrowLeft, BadgeCheck, UserPlus } from "lucide-react";
 import { nomeContato } from "@/lib/contato";
 import DadosClienteEditor from "@/components/admin/DadosClienteEditor";
+import ChamarLead from "@/components/admin/ChamarLead";
 import MensagensProntas from "@/components/admin/MensagensProntas";
 import { mensagensDaEtapa, preencherMensagem } from "@/lib/mensagens-prontas";
 import { siteUrl } from "@/lib/server/notificacoes";
@@ -209,9 +210,7 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
             <a href={`/api/admin/contato/${l.id}`} className="btn-secondary" title={`Salvar como: ${nomeContato(l)}`}>
               <UserPlus size={16} /> Salvar no celular
             </a>
-            <a href={`https://wa.me/55${l.telefone}`} target="_blank" rel="noreferrer" className="btn-whatsapp">
-              <MessageCircle size={16} /> Chamar {maskPhone(l.telefone)}
-            </a>
+            <ChamarLead leadId={l.id} telefone={l.telefone} rotulo={`Chamar ${maskPhone(l.telefone)}`} />
           </div>
         )}
         {!anonimizado && l.status === "aprovado" && !aprovadoReg.data && (

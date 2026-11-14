@@ -432,7 +432,49 @@ export async function montarMeuDia(
   const novos = ((novosQ.data ?? []) as unknown as L[]).filter(
     (l) => !tocados.has(l.id),
   );
-  const quentes = ((quentesQ.data ?? []) as unknown as L[]).filter(naoTocado);
+  // leads quentes: só voltam para a lista depois de 1 dia inteiro sem contato
+  // (mensagem, simulação enviada, observação, mudança de etapa ou edição no cadastro)
+  const quentesTodos = (quentesQ.data ?? []) as unknown as L[];
+  const ontemIni = new Date(new Date(inicio).getTime() - 864e5).toISOString();
+  const idsQ = quentesTodos.map((l) => l.id);
+  const recentes = new Set<string>();
+  const simEnviada = new Set<string>();
+  if (idsQ.length) {
+    const [evR, notasR, simR] = await Promise.all([
+      db
+        .from("lead_events")
+        .select("lead_id")
+        .in("lead_id", idsQ)
+        .gte("created_at", ontemIni)
+        .in("tipo", [
+          "mensagem_enviada",
+          "simulacao_enviada",
+          "nota",
+          "status_alterado",
+          "carteira_rebatida",
+          "oferta_enviada",
+        ])
+        .limit(2000),
+      db
+        .from("lead_notes")
+        .select("lead_id")
+        .in("lead_id", idsQ)
+        .gte("created_at", ontemIni)
+        .limit(2000),
+      db
+        .from("lead_events")
+        .select("lead_id")
+        .in("lead_id", idsQ)
+        .eq("tipo", "simulacao_enviada")
+        .limit(2000),
+    ]);
+    for (const r of [...(evR.data ?? []), ...(notasR.data ?? [])])
+      recentes.add(r.lead_id as string);
+    for (const r of simR.data ?? []) simEnviada.add(r.lead_id as string);
+  }
+  const quentes = quentesTodos.filter(
+    (l) => !tocados.has(l.id) && !recentes.has(l.id) && l.updated_at < ontemIni,
+  );
   const semResp = ((semRespQ.data ?? []) as unknown as L[]).filter(naoTocado);
   // montagem de pasta: cobrar documentos 1x ao dia (some da lista quem já foi cobrado/atendido hoje)
   type LP = {
@@ -528,11 +570,15 @@ export async function montarMeuDia(
       item: "quentes",
       hora: "9h30",
       titulo: "Leads quentes (atendimento e simulação)",
-      dica: "Responder, enviar a simulação e avançar a etapa.",
+      dica: "Responder, enviar a simulação e avançar a etapa. Quem você atendeu ontem ou hoje só volta depois de 1 dia sem contato.",
       clientes: quentes.map((l) =>
         cli(
           l,
-          l.status === "simulacao" ? "enviar simulação" : l.escolhido?.nome,
+          l.status === "simulacao"
+            ? simEnviada.has(l.id)
+              ? "simulação já enviada: cobrar retorno"
+              : "enviar simulação"
+            : l.escolhido?.nome,
         ),
       ),
       total: quentes.length,
