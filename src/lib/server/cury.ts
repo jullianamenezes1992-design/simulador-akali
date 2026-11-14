@@ -1,5 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { Tipologia } from "@/lib/aprovados";
 
 /**
  * Tabelas Cury do site do gerente de parcerias (guerato.com.br): lê o PDF "TABELA" de cada projeto
@@ -310,6 +311,23 @@ function resumir(unidades: Unid[]) {
   };
 }
 
+/** Mantém a avaliação já cadastrada de cada tipo de unidade. */
+function travarAvTipologias(
+  novas: Tipologia[],
+  antigas: Tipologia[] | null,
+): Tipologia[] {
+  const chave = (t: Tipologia) => `${t.dorms}|${t.area}|${t.varanda}|${t.vaga}`;
+  const velhas = new Map((antigas ?? []).map((t) => [chave(t), t.avaliacoes]));
+  return novas.map((t) => {
+    const v = velhas.get(chave(t));
+    if (!v) return t;
+    const av: Record<string, number> = { ...v };
+    for (const [k, n] of Object.entries(t.avaliacoes ?? {}))
+      if (!(Number(av[k]) > 0) && Number(n) > 0) av[k] = n as number;
+    return { ...t, avaliacoes: av };
+  });
+}
+
 export type ResultadoCury = {
   ok: boolean;
   atualizados: number;
@@ -329,7 +347,7 @@ export async function sincronizarCury(): Promise<ResultadoCury> {
   };
   const { data: devs, error } = await db
     .from("developments")
-    .select("id, slug, nome, preco_min")
+    .select("id, slug, nome, preco_min, avaliacoes, avaliacao_min, tipologias")
     .in("slug", Object.keys(MAPA_CURY));
   if (error) return { ...res, erros: [error.message] };
   const fila = [...(devs ?? [])];
@@ -363,13 +381,22 @@ export async function sincronizarCury(): Promise<ResultadoCury> {
           unidades_disponiveis: r.disponiveis,
           disponivel: r.disponiveis > 0,
           precos_por_dorm: r.porDorm,
-          tipologias: r.tipologias,
+          tipologias: travarAvTipologias(
+            r.tipologias,
+            d.tipologias as Tipologia[] | null,
+          ),
         };
         if (r.preco) {
           upd.preco_min = r.preco;
           upd.faixas = faixasPorPreco(r.preco);
-          upd.avaliacoes = r.avaliacoes;
-          if (r.avaliacoes.mcmv) upd.avaliacao_min = r.avaliacoes.mcmv;
+          // avaliação cadastrada não muda mais: só preenche o que estiver vazio
+          const atuais = (d.avaliacoes ?? {}) as Record<string, number>;
+          const juntas: Record<string, number> = { ...atuais };
+          for (const [k, v] of Object.entries(r.avaliacoes))
+            if (!(Number(juntas[k]) > 0) && Number(v) > 0) juntas[k] = v;
+          upd.avaliacoes = juntas;
+          if (!(Number(d.avaliacao_min) > 0) && juntas.mcmv)
+            upd.avaliacao_min = juntas.mcmv;
           upd.condicoes_comerciais = `Valor "a partir de" da unidade mais barata disponível na tabela Cury${validade ? ` (validade ${validade})` : ""}, sem contar unidades não residenciais (NR). Sujeito a alteração e disponibilidade.`;
         }
         const { error: e } = await db

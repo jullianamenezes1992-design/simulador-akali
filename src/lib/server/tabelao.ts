@@ -460,7 +460,11 @@ export async function sincronizarTabelao(
       muda("disponivel", !esgotado, "à venda");
       if (posChaves.has(n))
         muda("meses_pos_chaves", posChaves.get(n)!, "parcelas pós-chaves");
-      if (avaliacoes.has(n))
+      // avaliação cadastrada não muda mais: só preenche quando estiver vazia
+      if (
+        avaliacoes.has(n) &&
+        !(Number((atual as Record<string, unknown>).avaliacao_min) > 0)
+      )
         muda("avaliacao_min", avaliacoes.get(n)!, "avaliação");
       if (unidades !== null)
         muda("precos_por_dorm", unidades.length ? (porDorm.get(n) ?? {}) : {});
