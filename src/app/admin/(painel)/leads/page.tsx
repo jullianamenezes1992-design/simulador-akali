@@ -10,6 +10,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { PageHeader } from "@/components/admin/ui";
+import NovoContatoRedes from "@/components/admin/NovoContatoRedes";
 import { LEAD_STATUS, leadStatusInfo } from "@/lib/constants";
 import { formatBRL, formatDate, maskPhone } from "@/lib/format";
 import { requireAdmin } from "@/lib/server/auth";
@@ -161,6 +162,7 @@ export default async function LeadsPage({
         titulo="Leads"
         descricao={`${count ?? 0} cadastro(s) encontrados.`}
       >
+        <NovoContatoRedes titulo="Novo lead" origemPadrao="Base Salesforce" />
         <a
           href="/api/admin/contatos-google"
           className="btn-secondary"
