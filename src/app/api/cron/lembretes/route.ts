@@ -119,7 +119,8 @@ ${t.lead && linkLead(t.lead.id) ? `<p><a href="${linkLead(t.lead.id)}" style="co
       .or(`ultimo_resumo_em.is.null,ultimo_resumo_em.neq.${hoje}`)
       .select("id")
       .maybeSingle();
-    if (marcado) {
+    const { data: folgaHoje } = await db.from("rotina_dia").select("dia").eq("dia", hoje).eq("item", "folga").maybeSingle();
+    if (marcado && !folgaHoje) {
       // resumo da rotina "Meu dia": o que precisa ser feito hoje, bloco a bloco
       const { montarMeuDia } = await import("@/lib/server/meu-dia");
       const { blocos } = await montarMeuDia(db, hoje);

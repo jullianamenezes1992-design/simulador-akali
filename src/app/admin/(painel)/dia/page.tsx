@@ -12,6 +12,8 @@ import { getSettings } from "@/lib/data";
 import { maskPhone } from "@/lib/format";
 import { requireAdmin } from "@/lib/server/auth";
 import { montarMeuDia, PAUSAS } from "@/lib/server/meu-dia";
+import { diaSP } from "@/lib/agenda";
+import { DesfazerFolgaHoje, Folgas } from "@/components/admin/Folgas";
 import { Fragment } from "react";
 
 export const metadata: Metadata = { title: "Meu dia" };
@@ -33,10 +35,19 @@ function saudacao() {
 
 export default async function MeuDiaPage() {
   const { supabase, nome } = await requireAdmin();
-  const [{ hoje, blocos, finalizado }, s] = await Promise.all([
+  const [{ hoje, blocos, finalizado }, s, folgasQ] = await Promise.all([
     montarMeuDia(supabase),
     getSettings(),
+    supabase
+      .from("rotina_dia")
+      .select("dia")
+      .eq("item", "folga")
+      .gte("dia", diaSP())
+      .order("dia")
+      .limit(30),
   ]);
+  const folgas = (folgasQ.data ?? []).map((f) => f.dia as string);
+  const ehFolga = folgas.includes(hoje);
   const feitos = blocos.filter((b) => b.feito).length;
   const pct = Math.round((feitos / blocos.length) * 100);
   const dataLonga = new Date(`${hoje}T12:00:00-03:00`).toLocaleDateString(
@@ -59,6 +70,29 @@ export default async function MeuDiaPage() {
       return `Oi, ${p}! Tudo bem? 😊\n\nAqui é da ${assinatura}. Lembrei de você: saíram novas condições no *Minha Casa Minha Vida* e às vezes dá para fazer uma *nova análise* (ou compor renda com alguém da família).\n\nQuer que eu veja se agora dá certo para você?`;
     return `Oi, ${p}! Tudo bem? 😊\n\nAqui é da ${assinatura}. Saíram novas condições no *Minha Casa Minha Vida* e lançamentos com entrada facilitada.\n\nVocê ainda está procurando o seu apartamento? Posso te mandar as opções atualizadas? 🏡`;
   };
+
+  if (ehFolga)
+    return (
+      <div className="mx-auto max-w-xl py-10 text-center">
+        <p className="text-sm font-semibold capitalize text-ink-soft">
+          {dataLonga}
+        </p>
+        <p className="mt-4 text-6xl">🌴</p>
+        <h1 className="mt-3 text-2xl font-extrabold">
+          Hoje é sua folga{nome ? `, ${nome.split(" ")[0]}` : ""}!
+        </h1>
+        <p className="mt-2 text-ink-soft">
+          Nada de tarefas hoje. Amanhã o Meu dia volta com tudo organizado, sem
+          acumular.
+        </p>
+        <div className="mt-6">
+          <DesfazerFolgaHoje hoje={hoje} />
+        </div>
+        <div className="card mt-8 p-4 text-left">
+          <Folgas proximas={folgas} hoje={hoje} />
+        </div>
+      </div>
+    );
 
   return (
     <>
@@ -224,6 +258,9 @@ export default async function MeuDiaPage() {
           finalizado={finalizado}
           faltam={blocos.filter((b) => !b.feito).map((b) => b.titulo)}
         />
+      </div>
+      <div className="card mt-6 p-4">
+        <Folgas proximas={folgas} hoje={hoje} />
       </div>
     </>
   );

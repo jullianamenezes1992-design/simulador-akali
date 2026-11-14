@@ -1306,7 +1306,7 @@ export async function simularProjetoLead(leadId: string, devId: string) {
 // Meu dia (rotina diária)
 // ---------------------------------------------------------------------------
 
-const ITENS_ROTINA = ["agenda", "novos", "quentes", "sem_resposta", "pasta", "analise", "revisao_manha", "revisao_tarde", "conteudo", "aprovados", "carteira", "base_fria_manha", "base_fria_tarde", "redes", "fechamento", "dia_finalizado"];
+const ITENS_ROTINA = ["agenda", "novos", "quentes", "sem_resposta", "pasta", "analise", "revisao_manha", "revisao_tarde", "conteudo", "aprovados", "carteira", "base_fria_manha", "base_fria_tarde", "redes", "fechamento", "dia_finalizado", "folga"];
 
 /** Marca/desmarca um bloco da rotina de hoje (com uma anotação opcional, ex.: o vídeo gravado). */
 export async function marcarRotina(item: string, feito: boolean, nota?: string | null) {
@@ -1589,5 +1589,18 @@ export async function registrarConversa(leadId: string) {
   const { supabase } = await assertAdmin();
   if (!UUID_RE.test(leadId)) return;
   await supabase.from("lead_events").insert({ lead_id: leadId, tipo: "nota", dados: { texto: "Conversa aberta no WhatsApp" } });
+  revalidatePath("/admin/dia");
+}
+
+/** Marca ou desmarca um dia de folga (as folgas são alternadas, então ficam por data). */
+export async function marcarFolga(dia: string, folga: boolean) {
+  const { supabase } = await assertAdmin();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dia) || isNaN(Date.parse(dia))) throw new Error("Data inválida.");
+  if (folga) {
+    const { error } = await supabase.from("rotina_dia").upsert({ dia, item: "folga", feito_em: new Date().toISOString() }, { onConflict: "dia,item" });
+    if (error) throw new Error(error.message);
+  } else {
+    await supabase.from("rotina_dia").delete().eq("dia", dia).eq("item", "folga");
+  }
   revalidatePath("/admin/dia");
 }

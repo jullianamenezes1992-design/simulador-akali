@@ -284,7 +284,7 @@ export default async function NumerosPage({
         <Num
           label="Dias finalizados no Meu dia"
           v={finalizados}
-          sub={`de ${dias} dia(s) no período`}
+          sub={`de ${dias - rot.filter((r) => r.item === "folga" && r.dia >= ini && r.dia < fim).length} dia(s) de trabalho (sem folgas)`}
         />
       </Secao>
 
