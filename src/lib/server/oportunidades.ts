@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   avaliarDev,
   regraEntrada,
+  rotuloDormsAbaixo,
   STATUS_EM_ABERTO,
   type Aprovado,
   type DevCompat,
@@ -102,17 +103,27 @@ export async function registrarOportunidades(
       a: Aprovado;
       de: number;
       para: number;
+      obs: string | null;
     }[] = [];
     for (const a of aprovados) {
       const novo = avaliarDev(a, depois, regra);
       if (!novo.cabe) continue;
       const old = disponivel(velho) ? avaliarDev(a, velho, regra) : null;
-      if (old?.cabe) continue;
+      // já cabia (a não ser que antes só coubesse unidade menor e agora caiba a que ele quer)
+      const agoraNoQueQuer =
+        !!old?.cabe && old.dormsAbaixo && !novo.dormsAbaixo;
+      if (old?.cabe && !agoraNoQueQuer) continue;
       // só conta se a unidade dele ficou mais barata (ou não existia antes)
-      if (old && old.preco > 0 && novo.preco >= old.preco) continue;
+      if (!agoraNoQueQuer && old && old.preco > 0 && novo.preco >= old.preco)
+        continue;
       const para = Math.round(novo.preco);
       if (jaAvisado.has(`${depois.id}|${a.id}|${para}`)) continue;
-      lista.push({ a, de: old?.preco ?? 0, para: novo.preco });
+      lista.push({
+        a,
+        de: old?.preco ?? 0,
+        para: novo.preco,
+        obs: rotuloDormsAbaixo(novo),
+      });
     }
     if (!lista.length) continue;
 
@@ -135,10 +146,11 @@ export async function registrarOportunidades(
       descricao: tipoNovo ? descreve(tipoNovo) : null,
       aprovados: lista
         .sort((x, y) => Number(y.a.poder_compra) - Number(x.a.poder_compra))
-        .map(({ a }) => ({
+        .map(({ a, obs }) => ({
           id: a.id,
           nome: a.nome,
           poder_compra: a.poder_compra,
+          ...(obs ? { obs } : {}),
         })),
     });
     if (!error) criadas++;

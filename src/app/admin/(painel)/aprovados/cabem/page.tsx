@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/admin/ui";
 import EnviarOferta from "@/components/admin/EnviarOferta";
-import { STATUS_EM_ABERTO, avaliarDev, regraEntrada, classificacaoInfo, diasParaVencer, mensagemOferta, preSimulacao, type Aprovado, type DevCompat } from "@/lib/aprovados";
+import { STATUS_EM_ABERTO, avaliarDev, regraEntrada, rotuloDormsAbaixo, classificacaoInfo, diasParaVencer, mensagemOferta, preSimulacao, type Aprovado, type DevCompat } from "@/lib/aprovados";
 import { getActiveParams, getSettings } from "@/lib/data";
 import { formatBRL, formatDate, maskPhone } from "@/lib/format";
 import { requireAdmin } from "@/lib/server/auth";
@@ -84,6 +84,7 @@ export default async function CabemPage({ searchParams }: { searchParams: Promis
                   <p className="text-xs text-ink-soft">
                     {maskPhone(a.telefone)} · recursos {formatBRL(Number(a.poder_compra))}
                     {av.dorms ? ` · unidade de ${av.dorms} dorm. a partir de ${formatBRL(av.preco)}` : ""}
+                    {av.dormsAbaixo ? <span className="font-semibold text-amber-700"> · {rotuloDormsAbaixo(av)}</span> : ""}
                     {av.entradaParcelar > 0 ? ` · entrada a parcelar ${formatBRL(av.entradaParcelar)}${av.meses ? ` (≈ ${av.meses}x de ${formatBRL(av.parcelaEntrada)})` : ""}` : ""}
                     {falta > 0 ? <span className="font-semibold text-amber-700"> · faltam {formatBRL(falta)}</span> : ""}
                     {a.vencimento ? ` · vence ${formatDate(`${a.vencimento}T12:00:00Z`)}` : ""}

@@ -357,6 +357,47 @@ export function avaliarDev(
   tolerancia = 0,
   hoje = new Date(),
 ) {
+  const r = avaliarDevDorms(a, d, regra, tolerancia, hoje);
+  // dormitórios são preferência: se não cabe com o que ele quer, vê se cabe uma unidade menor
+  if (!r.cabe && Number(a.dormitorios_min) > 1) {
+    const menor = avaliarDevDorms(
+      { ...a, dormitorios_min: 1 },
+      d,
+      regra,
+      tolerancia,
+      hoje,
+    );
+    if (menor.cabe && menor.dorms != null && menor.dorms < a.dormitorios_min!)
+      return {
+        ...menor,
+        /** cabe só uma unidade com menos dormitórios do que o cliente queria */
+        dormsAbaixo: true,
+        dormsQueria: a.dormitorios_min as number | null,
+      };
+  }
+  return { ...r, dormsAbaixo: false, dormsQueria: a.dormitorios_min ?? null };
+}
+
+/** Rótulo "cabe 1 dorm. (queria 2)" quando só cabe unidade menor. */
+export const rotuloDormsAbaixo = (av: {
+  dormsAbaixo?: boolean;
+  dorms: number | null;
+  dormsQueria?: number | null;
+}) =>
+  av.dormsAbaixo
+    ? `cabe ${av.dorms} dorm. (cliente queria ${av.dormsQueria})`
+    : null;
+
+function avaliarDevDorms(
+  a: Pick<
+    Aprovado,
+    "poder_compra" | "renda_familiar" | "financiamento" | "dormitorios_min"
+  >,
+  d: DevCompat,
+  regra: RegraEntrada,
+  tolerancia = 0,
+  hoje = new Date(),
+) {
   // só as unidades em que o cliente se enquadra pela renda (HIS1/HIS2/HMP/R2V)
   d = restringirPorRenda(a.renda_familiar, d);
   // unidade mais barata com os dormitórios que o cliente quer (quando o tabelão informa)
@@ -431,8 +472,9 @@ export function compativeis(
       const regiaoOk =
         !a.regioes?.length || (d.regiao ? a.regioes.includes(d.regiao) : false);
       const dormOk =
-        !a.dormitorios_min ||
-        (d.dormitorios ?? []).some((n) => n >= a.dormitorios_min!);
+        !av.dormsAbaixo &&
+        (!a.dormitorios_min ||
+          (d.dormitorios ?? []).some((n) => n >= a.dormitorios_min!));
       return {
         dev: d,
         regiaoOk,
@@ -464,7 +506,15 @@ export function preSimulacao(
 ) {
   const foraEnquadramento =
     !!unidade && !podeComprarUnidade(a.renda_familiar, unidade.enquadramento);
-  if (!unidade) d = restringirPorRenda(a.renda_familiar, d);
+  if (!unidade) {
+    // se só cabe unidade com menos dormitórios, simula essa
+    if (
+      Number(a.dormitorios_min) > 1 &&
+      avaliarDev(a, d, regra, 0, hoje).dormsAbaixo
+    )
+      a = { ...a, dormitorios_min: 1 };
+    d = restringirPorRenda(a.renda_familiar, d);
+  }
   const base = precoParaAprovado(a, d);
   const preco = unidade ? unidade.preco : base.preco;
   const dorms = unidade ? unidade.dorms : base.dorms;

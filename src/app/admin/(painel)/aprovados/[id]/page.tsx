@@ -8,7 +8,7 @@ import EnviarOferta from "@/components/admin/EnviarOferta";
 import ExcluirAprovado from "@/components/admin/ExcluirAprovado";
 import RespondeuOferta from "@/components/admin/RespondeuOferta";
 import OutraUnidade from "@/components/admin/OutraUnidade";
-import { REANALISE, mensagemReanalise, STATUS_EM_ABERTO, compativeis, compraAte, diasParaVencer, mensagemOferta, ofertaDoProjeto, preSimulacao, ofertasPorProjeto, regraEntrada, semRespostaSeguidas, type Aprovado, type OfertaEnviada } from "@/lib/aprovados";
+import { REANALISE, mensagemReanalise, STATUS_EM_ABERTO, compativeis, compraAte, diasParaVencer, mensagemOferta, ofertaDoProjeto, preSimulacao, ofertasPorProjeto, regraEntrada, rotuloDormsAbaixo, semRespostaSeguidas, type Aprovado, type OfertaEnviada } from "@/lib/aprovados";
 import { getActiveParams, getSettings } from "@/lib/data";
 import { regiaoLabel } from "@/lib/constants";
 import { formatBRL, formatDate } from "@/lib/format";
@@ -87,6 +87,7 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
           <p className="mt-0.5 flex flex-wrap gap-1 text-[11px] font-semibold">
             {c.regiaoOk && a.regioes?.length ? <span className="rounded-full bg-emerald-100 px-2 text-emerald-800">região certa</span> : null}
             {c.dormOk && a.dormitorios_min ? <span className="rounded-full bg-emerald-100 px-2 text-emerald-800">dormitórios ok</span> : null}
+            {c.av.dormsAbaixo ? <span className="rounded-full bg-amber-100 px-2 text-amber-900">{rotuloDormsAbaixo(c.av)}</span> : null}
             {c.dev.oferta_destaque && <span className="rounded-full bg-sol px-2 text-ink">promoção</span>}
             {c.dev.unidades_disponiveis != null && c.dev.unidades_disponiveis < 50 && <span className="rounded-full bg-red-600 px-2 text-white">últimas unidades</span>}
             {enviada && <span className="rounded-full bg-zinc-200 px-2 text-zinc-800">📤 oferta enviada em {formatDate(enviada)}</span>}

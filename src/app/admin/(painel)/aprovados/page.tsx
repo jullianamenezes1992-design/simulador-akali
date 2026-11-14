@@ -27,7 +27,7 @@ import { getActiveParams } from "@/lib/data";
 export const metadata: Metadata = { title: "Clientes aprovados" };
 
 type SP = Promise<Record<string, string | undefined>>;
-type Op = { id: number; tipo: string; descricao?: string | null; preco_antes: number | null; preco_depois: number | null; aprovados: { id: string; nome: string; poder_compra: number }[]; created_at: string; visto_em: string | null; dev: { id: string; nome: string; slug: string } | null };
+type Op = { id: number; tipo: string; descricao?: string | null; preco_antes: number | null; preco_depois: number | null; aprovados: { id: string; nome: string; poder_compra: number; obs?: string }[]; created_at: string; visto_em: string | null; dev: { id: string; nome: string; slug: string } | null };
 
 export default async function AprovadosPage({ searchParams }: { searchParams: SP }) {
   const { supabase } = await requireAdmin();
@@ -131,6 +131,7 @@ export default async function AprovadosPage({ searchParams }: { searchParams: SP
                       <Link href={`/admin/aprovados/${a.id}`} className="font-semibold text-caixa hover:underline">
                         {a.nome}
                       </Link>
+                      {a.obs ? <span className="text-xs font-semibold text-amber-700"> ({a.obs})</span> : null}
                     </span>
                   ))}
                   {o.dev && (
