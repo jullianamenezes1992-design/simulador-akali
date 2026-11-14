@@ -415,7 +415,7 @@ export async function montarMeuDia(
       titulo: `Revisar análises · ${turno === "manha" ? "manhã" : "tarde"}`,
       dica:
         turno === "manha"
-          ? "Clientes aprovando no sistema da Caixa: confira a AR no Salesforce, dê retorno ao cliente e atualize a etapa."
+          ? "Clientes aprovando no sistema da Caixa: confira a AR no Salesforce, dê retorno ao cliente e atualize a etapa. Quem tem compromisso na agenda só aparece depois da data marcada."
           : "Segunda conferência do dia: veja o que mudou desde a manhã e dê retorno aos clientes.",
       clientes: lista,
       total: lista.length,
@@ -525,8 +525,17 @@ export async function montarMeuDia(
     l.status === "serasa_bacen"
       ? (desdeSerasa.get(l.id) ?? l.updated_at)
       : l.updated_at;
+  // quem tem compromisso marcado (hoje ou no futuro) só volta para a revisão depois da data agendada
+  const comAgendamento = new Set<string>([
+    ...comFutura,
+    ...((tarefasQ.data ?? []) as unknown as { lead?: { id: string } | null }[])
+      .map((t) => t.lead?.id)
+      .filter((x): x is string => !!x),
+  ]);
   const analise = ((analiseD ?? []) as LA[]).filter(
-    (l) => l.status === "analise_credito" || diasParado(desde(l)) >= 60,
+    (l) =>
+      !comAgendamento.has(l.id) &&
+      (l.status === "analise_credito" || diasParado(desde(l)) >= 60),
   );
 
   const vencendo = vencendoQ.data ?? [];
