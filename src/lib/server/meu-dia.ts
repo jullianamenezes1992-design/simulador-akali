@@ -717,6 +717,17 @@ export async function montarMeuDia(
       feito: feitos.has("fechamento"),
     },
   ];
+  // regra geral: cliente com atividade agendada (hoje ou no futuro) só volta para os afazeres
+  // depois da data do agendamento — até lá ele aparece só na Agenda
+  for (const b of blocos) {
+    if (b.item === "agenda" || b.item.startsWith("base_fria") || !b.clientes.length) continue;
+    const antes = b.clientes.length;
+    b.clientes = b.clientes.filter((c) => !comAgendamento.has(c.id));
+    const tirados = antes - b.clientes.length;
+    if (!tirados) continue;
+    b.total = Math.max(0, b.total - tirados);
+    if (b.clientes.length === 0 && !b.manual) b.feito = true;
+  }
   const finalizado = feitos.has("dia_finalizado");
   return {
     hoje,
