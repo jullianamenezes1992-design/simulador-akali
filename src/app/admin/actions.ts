@@ -1624,3 +1624,14 @@ export async function marcarRespostaAprovado(aprovadoId: string) {
   revalidatePath(`/admin/aprovados/${aprovadoId}`);
   revalidatePath("/admin/dia");
 }
+
+/** Tabelas Cury (site do Guerato): atualiza agora. */
+export async function atualizarCuryAgora() {
+  await assertAdmin(true);
+  const { sincronizarCury } = await import("@/lib/server/cury");
+  const r = await sincronizarCury();
+  const { createAdminClient: adm } = await import("@/lib/supabase/admin");
+  await adm().from("notification_settings").update({ ultimo_cury_em: (await import("@/lib/agenda")).diaSP(), ultimo_cury_resultado: `${r.atualizados} atualizado(s)${r.erros.length ? `, ${r.erros.length} erro(s)` : ""} (manual)` }).eq("id", 1);
+  revalidatePath("/admin/empreendimentos");
+  return r;
+}
