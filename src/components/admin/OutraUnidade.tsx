@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Layers } from "lucide-react";
 import EnviarOferta from "@/components/admin/EnviarOferta";
 import {
+  categoriasPermitidas,
   mensagemOferta,
+  podeComprarUnidade,
   preSimulacao,
   type Aprovado,
   type DevCompat,
@@ -31,14 +33,16 @@ export default function OutraUnidade({
   assinatura: string;
   jaEnviada: string | null;
 }) {
-  const tipos = dev.tipologias ?? [];
+  // só os tipos de unidade em que o cliente se enquadra pela renda
+  const todos = dev.tipologias ?? [];
+  const tipos = todos.filter((t) =>
+    podeComprarUnidade(aprovado.renda_familiar, t.enquadramento),
+  );
+  const filtrou = tipos.length < todos.length;
   const [aberto, setAberto] = useState(false);
   const [i, setI] = useState<number>(-1);
   const t = i >= 0 ? tipos[i] : null;
-  const ps = useMemo(
-    () => (t ? preSimulacao(aprovado, dev, regra, new Date(), t) : null),
-    [t, aprovado, dev, regra],
-  );
+  const ps = t ? preSimulacao(aprovado, dev, regra, new Date(), t) : null;
   if (tipos.length < 2) return null;
 
   if (!aberto)
@@ -70,6 +74,13 @@ export default function OutraUnidade({
           ))}
         </select>
       </label>
+      {filtrou && (
+        <p className="mt-1 text-xs text-ink-soft">
+          Pela renda, este cliente só pode comprar unidades{" "}
+          {categoriasPermitidas(aprovado.renda_familiar).join(", ")}. As outras
+          categorias ficaram de fora.
+        </p>
+      )}
       {ps && (
         <div className="mt-2 space-y-1 text-xs">
           <p>

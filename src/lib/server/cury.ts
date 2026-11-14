@@ -83,6 +83,8 @@ type Unid = {
   area: number | null;
   nome: string;
   av: Record<string, number>;
+  /** enquadramento da prefeitura de SP: HIS1, HIS2, HMP, R2V ou NR */
+  enq: string | null;
 };
 type Item = { s: string; x: number; y: number; cx: number };
 
@@ -142,6 +144,22 @@ async function lerTabela(
     const hq = it.find((i) => /^Quantidade de/i.test(i.s));
     if (!hq) continue;
     const ha = it.find((i) => i.s === "m²");
+    const he = it.find(
+      (i) => /^Enquadramento/i.test(i.s) && Math.abs(i.y - hq.y) < 25,
+    );
+    const enqs = he
+      ? it
+          .filter(
+            (i) =>
+              Math.abs(i.cx - he.cx) < 30 &&
+              /^(HIS ?-?[12]|HMP|R2V|NR)$/i.test(i.s) &&
+              i.y < hq.y - 5,
+          )
+          .map((i) => ({
+            v: i.s.toUpperCase().replace(/[\s-]/g, ""),
+            y: i.y,
+          }))
+      : [];
     const head = (re: RegExp) =>
       it.find((i) => re.test(i.s) && Math.abs(i.y - hq.y) < 25);
     const cols: Record<string, Item | undefined> = {
@@ -193,7 +211,9 @@ async function lerTabela(
         const n = perto(colVals[k], q.y);
         if (n && Math.abs(n.y - q.y) < 40) av[k] = n.v;
       }
+      const en = perto(enqs, q.y);
       unidades.push({
+        enq: en && Math.abs(en.y - q.y) < 6 ? en.v : null,
         preco: pr.v,
         qtd: Number(q.s),
         area: area ? Number(area.s.replace(",", ".")) : null,
@@ -213,7 +233,13 @@ const r2 = (v: number) => Math.round(v * 100) / 100;
 /** Resumo do projeto a partir das unidades da tabela. */
 function resumir(unidades: Unid[]) {
   const res = unidades
-    .filter((u) => u.qtd > 0 && u.preco > 80000 && !NAO_RESID.test(u.nome))
+    .filter(
+      (u) =>
+        u.qtd > 0 &&
+        u.preco > 80000 &&
+        u.enq !== "NR" &&
+        !NAO_RESID.test(u.nome),
+    )
     .sort((a, b) => a.preco - b.preco);
   const dormsDe = (u: Unid) => {
     const m = u.nome.match(/(\d+)\s*dorm/i);
@@ -238,6 +264,7 @@ function resumir(unidades: Unid[]) {
       preco: number;
       qtd: number;
       av: Record<string, number>;
+      enq: string | null;
     }
   >();
   for (const u of res) {
@@ -255,7 +282,7 @@ function resumir(unidades: Unid[]) {
         : null;
     const suite = /su[ií]te/i.test(u.nome);
     const area = u.area ? Math.round(u.area) : null;
-    const k = [d, area, varanda, suite, vaga].join("|");
+    const k = [d, area, varanda, suite, vaga, u.enq].join("|");
     const t = tipos.get(k);
     if (!t)
       tipos.set(k, {
@@ -267,6 +294,7 @@ function resumir(unidades: Unid[]) {
         preco: r2(u.preco),
         qtd: u.qtd,
         av: u.av,
+        enq: u.enq,
       });
     else {
       t.qtd += u.qtd;
@@ -278,7 +306,7 @@ function resumir(unidades: Unid[]) {
   }
   const tipologias = [...tipos.values()]
     .sort((a, b) => a.preco - b.preco)
-    .slice(0, 15)
+    .slice(0, 25)
     .map((t) => ({
       rotulo: [
         `${t.dorms} dorm.`,
@@ -290,6 +318,7 @@ function resumir(unidades: Unid[]) {
             ? "sem sacada"
             : null,
         t.vaga === true ? "com vaga" : t.vaga === false ? "sem vaga" : null,
+        t.enq,
       ]
         .filter(Boolean)
         .join(" · "),
@@ -300,6 +329,7 @@ function resumir(unidades: Unid[]) {
       preco: t.preco,
       qtd: t.qtd,
       avaliacoes: t.av,
+      enquadramento: t.enq,
     }));
   const maisBarata = res[0];
   return {
@@ -316,7 +346,8 @@ function travarAvTipologias(
   novas: Tipologia[],
   antigas: Tipologia[] | null,
 ): Tipologia[] {
-  const chave = (t: Tipologia) => `${t.dorms}|${t.area}|${t.varanda}|${t.vaga}`;
+  const chave = (t: Tipologia) =>
+    `${t.dorms}|${t.area}|${t.varanda}|${t.vaga}|${t.enquadramento ?? ""}`;
   const velhas = new Map((antigas ?? []).map((t) => [chave(t), t.avaliacoes]));
   return novas.map((t) => {
     const v = velhas.get(chave(t));

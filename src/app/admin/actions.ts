@@ -1207,13 +1207,11 @@ export async function simularProjetoLead(leadId: string, devId: string, tipo = -
     supabase.from("developments").select("id, slug, nome, bairro, regiao, preco_min, dormitorios, oferta_destaque, oferta_texto, unidades_disponiveis, status_obra, previsao_entrega, meses_pos_chaves, construtora, avaliacao_min, ato_minimo, precos_por_dorm, avaliacoes, tipologias").eq("id", devId).maybeSingle(),
   ]);
   if (!l || !d) return { erro: "Cliente ou projeto não encontrado." };
-  const tipologias = (d.tipologias ?? []) as import("@/lib/aprovados").Tipologia[];
-  const unidade = tipo >= 0 ? (tipologias[tipo] ?? null) : null;
   if (!d.preco_min) return { erro: "Esse projeto está sem preço cadastrado." };
 
   const { getActiveParams, getSettings } = await import("@/lib/data");
   const { simular } = await import("@/lib/simulacao/engine");
-  const { preSimulacao, textoPreSimulacao, regraEntrada } = await import("@/lib/aprovados");
+  const { preSimulacao, textoPreSimulacao, regraEntrada, podeComprarUnidade, categoriasPermitidas } = await import("@/lib/aprovados");
   const { siteUrl } = await import("@/lib/server/notificacoes");
   const ativo = await getActiveParams();
   if (!ativo) return { erro: "Parâmetros da simulação não configurados." };
@@ -1258,6 +1256,12 @@ export async function simularProjetoLead(leadId: string, devId: string, tipo = -
     dormitorios_min: l.dormitorios_min ?? null,
     faixa: sim.faixa?.id ?? null,
   } as unknown as import("@/lib/aprovados").Aprovado;
+  // só os tipos de unidade em que o cliente se enquadra pela renda (HIS1/HIS2/HMP/R2V)
+  const todas = (d.tipologias ?? []) as import("@/lib/aprovados").Tipologia[];
+  const tipologias = todas.filter((t) => podeComprarUnidade(sim.rendaTotal, t.enquadramento));
+  if (todas.length && !tipologias.length)
+    return { erro: `Com renda de ${sim.rendaTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} o cliente só pode comprar unidades ${categoriasPermitidas(sim.rendaTotal).join(", ")}, e esse projeto não tem nenhuma disponível.` };
+  const unidade = tipo >= 0 ? (tipologias[tipo] ?? null) : null;
   const ps = preSimulacao(comoAprovado, d as import("@/lib/aprovados").DevCompat, regra, new Date(), unidade);
   if (!ps) return { erro: "Não foi possível simular esse projeto." };
 

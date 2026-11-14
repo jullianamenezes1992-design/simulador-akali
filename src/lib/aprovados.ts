@@ -109,6 +109,86 @@ export interface Tipologia {
   qtd?: number;
   /** avaliações dessa unidade por enquadramento (Cury) */
   avaliacoes?: Record<string, number> | null;
+  /** categoria da prefeitura de SP (HIS1, HIS2, HMP, R2V) — limita quem pode comprar */
+  enquadramento?: string | null;
+}
+
+/**
+ * Renda familiar máxima por categoria de unidade em São Paulo
+ * (Plano Diretor + Decreto Municipal 64.895/2026: 3, 6 e 10 salários mínimos de R$ 1.621).
+ * R2V é unidade de mercado, sem limite de renda. Atualizar todo começo de ano.
+ */
+export const LIMITE_ENQUADRAMENTO: Record<string, number> = {
+  HIS1: 4863,
+  HIS2: 9726,
+  HMP: 16210,
+};
+
+/** O cliente pode comprar uma unidade dessa categoria? (sem categoria = sem restrição) */
+export function podeComprarUnidade(
+  renda: number | null | undefined,
+  enq: string | null | undefined,
+) {
+  if (!enq) return true;
+  const lim = LIMITE_ENQUADRAMENTO[enq];
+  if (lim == null) return true;
+  if (!(Number(renda) > 0)) return true;
+  return Number(renda) <= lim;
+}
+
+/** Categorias que o cliente pode comprar, para exibir ("HIS2, HMP ou R2V"). */
+export function categoriasPermitidas(renda: number | null | undefined) {
+  const r = Number(renda || 0);
+  return [
+    ...Object.entries(LIMITE_ENQUADRAMENTO)
+      .filter(([, lim]) => r <= lim)
+      .map(([k]) => k),
+    "R2V",
+  ];
+}
+
+/**
+ * Projeto visto pelo cliente: só as unidades em que ele se enquadra pela renda
+ * (preço "a partir de", preço por dormitório e avaliação passam a ser dessas unidades).
+ * Projeto sem categoria nas unidades fica como está.
+ */
+export function restringirPorRenda<T extends DevCompat>(
+  renda: number | null | undefined,
+  d: T,
+): T & { semUnidadeNaRenda?: boolean } {
+  const tipos = d.tipologias ?? [];
+  if (!tipos.some((t) => t.enquadramento)) return d;
+  const ok = tipos
+    .filter((t) => podeComprarUnidade(renda, t.enquadramento))
+    .sort((x, y) => x.preco - y.preco);
+  if (ok.length === tipos.length) return d;
+  if (!ok.length)
+    return {
+      ...d,
+      preco_min: 0,
+      precos_por_dorm: {},
+      tipologias: [],
+      semUnidadeNaRenda: true,
+    };
+  const porDorm: Record<string, number> = {};
+  for (const t of ok) {
+    const k = String(t.dorms ?? 1);
+    if (!(porDorm[k] <= t.preco)) porDorm[k] = t.preco;
+  }
+  const barata = ok[0];
+  const av =
+    barata.avaliacoes && Object.keys(barata.avaliacoes).length
+      ? barata.avaliacoes
+      : null;
+  return {
+    ...d,
+    preco_min: barata.preco,
+    precos_por_dorm: porDorm,
+    tipologias: ok,
+    ...(av
+      ? { avaliacoes: av, avaliacao_min: av.mcmv ?? d.avaliacao_min }
+      : {}),
+  };
 }
 
 export interface DevCompat {
@@ -277,6 +357,8 @@ export function avaliarDev(
   tolerancia = 0,
   hoje = new Date(),
 ) {
+  // só as unidades em que o cliente se enquadra pela renda (HIS1/HIS2/HMP/R2V)
+  d = restringirPorRenda(a.renda_familiar, d);
   // unidade mais barata com os dormitórios que o cliente quer (quando o tabelão informa)
   const { preco, dorms } = precoParaAprovado(a, d);
   // o financiamento usado no projeto vai até 80% da avaliação da unidade
@@ -380,6 +462,9 @@ export function preSimulacao(
   /** outro tipo de unidade (em vez da mais barata) */
   unidade?: Tipologia | null,
 ) {
+  const foraEnquadramento =
+    !!unidade && !podeComprarUnidade(a.renda_familiar, unidade.enquadramento);
+  if (!unidade) d = restringirPorRenda(a.renda_familiar, d);
   const base = precoParaAprovado(a, d);
   const preco = unidade ? unidade.preco : base.preco;
   const dorms = unidade ? unidade.dorms : base.dorms;
@@ -437,6 +522,8 @@ export function preSimulacao(
     /** a entrada não cabe nas regras (mais de 20% do imóvel ou parcela acima de 30% da renda) */
     excede: aParcelar > ep.valorMax + 1,
     semAvaliacao: !(Number(d.avaliacao_min) > 0),
+    /** a renda do cliente passa do limite da categoria dessa unidade (HIS/HMP) */
+    foraEnquadramento,
   };
 }
 
@@ -500,12 +587,13 @@ export function textoPreSimulacao(
 
 /** Mensagem de WhatsApp oferecendo um empreendimento a um aprovado. */
 export function mensagemOferta(
-  a: Pick<Aprovado, "nome">,
+  a: Pick<Aprovado, "nome"> & { renda_familiar?: number | null },
   d: DevCompat,
   link: string,
   assinatura: string,
   preSim?: ReturnType<typeof preSimulacao>,
 ) {
+  d = restringirPorRenda(a.renda_familiar, d);
   const nome = (a.nome.trim().split(/\s+/)[0] || "").replace(/^./, (c) =>
     c.toUpperCase(),
   );
