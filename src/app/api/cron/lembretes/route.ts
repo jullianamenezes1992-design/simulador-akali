@@ -270,7 +270,7 @@ ${url ? `<p><a href="${url}" style="color:#005CA9;font-weight:bold">Abrir Meu di
     cfg.tabelao_auto !== false &&
     cfg.ultimo_tabelao_em === hojeB &&
     (cfg as { ultimo_cury_em?: string | null }).ultimo_cury_em !== hojeB &&
-    horaAtualSP() >= 6
+    horaAtualSP() >= 10
   ) {
     const { data: marcado } = await db
       .from("notification_settings")
@@ -291,11 +291,11 @@ ${url ? `<p><a href="${url}" style="color:#005CA9;font-weight:bold">Abrir Meu di
     }
   }
 
-  // 4) Preços e estoque da Plano&Plano pelo tabelão (uma vez por dia, a partir das 6h)
+  // 4) Preços e estoque da Plano&Plano pelo tabelão (uma vez por dia, a partir das 10h)
   if (
     cfg.tabelao_auto !== false &&
     cfg.ultimo_tabelao_em !== hojeB &&
-    horaAtualSP() >= 6
+    horaAtualSP() >= 10
   ) {
     const { data: marcado } = await db
       .from("notification_settings")

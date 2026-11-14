@@ -68,7 +68,7 @@ export default function TabelaoControles({ auto }: { auto: boolean }) {
           disabled={pending}
           onChange={(e) => alternar(e.target.checked)}
         />
-        Atualizar automaticamente todo dia (a partir das 6h) — Plano&Plano e
+        Atualizar automaticamente todo dia (a partir das 10h) — Plano&Plano e
         Cury
       </label>
       <div className="flex flex-wrap gap-2">
