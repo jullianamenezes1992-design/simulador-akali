@@ -13,7 +13,8 @@ export function nomeContato(l: { nome: string; regiao_detalhe?: string | null; r
   const zona = (l.regioes ?? []).map((r) => ZONA[r]).filter(Boolean)[0] ?? "";
   const bairro = (l.regiao_detalhe ?? "").trim();
   const lugar = [bairro, zona && !bairro.toLowerCase().includes(zona.toLowerCase()) ? zona : ""].filter(Boolean).join(" ");
-  return [l.nome.trim(), lugar, (l.origem ?? "").trim()].filter(Boolean).join(" - ");
+  const origem = (l.origem ?? "").trim().replace(/^Salesforce.*$/i, "Salesforce");
+  return [l.nome.trim(), lugar, origem].filter(Boolean).join(" - ");
 }
 
 const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/[,;]/g, (c) => `\\${c}`);
