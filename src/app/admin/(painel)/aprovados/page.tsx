@@ -27,7 +27,7 @@ import { getActiveParams } from "@/lib/data";
 export const metadata: Metadata = { title: "Clientes aprovados" };
 
 type SP = Promise<Record<string, string | undefined>>;
-type Op = { id: number; tipo: string; preco_antes: number | null; preco_depois: number | null; aprovados: { id: string; nome: string; poder_compra: number }[]; created_at: string; visto_em: string | null; dev: { id: string; nome: string; slug: string } | null };
+type Op = { id: number; tipo: string; descricao?: string | null; preco_antes: number | null; preco_depois: number | null; aprovados: { id: string; nome: string; poder_compra: number }[]; created_at: string; visto_em: string | null; dev: { id: string; nome: string; slug: string } | null };
 
 export default async function AprovadosPage({ searchParams }: { searchParams: SP }) {
   const { supabase } = await requireAdmin();
@@ -41,7 +41,7 @@ export default async function AprovadosPage({ searchParams }: { searchParams: SP
     devsAtivos(supabase),
     supabase
       .from("oportunidades")
-      .select("id, tipo, preco_antes, preco_depois, aprovados, created_at, visto_em, dev:development_id(id, nome, slug)")
+      .select("id, tipo, descricao, preco_antes, preco_depois, aprovados, created_at, visto_em, dev:development_id(id, nome, slug)")
       .gte("created_at", new Date(agoraMs() - 30 * 864e5).toISOString())
       .order("created_at", { ascending: false })
       .limit(20),
@@ -91,7 +91,7 @@ export default async function AprovadosPage({ searchParams }: { searchParams: SP
         <StatCard label="Aprovados em aberto" valor={abertos.length} />
         <StatCard label="Quentes" valor={abertos.filter((a) => a.classificacao === "quente").length} />
         <StatCard label="Vencem em até 15 dias" valor={vencendo.length} />
-        <StatCard label="Oportunidades novas" valor={novas.length} sub="preço baixou ou promoção" />
+        <StatCard label="Oportunidades novas" valor={novas.length} sub="preço baixou, unidade nova ou promoção" />
       </div>
 
       {oportunidades.length > 0 && (
@@ -108,9 +108,15 @@ export default async function AprovadosPage({ searchParams }: { searchParams: SP
                 <p>
                   {!o.visto_em && <span className="mr-1.5 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">NOVA</span>}
                   <strong>{o.dev?.nome ?? "Empreendimento"}</strong>{" "}
-                  {o.tipo === "preco_baixou" ? (
+                  {o.tipo === "nova_unidade" ? (
+                    <>
+                      tem unidade nova mais barata: <strong className="text-emerald-700">{formatBRL(Number(o.preco_depois))}</strong>
+                      {o.descricao ? <> — {o.descricao}</> : null}
+                    </>
+                  ) : o.tipo === "preco_baixou" ? (
                     <>
                       baixou de {formatBRL(Number(o.preco_antes))} para <strong className="text-emerald-700">{formatBRL(Number(o.preco_depois))}</strong>
+                      {o.descricao ? <span className="text-ink-soft"> ({o.descricao})</span> : null}
                     </>
                   ) : (
                     <>entrou em promoção (a partir de {formatBRL(Number(o.preco_depois))})</>
@@ -118,7 +124,7 @@ export default async function AprovadosPage({ searchParams }: { searchParams: SP
                   <span className="text-ink-soft"> · {formatDate(o.created_at, true)}</span>
                 </p>
                 <p className="mt-1 text-ink-soft">
-                  {o.tipo === "preco_baixou" ? "Passaram a caber: " : "Cabem: "}
+                  {o.tipo === "promocao" ? "Cabem: " : "Passaram a caber: "}
                   {o.aprovados.map((a, i) => (
                     <span key={a.id}>
                       {i > 0 && ", "}

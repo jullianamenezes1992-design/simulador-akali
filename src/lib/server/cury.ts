@@ -1,4 +1,5 @@
 import "server-only";
+import { fotoDevs, registrarOportunidades } from "@/lib/server/oportunidades";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Tipologia } from "@/lib/aprovados";
 
@@ -393,6 +394,8 @@ export async function sincronizarCury(): Promise<ResultadoCury> {
     .in("slug", Object.keys(MAPA_CURY));
   if (error) return { ...res, erros: [error.message] };
   const fila = [...(devs ?? [])];
+  // foto de antes, para avisar os aprovados que passaram a caber
+  const foto = await fotoDevs(db, Object.keys(MAPA_CURY));
   const inicio = Date.now();
   const trabalhar = async () => {
     for (let d = fila.shift(); d; d = fila.shift()) {
@@ -467,5 +470,10 @@ export async function sincronizarCury(): Promise<ResultadoCury> {
   };
   await Promise.all(Array.from({ length: 6 }, trabalhar));
   res.ok = res.atualizados > 0;
+  try {
+    await registrarOportunidades(db, foto);
+  } catch {
+    // o aviso de oportunidade nunca impede a atualização
+  }
   return res;
 }

@@ -1,4 +1,5 @@
 import "server-only";
+import { fotoDevs, registrarOportunidades } from "@/lib/server/oportunidades";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { IGNORAR_TABELAO, MAPA_TABELAO, normNome } from "@/lib/tabelao-mapa";
 
@@ -370,6 +371,8 @@ export async function sincronizarTabelao(
     const tetos = await tetosFaixas();
 
     const slugs = Object.values(MAPA_TABELAO);
+    // foto de antes, para avisar os aprovados que passaram a caber
+    const foto = await fotoDevs(db, slugs);
     const { data: atuais, error } = await db
       .from("developments")
       .select(
@@ -520,6 +523,11 @@ export async function sincronizarTabelao(
       } else res.sem_mudanca++;
     }
     res.ok = true;
+    try {
+      await registrarOportunidades(db, foto);
+    } catch {
+      // o aviso de oportunidade nunca impede a atualização
+    }
     if (falhas.length)
       res.erro = `Não atualizou ${falhas.length}: ${falhas.join(" | ")}`.slice(
         0,

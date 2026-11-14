@@ -349,7 +349,7 @@ ${url ? `<p><a href="${url}" style="color:#005CA9;font-weight:bold">Abrir Meu di
     const { data: ops } = await db
       .from("oportunidades")
       .select(
-        "id, tipo, preco_antes, preco_depois, aprovados, dev:development_id(nome)",
+        "id, tipo, descricao, preco_antes, preco_depois, aprovados, dev:development_id(nome)",
       )
       .is("notificado_em", null)
       .order("created_at", { ascending: true })
@@ -357,6 +357,7 @@ ${url ? `<p><a href="${url}" style="color:#005CA9;font-weight:bold">Abrir Meu di
     const lista = (ops ?? []) as unknown as {
       id: number;
       tipo: string;
+      descricao: string | null;
       preco_antes: number;
       preco_depois: number;
       aprovados: { nome: string }[];
@@ -381,7 +382,7 @@ ${url ? `<p><a href="${url}" style="color:#005CA9;font-weight:bold">Abrir Meu di
           });
         const linhas = aEnviar.map(
           (o) =>
-            `• ${o.dev?.nome ?? "Empreendimento"}: ${o.tipo === "preco_baixou" ? `baixou de ${fmt(o.preco_antes)} para ${fmt(o.preco_depois)}` : `em promoção (${fmt(o.preco_depois)})`} → ${o.aprovados
+            `• ${o.dev?.nome ?? "Empreendimento"}: ${o.tipo === "nova_unidade" ? `unidade nova a ${fmt(o.preco_depois)}${o.descricao ? ` (${o.descricao})` : ""}` : o.tipo === "preco_baixou" ? `baixou de ${fmt(o.preco_antes)} para ${fmt(o.preco_depois)}` : `em promoção (${fmt(o.preco_depois)})`} → ${o.aprovados
               .slice(0, 6)
               .map((a) => a.nome)
               .join(
