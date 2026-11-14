@@ -369,9 +369,27 @@ export async function montarMeuDia(
   const lc = ((carteiraQ.data ?? []) as LC[]).filter((l) => !tocados.has(l.id));
   // reprovado: sem data de reanálise ou com a data chegando; ao chamar, a próxima fica para daqui a 2 meses
   // no máximo 5 por dia (primeiro quem tem data vencida, depois quem ainda não tem data)
-  const reanalisadosHoje = (rebatidosHojeQ.data ?? []).filter(
-    (l) => l.status === "reprovado",
-  ).length;
+  // conta como reanálise de hoje: "Chamar" na reanálise, quem saiu de Reprovado hoje
+  // (mudou de etapa) e o reprovado com quem você falou hoje por outro caminho
+  const { data: evReanalise } = await db
+    .from("lead_events")
+    .select("lead_id, tipo, dados")
+    .gte("created_at", inicio)
+    .in("tipo", ["carteira_rebatida", "status_alterado"])
+    .limit(2000);
+  const reanalisadosIds = new Set<string>();
+  for (const e of evReanalise ?? []) {
+    const d = (e.dados ?? {}) as { reanalise?: boolean; de?: string };
+    if (
+      (e.tipo === "carteira_rebatida" && d.reanalise) ||
+      (e.tipo === "status_alterado" && d.de === "reprovado")
+    )
+      reanalisadosIds.add(e.lead_id as string);
+  }
+  for (const l of (carteiraQ.data ?? []) as LC[])
+    if (l.status === "reprovado" && tocados.has(l.id))
+      reanalisadosIds.add(l.id);
+  const reanalisadosHoje = reanalisadosIds.size;
   const reanalisesTodas = lc
     .filter(
       (l) =>
@@ -568,7 +586,10 @@ export async function montarMeuDia(
     for (const o of ofs ?? []) {
       const r = ultResp.get(o.aprovado_id);
       if (!r || o.enviado_em > r)
-        ofertasSemResp.set(o.aprovado_id, (ofertasSemResp.get(o.aprovado_id) ?? 0) + 1);
+        ofertasSemResp.set(
+          o.aprovado_id,
+          (ofertasSemResp.get(o.aprovado_id) ?? 0) + 1,
+        );
     }
   }
   const d15oferta = new Date(Date.now() - 15 * 864e5).toISOString();

@@ -1589,6 +1589,10 @@ export async function registrarConversa(leadId: string) {
   const { supabase } = await assertAdmin();
   if (!UUID_RE.test(leadId)) return;
   await supabase.from("lead_events").insert({ lead_id: leadId, tipo: "nota", dados: { texto: "Conversa aberta no WhatsApp" } });
+  // reprovado com reanálise pendente: a conversa conta como a reanálise de hoje (próxima em 2 meses)
+  const { data: l } = await supabase.from("leads").select("status, reanalise_em").eq("id", leadId).maybeSingle();
+  const { diaSP } = await import("@/lib/agenda");
+  if (l?.status === "reprovado" && (!l.reanalise_em || l.reanalise_em <= diaSP())) await rebaterCliente(leadId);
   revalidatePath("/admin/dia");
 }
 
