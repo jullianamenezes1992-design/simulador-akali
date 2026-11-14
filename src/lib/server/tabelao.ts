@@ -228,19 +228,22 @@ type Tipologia = {
   vaga: boolean | null;
   preco: number;
   qtd: number;
+  /** categoria da prefeitura de SP (HIS1, HIS2, HMP, R2V) — limita quem pode comprar */
+  enquadramento: string | null;
 };
 
 /** Tipos de unidade ordenados pelo preço (no máximo 15), com o rótulo que aparece na simulação. */
 function listaTipologias(m?: Map<string, Tipologia>) {
   return [...(m?.values() ?? [])]
     .sort((a, b) => a.preco - b.preco)
-    .slice(0, 15)
+    .slice(0, 25)
     .map((t) => ({
       ...t,
       rotulo: [
         t.dorms != null ? `${t.dorms} dorm.` : null,
         `${t.area} m²`,
         t.vaga == null ? null : t.vaga ? "com vaga" : "sem vaga",
+        t.enquadramento,
       ]
         .filter(Boolean)
         .join(" · "),
@@ -293,6 +296,8 @@ export async function sincronizarTabelao(
       ix("dorms"),
       ix("vagas"),
     ];
+    // "renda" = enquadramento da unidade (HIS1, HIS2, HMP, R2V)
+    const iRenda = ix("renda");
     // unidades não residenciais (NR, fachada ativa/lojas, garagem) não entram no MCMV nem no "a partir de"
     const NAO_RESID = /\bNR|fachada|garagem|loja/i;
     const blocos = uni.blocos ?? [];
@@ -330,7 +335,11 @@ export async function sincronizarTabelao(
         {
           const vaga = iVagas >= 0 ? Number(r[iVagas]) > 0 : null;
           const m2 = Math.round(area);
-          const chave = `${dm >= 0 && dm <= 6 ? dm : "?"}|${m2}|${vaga}`;
+          const enq =
+            iRenda >= 0 && r[iRenda]
+              ? String(r[iRenda]).toUpperCase().replace(/[\s-]/g, "")
+              : null;
+          const chave = `${dm >= 0 && dm <= 6 ? dm : "?"}|${m2}|${vaga}|${enq}`;
           const mapa = porTipo.get(n) ?? new Map<string, Tipologia>();
           const atual = mapa.get(chave);
           if (!atual)
@@ -340,6 +349,7 @@ export async function sincronizarTabelao(
               vaga,
               preco: Math.round(valor * 100) / 100,
               qtd: 1,
+              enquadramento: enq,
             });
           else {
             atual.qtd++;
