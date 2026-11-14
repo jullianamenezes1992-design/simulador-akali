@@ -11,9 +11,14 @@ import { AcoesBaseFria } from "@/components/admin/BaseFriaControles";
 import { getSettings } from "@/lib/data";
 import { maskPhone } from "@/lib/format";
 import { requireAdmin } from "@/lib/server/auth";
-import { montarMeuDia, PAUSAS } from "@/lib/server/meu-dia";
+import { ESSENCIAIS_EXTERNO, montarMeuDia, PAUSAS } from "@/lib/server/meu-dia";
 import { diaSP } from "@/lib/agenda";
-import { DesfazerFolgaHoje, Folgas } from "@/components/admin/Folgas";
+import {
+  DesfazerFolgaHoje,
+  Folgas,
+  TIPOS_DIA,
+  type DiaEspecial,
+} from "@/components/admin/Folgas";
 import { Fragment } from "react";
 
 export const metadata: Metadata = { title: "Meu dia" };
@@ -35,19 +40,29 @@ function saudacao() {
 
 export default async function MeuDiaPage() {
   const { supabase, nome } = await requireAdmin();
-  const [{ hoje, blocos, finalizado }, s, folgasQ] = await Promise.all([
-    montarMeuDia(supabase),
-    getSettings(),
-    supabase
-      .from("rotina_dia")
-      .select("dia")
-      .eq("item", "folga")
-      .gte("dia", diaSP())
-      .order("dia")
-      .limit(30),
-  ]);
-  const folgas = (folgasQ.data ?? []).map((f) => f.dia as string);
-  const ehFolga = folgas.includes(hoje);
+  const [{ hoje, blocos: todosBlocos, finalizado }, s, folgasQ] =
+    await Promise.all([
+      montarMeuDia(supabase),
+      getSettings(),
+      supabase
+        .from("rotina_dia")
+        .select("dia, item")
+        .in("item", ["folga", "evento", "meeting"])
+        .gte("dia", diaSP())
+        .order("dia")
+        .limit(60),
+    ]);
+  const folgas = (folgasQ.data ?? []).map((f) => ({
+    dia: f.dia as string,
+    tipo: f.item as DiaEspecial["tipo"],
+  }));
+  const especial = folgas.find((f) => f.dia === hoje)?.tipo;
+  const ehFolga = especial === "folga";
+  // evento / meeting (dia externo): só o essencial
+  const blocos =
+    especial === "evento" || especial === "meeting"
+      ? todosBlocos.filter((b) => ESSENCIAIS_EXTERNO.includes(b.item))
+      : todosBlocos;
   const feitos = blocos.filter((b) => b.feito).length;
   const pct = Math.round((feitos / blocos.length) * 100);
   const dataLonga = new Date(`${hoje}T12:00:00-03:00`).toLocaleDateString(
@@ -96,6 +111,19 @@ export default async function MeuDiaPage() {
 
   return (
     <>
+      {especial && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-300 bg-sky-50 p-3 text-sm text-sky-950">
+          <p>
+            <b>
+              {TIPOS_DIA[especial].emoji} Hoje é dia de{" "}
+              {TIPOS_DIA[especial].label.toLowerCase()} (externo).
+            </b>{" "}
+            Só o essencial: agenda, novos cadastros e leads quentes. O resto
+            volta amanhã, sem acumular.
+          </p>
+          <DesfazerFolgaHoje hoje={hoje} rotulo="Mostrar o dia completo" />
+        </div>
+      )}
       <div className="mb-5">
         <p className="text-sm font-semibold capitalize text-ink-soft">
           {dataLonga}

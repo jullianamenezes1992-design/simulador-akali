@@ -119,12 +119,13 @@ ${t.lead && linkLead(t.lead.id) ? `<p><a href="${linkLead(t.lead.id)}" style="co
       .or(`ultimo_resumo_em.is.null,ultimo_resumo_em.neq.${hoje}`)
       .select("id")
       .maybeSingle();
-    const { data: folgaHoje } = await db.from("rotina_dia").select("dia").eq("dia", hoje).eq("item", "folga").maybeSingle();
-    if (marcado && !folgaHoje) {
+    const { data: diaEsp } = await db.from("rotina_dia").select("item").eq("dia", hoje).in("item", ["folga", "evento", "meeting"]).maybeSingle();
+    if (marcado && diaEsp?.item !== "folga") {
       // resumo da rotina "Meu dia": o que precisa ser feito hoje, bloco a bloco
       const { montarMeuDia } = await import("@/lib/server/meu-dia");
       const { blocos } = await montarMeuDia(db, hoje);
-      const pendentes = blocos.filter((b) => !b.feito);
+      const { ESSENCIAIS_EXTERNO } = await import("@/lib/server/meu-dia");
+      const pendentes = blocos.filter((b) => !b.feito && (!diaEsp || ESSENCIAIS_EXTERNO.includes(b.item)));
       const linhas = pendentes.map((b) => `• ${b.hora} ${b.titulo}${!b.manual && b.total ? `: ${b.total}` : ""}`);
       const url = siteUrl() ? `${siteUrl()}/admin/dia` : "";
       const texto = [`☀️ *Bom dia! O seu dia hoje*`, linhas.join("\n") || "Nada pendente por enquanto.", url ? `\nAbrir Meu dia: ${url}` : null].filter(Boolean).join("\n");

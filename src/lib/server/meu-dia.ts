@@ -50,6 +50,9 @@ export function msgCobrarDocs(nome: string, pendencias: string | null) {
   ].join("\n");
 }
 
+/** Em dia de evento/meeting (externo), só estes blocos aparecem. */
+export const ESSENCIAIS_EXTERNO = ["agenda", "novos", "quentes", "fechamento"];
+
 /** Pausas fixas do dia, mostradas entre os blocos (depois do bloco indicado). */
 export const PAUSAS: Record<string, string> = {
   novos: "9h – 9h30 · Café ☕ (liberado no stand)",

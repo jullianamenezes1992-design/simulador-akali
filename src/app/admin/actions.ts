@@ -1306,7 +1306,7 @@ export async function simularProjetoLead(leadId: string, devId: string) {
 // Meu dia (rotina diária)
 // ---------------------------------------------------------------------------
 
-const ITENS_ROTINA = ["agenda", "novos", "quentes", "sem_resposta", "pasta", "analise", "revisao_manha", "revisao_tarde", "conteudo", "aprovados", "carteira", "base_fria_manha", "base_fria_tarde", "redes", "fechamento", "dia_finalizado", "folga"];
+const ITENS_ROTINA = ["agenda", "novos", "quentes", "sem_resposta", "pasta", "analise", "revisao_manha", "revisao_tarde", "conteudo", "aprovados", "carteira", "base_fria_manha", "base_fria_tarde", "redes", "fechamento", "dia_finalizado", "folga", "evento", "meeting"];
 
 /** Marca/desmarca um bloco da rotina de hoje (com uma anotação opcional, ex.: o vídeo gravado). */
 export async function marcarRotina(item: string, feito: boolean, nota?: string | null) {
@@ -1592,15 +1592,16 @@ export async function registrarConversa(leadId: string) {
   revalidatePath("/admin/dia");
 }
 
-/** Marca ou desmarca um dia de folga (as folgas são alternadas, então ficam por data). */
-export async function marcarFolga(dia: string, folga: boolean) {
+/** Marca um dia especial (folga, evento ou meeting) ou desmarca (tipo null). As datas mudam, então ficam por dia. */
+export async function marcarFolga(dia: string, tipo: "folga" | "evento" | "meeting" | null | boolean) {
   const { supabase } = await assertAdmin();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dia) || isNaN(Date.parse(dia))) throw new Error("Data inválida.");
-  if (folga) {
-    const { error } = await supabase.from("rotina_dia").upsert({ dia, item: "folga", feito_em: new Date().toISOString() }, { onConflict: "dia,item" });
+  const t = tipo === true ? "folga" : tipo === false ? null : tipo;
+  await supabase.from("rotina_dia").delete().eq("dia", dia).in("item", ["folga", "evento", "meeting"]);
+  if (t) {
+    if (!["folga", "evento", "meeting"].includes(t)) throw new Error("Tipo inválido.");
+    const { error } = await supabase.from("rotina_dia").insert({ dia, item: t, feito_em: new Date().toISOString() });
     if (error) throw new Error(error.message);
-  } else {
-    await supabase.from("rotina_dia").delete().eq("dia", dia).eq("item", "folga");
   }
   revalidatePath("/admin/dia");
 }
