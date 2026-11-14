@@ -1605,3 +1605,12 @@ export async function marcarFolga(dia: string, tipo: "folga" | "evento" | "meeti
   }
   revalidatePath("/admin/dia");
 }
+
+/** Aprovado respondeu às ofertas: zera a contagem de ofertas sem resposta (volta para 7 dias). */
+export async function marcarRespostaAprovado(aprovadoId: string) {
+  const { supabase } = await assertAdmin();
+  if (!UUID_RE.test(aprovadoId)) return;
+  await supabase.from("aprovados").update({ ultima_resposta_em: new Date().toISOString() }).eq("id", aprovadoId);
+  revalidatePath(`/admin/aprovados/${aprovadoId}`);
+  revalidatePath("/admin/dia");
+}

@@ -6,7 +6,8 @@ import { PageHeader } from "@/components/admin/ui";
 import AprovadoForm from "@/components/admin/AprovadoForm";
 import EnviarOferta from "@/components/admin/EnviarOferta";
 import ExcluirAprovado from "@/components/admin/ExcluirAprovado";
-import { REANALISE, mensagemReanalise, STATUS_EM_ABERTO, compativeis, compraAte, diasParaVencer, mensagemOferta, ofertaDoProjeto, preSimulacao, ofertasPorProjeto, regraEntrada, type Aprovado, type OfertaEnviada } from "@/lib/aprovados";
+import RespondeuOferta from "@/components/admin/RespondeuOferta";
+import { REANALISE, mensagemReanalise, STATUS_EM_ABERTO, compativeis, compraAte, diasParaVencer, mensagemOferta, ofertaDoProjeto, preSimulacao, ofertasPorProjeto, regraEntrada, semRespostaSeguidas, type Aprovado, type OfertaEnviada } from "@/lib/aprovados";
 import { getActiveParams, getSettings } from "@/lib/data";
 import { regiaoLabel } from "@/lib/constants";
 import { formatBRL, formatDate } from "@/lib/format";
@@ -165,6 +166,9 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
           {ofertas.length > 0 && (
             <section className="card p-4">
               <h2 className="mb-2 font-bold">Ofertas enviadas ({ofertas.length})</h2>
+              <div className="mb-2">
+                <RespondeuOferta aprovadoId={a.id} semResposta={semRespostaSeguidas(ofertas, (a as Aprovado & { ultima_resposta_em?: string | null }).ultima_resposta_em ?? null)} />
+              </div>
               <ul className="divide-y divide-line text-sm">
                 {ofertas.map((o, i) => (
                   <li key={i} className="flex justify-between gap-2 py-1.5">

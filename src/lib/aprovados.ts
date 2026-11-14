@@ -368,3 +368,10 @@ export function mensagemReanalise(a: Pick<Aprovado, "nome">, assinatura: string)
     `Quer que eu faça uma *nova simulação* para você? É rapidinho e sem compromisso 🏡`,
   ].join("\n");
 }
+
+/** Intervalo entre ofertas: 7 dias; 15 dias depois de 3 ofertas seguidas sem resposta. */
+export const DIAS_ENTRE_OFERTAS = 7;
+export const DIAS_ENTRE_OFERTAS_SEM_RESPOSTA = 15;
+export const OFERTAS_SEM_RESPOSTA_LIMITE = 3;
+export const semRespostaSeguidas = (ofertas: { enviado_em: string }[], ultimaResposta: string | null) =>
+  ofertas.filter((o) => !ultimaResposta || o.enviado_em > ultimaResposta).length;

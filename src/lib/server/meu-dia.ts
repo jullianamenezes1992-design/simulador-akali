@@ -184,7 +184,9 @@ export async function montarMeuDia(
       .is("visto_em", null),
     db
       .from("aprovados")
-      .select("id, nome, telefone, vencimento, lead_id")
+      .select(
+        "id, nome, telefone, vencimento, lead_id, ultima_oferta_em, ultima_resposta_em",
+      )
       .in("status", ["ativo", "negociando"])
       .gte("vencimento", hoje)
       .lte("vencimento", d15)
@@ -194,12 +196,14 @@ export async function montarMeuDia(
       .limit(30),
     db
       .from("aprovados")
-      .select("id, nome, telefone, ultima_oferta_em, vencimento, lead_id")
+      .select(
+        "id, nome, telefone, ultima_oferta_em, vencimento, lead_id, ultima_resposta_em",
+      )
       .in("status", ["ativo", "negociando"])
       .or(`vencimento.is.null,vencimento.gte.${hoje}`)
       .or(`ultima_oferta_em.is.null,ultima_oferta_em.lt.${d7}`)
       .order("ultima_oferta_em", { ascending: true, nullsFirst: true })
-      .limit(OFERTAS_DIA),
+      .limit(300),
     // reanálises (reprovados com data de reanálise chegando) e indicações (quem comprou, a cada 6 meses)
     db
       .from("leads")
@@ -540,8 +544,56 @@ export async function montarMeuDia(
       (l.status === "analise_credito" || diasParado(desde(l)) >= 60),
   );
 
-  const vencendo = vencendoQ.data ?? [];
-  const ofertas = ofertaQ.data ?? [];
+  // 3 ofertas seguidas sem resposta: a próxima só depois de 15 dias
+  type AO = {
+    id: string;
+    ultima_oferta_em: string | null;
+    ultima_resposta_em: string | null;
+  };
+  const candidatos = [
+    ...((ofertaQ.data ?? []) as AO[]),
+    ...((vencendoQ.data ?? []) as AO[]),
+  ];
+  const ofertasSemResp = new Map<string, number>();
+  if (candidatos.length) {
+    const { data: ofs } = await db
+      .from("ofertas_enviadas")
+      .select("aprovado_id, enviado_em")
+      .in("aprovado_id", [...new Set(candidatos.map((a) => a.id))])
+      .gte("enviado_em", new Date(Date.now() - 120 * 864e5).toISOString())
+      .limit(5000);
+    const ultResp = new Map(
+      candidatos.map((a) => [a.id, a.ultima_resposta_em]),
+    );
+    for (const o of ofs ?? []) {
+      const r = ultResp.get(o.aprovado_id);
+      if (!r || o.enviado_em > r)
+        ofertasSemResp.set(o.aprovado_id, (ofertasSemResp.get(o.aprovado_id) ?? 0) + 1);
+    }
+  }
+  const d15oferta = new Date(Date.now() - 15 * 864e5).toISOString();
+  const podeOfertar = (a: AO) =>
+    (ofertasSemResp.get(a.id) ?? 0) < 3 ||
+    !a.ultima_oferta_em ||
+    a.ultima_oferta_em < d15oferta;
+  const vencendo = (
+    (vencendoQ.data ?? []) as (AO & {
+      nome: string;
+      telefone: string;
+      vencimento: string;
+      lead_id: string | null;
+    })[]
+  ).filter(podeOfertar);
+  const ofertas = (
+    (ofertaQ.data ?? []) as (AO & {
+      nome: string;
+      telefone: string;
+      vencimento: string | null;
+      lead_id: string | null;
+    })[]
+  )
+    .filter(podeOfertar)
+    .slice(0, OFERTAS_DIA);
   const opsNovas = opsQ.count ?? 0;
   const carteira = carteiraTodos;
 
