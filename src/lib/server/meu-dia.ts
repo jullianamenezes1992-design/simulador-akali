@@ -184,7 +184,7 @@ export async function montarMeuDia(
       .is("visto_em", null),
     db
       .from("aprovados")
-      .select("id, nome, telefone, vencimento")
+      .select("id, nome, telefone, vencimento, lead_id")
       .in("status", ["ativo", "negociando"])
       .gte("vencimento", hoje)
       .lte("vencimento", d15)
@@ -192,7 +192,7 @@ export async function montarMeuDia(
       .limit(30),
     db
       .from("aprovados")
-      .select("id, nome, telefone, ultima_oferta_em, vencimento")
+      .select("id, nome, telefone, ultima_oferta_em, vencimento, lead_id")
       .in("status", ["ativo", "negociando"])
       .or(`vencimento.is.null,vencimento.gte.${hoje}`)
       .or(`ultima_oferta_em.is.null,ultima_oferta_em.lt.${d7}`)
@@ -719,8 +719,19 @@ export async function montarMeuDia(
   ];
   // regra geral: cliente com atividade agendada (hoje ou no futuro) só volta para os afazeres
   // depois da data do agendamento — até lá ele aparece só na Agenda
+  // aprovados: o agendamento é do lead vinculado
+  for (const a of [
+    ...((vencendoQ.data ?? []) as { id: string; lead_id: string | null }[]),
+    ...((ofertaQ.data ?? []) as { id: string; lead_id: string | null }[]),
+  ])
+    if (a.lead_id && comAgendamento.has(a.lead_id)) comAgendamento.add(a.id);
   for (const b of blocos) {
-    if (b.item === "agenda" || b.item.startsWith("base_fria") || !b.clientes.length) continue;
+    if (
+      b.item === "agenda" ||
+      b.item.startsWith("base_fria") ||
+      !b.clientes.length
+    )
+      continue;
     const antes = b.clientes.length;
     b.clientes = b.clientes.filter((c) => !comAgendamento.has(c.id));
     const tirados = antes - b.clientes.length;
