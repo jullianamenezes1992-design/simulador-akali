@@ -79,7 +79,7 @@ export default async function TabelaoPage() {
           >
             Tabelão On-line <ExternalLink size={13} />
           </a>
-          . Só os empreendimentos Plano&Plano são alterados; Cury e cadastros
+          . Os da Cury vêm das tabelas em PDF do site do Guerato. Cadastros
           manuais não mudam. O que está oculto no site continua oculto.
         </p>
         {ultima && (
