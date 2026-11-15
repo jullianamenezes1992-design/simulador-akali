@@ -21,7 +21,7 @@ import {
   Smartphone,
   Snowflake,
   Users,
-} from "lucide-react";
+ Landmark } from "lucide-react";
 
 const ITENS = [
   { href: "/admin/dia", label: "Meu dia", icon: ListChecks },
@@ -33,6 +33,7 @@ const ITENS = [
   { href: "/admin/aprovados", label: "Aprovados", icon: BadgeCheck },
   { href: "/admin/reprovados", label: "Reprovados", icon: XCircle },
   { href: "/admin/base-fria", label: "Base fria", icon: Snowflake },
+  { href: "/admin/base-cury", label: "Base Cury", icon: Landmark },
   { href: "/admin/redes", label: "Redes sociais", icon: AtSign },
   { href: "/admin/empreendimentos", label: "Empreendimentos", icon: Building2 },
   { href: "/admin/mensagens", label: "Mensagens prontas", icon: MessageSquareText },

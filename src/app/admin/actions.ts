@@ -1639,3 +1639,87 @@ export async function atualizarCuryAgora() {
   revalidatePath("/admin/empreendimentos");
   return r;
 }
+
+/* ---------------- Base Cury (propostas do Salesforce da Cury) ---------------- */
+
+/** Marca o cliente da Base Cury como chamado (ao abrir o WhatsApp). */
+export async function chamarBaseCury(id: string) {
+  const { supabase } = await assertAdmin();
+  if (!UUID_RE.test(id)) throw new Error("Cliente inválido.");
+  await supabase
+    .from("base_cury")
+    .update({ situacao: "chamado", chamado_em: new Date().toISOString(), atualizado_em: new Date().toISOString() })
+    .eq("id", id)
+    .in("situacao", ["nova", "chamado"]);
+  revalidatePath("/admin/base-cury");
+}
+
+/** Descarta ou volta o cliente da Base Cury para "nova". */
+export async function marcarBaseCury(id: string, acao: "descartar" | "desfazer") {
+  const { supabase } = await assertAdmin();
+  if (!UUID_RE.test(id)) throw new Error("Cliente inválido.");
+  if (acao === "descartar")
+    await supabase.from("base_cury").update({ situacao: "descartado", atualizado_em: new Date().toISOString() }).eq("id", id);
+  else {
+    const { data: c } = await supabase.from("base_cury").select("chamado_em").eq("id", id).maybeSingle();
+    await supabase.from("base_cury").update({ situacao: c?.chamado_em ? "chamado" : "nova", atualizado_em: new Date().toISOString() }).eq("id", id);
+  }
+  revalidatePath("/admin/base-cury");
+}
+
+/** Passa o cliente da Base Cury para os Aprovados do CRM (com os dados da análise da Cury). */
+export async function baseCuryParaAprovados(id: string): Promise<{ erro?: string; aprovadoId?: string }> {
+  try {
+    const { supabase, userId } = await assertAdmin();
+    if (!UUID_RE.test(id)) return { erro: "Cliente inválido." };
+    const { data: c } = await supabase.from("base_cury").select("*").eq("id", id).maybeSingle();
+    if (!c) return { erro: "Cliente não encontrado." };
+    if (c.aprovado_id) return { aprovadoId: c.aprovado_id };
+    if (!/^\d{10,11}$/.test(c.telefone ?? "")) return { erro: "Cliente sem celular válido. Corrija no Salesforce e importe de novo." };
+    const renda = Number(c.renda_total) || 0;
+    const props = (c.propostas ?? []) as { pv: string; empreendimento: string | null; etapa: string | null }[];
+    const obs = [
+      "Importado da Base Cury (Salesforce da Cury).",
+      props.length ? `Propostas: ${props.map((p) => `${p.pv} ${p.empreendimento ?? ""} (${p.etapa ?? ""})`).join("; ")}.` : null,
+      c.ab_status ? `Análise bancária: ${c.ab_status}${c.ab_substatus ? ` / ${c.ab_substatus}` : ""}${c.banco ? ` — ${c.banco}` : ""}.` : null,
+      c.valor_aprovado ? `Valor total da aprovação na Cury: R$ ${Number(c.valor_aprovado).toLocaleString("pt-BR")}. Confira financiamento e subsídio.` : null,
+      c.observacoes_sf ? `Obs. Cury: ${c.observacoes_sf}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    const { data: lead } = await supabase.from("leads").select("id").eq("telefone", c.telefone).limit(1).maybeSingle();
+    const { data, error } = await supabase
+      .from("aprovados")
+      .insert({
+        nome: c.nome,
+        telefone: c.telefone,
+        lead_id: lead?.id ?? null,
+        vencimento: c.validade,
+        renda_familiar: renda,
+        faixa: await faixaDaRenda(renda),
+        financiamento: Number(c.valor_aprovado) || 0,
+        subsidio: 0,
+        fgts: Number(c.fgts) || 0,
+        entrada: 0,
+        parcela_max: Number(c.parcela_max) || null,
+        classificacao: "morno",
+        status: "ativo",
+        observacoes: obs.slice(0, 4000),
+        ab_numero: c.ab_numero,
+        oportunidade_sf: props[0]?.pv ?? null,
+        created_by: userId,
+      })
+      .select("id")
+      .single();
+    if (error || !data) return { erro: error?.message ?? "Não foi possível criar o aprovado." };
+    await supabase
+      .from("base_cury")
+      .update({ situacao: "aprovado", aprovado_id: data.id, atualizado_em: new Date().toISOString() })
+      .eq("id", id);
+    revalidatePath("/admin/base-cury");
+    revalidatePath("/admin/aprovados");
+    return { aprovadoId: data.id };
+  } catch (e) {
+    return { erro: msg(e) };
+  }
+}
