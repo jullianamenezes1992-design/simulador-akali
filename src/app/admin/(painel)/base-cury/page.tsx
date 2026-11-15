@@ -118,11 +118,15 @@ export default async function BaseCuryPage({
       nome: c.nome,
       renda_familiar: Number(c.renda_total) || 0,
       faixa: null,
-      financiamento: Number(c.valor_aprovado) || 0,
+      // "Valor Total Aprovação" da Cury = financiamento + FGTS + subsídio
+      financiamento: Math.max(
+        0,
+        (Number(c.valor_aprovado) || 0) - (Number(c.fgts) || 0),
+      ),
       subsidio: 0,
       fgts: Number(c.fgts) || 0,
       entrada: 0,
-      poder_compra: (Number(c.valor_aprovado) || 0) + (Number(c.fgts) || 0),
+      poder_compra: Number(c.valor_aprovado) || 0,
       parcela_max: c.parcela_max,
       dormitorios_min: null,
       regioes: [],

@@ -1682,7 +1682,7 @@ export async function baseCuryParaAprovados(id: string): Promise<{ erro?: string
       "Importado da Base Cury (Salesforce da Cury).",
       props.length ? `Propostas: ${props.map((p) => `${p.pv} ${p.empreendimento ?? ""} (${p.etapa ?? ""})`).join("; ")}.` : null,
       c.ab_status ? `Análise bancária: ${c.ab_status}${c.ab_substatus ? ` / ${c.ab_substatus}` : ""}${c.banco ? ` — ${c.banco}` : ""}.` : null,
-      c.valor_aprovado ? `Valor total da aprovação na Cury: R$ ${Number(c.valor_aprovado).toLocaleString("pt-BR")}. Confira financiamento e subsídio.` : null,
+      c.valor_aprovado ? `Valor total da aprovação na Cury: R$ ${Number(c.valor_aprovado).toLocaleString("pt-BR")}. (financiamento + FGTS + subsídio). Confira a divisão entre financiamento e subsídio.` : null,
       c.observacoes_sf ? `Obs. Cury: ${c.observacoes_sf}` : null,
     ]
       .filter(Boolean)
@@ -1697,7 +1697,8 @@ export async function baseCuryParaAprovados(id: string): Promise<{ erro?: string
         vencimento: c.validade,
         renda_familiar: renda,
         faixa: await faixaDaRenda(renda),
-        financiamento: Number(c.valor_aprovado) || 0,
+        // "Valor Total Aprovação" da Cury = financiamento + FGTS + subsídio
+        financiamento: Math.max(0, (Number(c.valor_aprovado) || 0) - (Number(c.fgts) || 0)),
         subsidio: 0,
         fgts: Number(c.fgts) || 0,
         entrada: 0,
