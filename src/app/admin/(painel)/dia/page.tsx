@@ -39,6 +39,24 @@ function saudacao() {
 }
 
 export default async function MeuDiaPage() {
+  try {
+    return await MeuDiaConteudo();
+  } catch (e) {
+    console.error("Meu dia falhou:", e);
+    const m =
+      e instanceof Error
+        ? `${e.message}\n${(e.stack ?? "").split("\n").slice(1, 8).join("\n")}`
+        : String(e);
+    return (
+      <div className="card p-5">
+        <h1 className="text-lg font-bold">Não consegui montar o Meu dia</h1>
+        <pre className="mt-3 whitespace-pre-wrap text-xs text-red-700">{m}</pre>
+      </div>
+    );
+  }
+}
+
+async function MeuDiaConteudo() {
   const { supabase, nome } = await requireAdmin();
   const r = await montarMeuDia(supabase).then(
     (d) => ({ d, falha: null as string | null }),
@@ -102,8 +120,8 @@ export default async function MeuDiaPage() {
     },
   );
   const assinatura = s.corretora_nome || s.empresa_nome;
-  const msgCarteira = (n: string, status?: string) => {
-    const p = (n.trim().split(/\s+/)[0] || "").replace(/^./, (c) =>
+  const msgCarteira = (n: string | null | undefined, status?: string) => {
+    const p = ((n ?? "").trim().split(/\s+/)[0] || "").replace(/^./, (c) =>
       c.toUpperCase(),
     );
     if (status === "vendido")
@@ -142,8 +160,8 @@ export default async function MeuDiaPage() {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-300 bg-sky-50 p-3 text-sm text-sky-950">
           <p>
             <b>
-              {TIPOS_DIA[especial].emoji} Hoje é dia de{" "}
-              {TIPOS_DIA[especial].label.toLowerCase()} (externo).
+              {TIPOS_DIA[especial]?.emoji} Hoje é dia de{" "}
+              {(TIPOS_DIA[especial]?.label ?? especial).toLowerCase()} (externo).
             </b>{" "}
             Só o essencial: agenda, novos cadastros e leads quentes. O resto
             volta amanhã, sem acumular.

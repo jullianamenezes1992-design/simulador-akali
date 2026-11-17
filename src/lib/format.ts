@@ -19,7 +19,7 @@ export const formatDate = (iso: string | null | undefined, withTime = false) => 
   });
 };
 
-export const onlyDigits = (s: string) => (s ?? "").replace(/\D/g, "");
+export const onlyDigits = (s: string | null | undefined) => (s ?? "").replace(/\D/g, "");
 
 export const maskCPF = (v: string) => {
   const d = onlyDigits(v).slice(0, 11);
@@ -29,7 +29,7 @@ export const maskCPF = (v: string) => {
     .replace(/\.(\d{3})(\d{1,2})$/, ".$1-$2");
 };
 
-export const maskPhone = (v: string) => {
+export const maskPhone = (v: string | null | undefined) => {
   const d = onlyDigits(v).slice(0, 11);
   if (d.length <= 2) return d.length ? `(${d}` : "";
   if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
