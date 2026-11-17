@@ -7,10 +7,23 @@ const values = <T extends readonly { value: string }[]>(list: T) =>
 const dinheiro = z.number({ error: "Informe um valor" }).min(0, "Valor inválido").max(100_000_000, "Valor muito alto");
 const texto = (max: number) => z.string().trim().max(max);
 
+/**
+ * Celular com DDD: 11 dígitos, DDD válido e começando com 9.
+ * Antes aceitava 10 dígitos e vinham cadastros sem o 9 (ex.: (11) 9672-6252), e o WhatsApp não chegava.
+ */
+export const celular = z.string().superRefine((v, ctx) => {
+  const d = v.replace(/\D/g, "");
+  const msg = (message: string) => ctx.addIssue({ code: "custom", message });
+  if (d.length < 2 || !/^[1-9]{2}/.test(d)) return msg("Informe o DDD, por exemplo (11)");
+  if (d.length === 10 && /^[6-9]$/.test(d[2])) return msg("Parece que falta o 9 no início do número. Ex.: (11) 9XXXX-XXXX");
+  if (d.length !== 11) return msg("Informe o celular completo com DDD: (11) 9XXXX-XXXX");
+  if (d[2] !== "9") return msg("Informe um número de celular (começa com 9 depois do DDD)");
+});
+
 /** Etapa 1 de 3 — Contato (já salva o cadastro para a corretora retomar o atendimento) */
 export const etapaContato = z.object({
   nome: z.string().trim().min(2, "Informe o seu nome").max(120),
-  telefone: z.string().regex(/^\d{10,11}$/, "Telefone com DDD inválido"),
+  telefone: celular,
   consentimento: z.literal(true, { error: "É necessário aceitar a Política de Privacidade para continuar" }),
 });
 
