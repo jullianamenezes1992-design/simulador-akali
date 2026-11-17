@@ -1,16 +1,12 @@
 "use client";
 
+import { TIPOS_DIA } from "@/lib/tipos-dia";
+
 import { useState, useTransition } from "react";
 import { CalendarOff, Loader2, Plus, X } from "lucide-react";
 import { marcarFolga } from "@/app/admin/actions";
 
 export type DiaEspecial = { dia: string; tipo: "folga" | "evento" | "meeting" | "live" };
-export const TIPOS_DIA = {
-  folga: { emoji: "🌴", label: "Folga" },
-  evento: { emoji: "🎪", label: "Evento" },
-  meeting: { emoji: "💼", label: "Meeting" },
-  live: { emoji: "🎥", label: "Live" },
-} as const;
 
 const fmt = (d: string) =>
   new Date(`${d}T12:00:00-03:00`).toLocaleDateString("pt-BR", {

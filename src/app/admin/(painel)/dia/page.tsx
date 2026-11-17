@@ -11,12 +11,12 @@ import { AcoesBaseFria } from "@/components/admin/BaseFriaControles";
 import { getSettings } from "@/lib/data";
 import { maskPhone } from "@/lib/format";
 import { requireAdmin } from "@/lib/server/auth";
+import { TIPOS_DIA } from "@/lib/tipos-dia";
 import { ESSENCIAIS_EXTERNO, montarMeuDia, PAUSAS } from "@/lib/server/meu-dia";
 import { diaSP } from "@/lib/agenda";
 import {
   DesfazerFolgaHoje,
   Folgas,
-  TIPOS_DIA,
   type DiaEspecial,
 } from "@/components/admin/Folgas";
 import { Fragment } from "react";
