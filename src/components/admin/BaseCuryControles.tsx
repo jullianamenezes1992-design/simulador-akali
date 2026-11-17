@@ -8,10 +8,12 @@ import {
   Loader2,
   MessageCircle,
   Undo2,
+  UserPlus,
   XCircle,
 } from "lucide-react";
 import {
   baseCuryParaAprovados,
+  baseCuryParaLeads,
   chamarBaseCury,
   marcarBaseCury,
 } from "@/app/admin/actions";
@@ -23,12 +25,17 @@ export function AcoesBaseCury({
   texto,
   situacao: inicial,
   aprovadoId,
+  leadId,
+  aprovado,
 }: {
   id: string;
   telefone: string | null;
   texto: string;
   situacao: string;
   aprovadoId: string | null;
+  leadId: string | null;
+  /** tem aprovação bancária válida: vai para Aprovados; senão, para Leads */
+  aprovado: boolean;
 }) {
   const [situacao, setSituacao] = useState(inicial);
   const [erro, setErro] = useState("");
@@ -38,10 +45,22 @@ export function AcoesBaseCury({
   if (situacao === "aprovado")
     return (
       <a
-        href={aprovadoId ? `/admin/aprovados/${aprovadoId}` : "/admin/aprovados"}
+        href={
+          aprovadoId ? `/admin/aprovados/${aprovadoId}` : "/admin/aprovados"
+        }
         className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800"
       >
         <BadgeCheck size={13} /> Nos Aprovados
+      </a>
+    );
+
+  if (situacao === "lead")
+    return (
+      <a
+        href={leadId ? `/admin/leads/${leadId}` : "/admin/leads"}
+        className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2.5 py-1 text-xs font-bold text-sky-800"
+      >
+        <UserPlus size={13} /> Nos Leads
       </a>
     );
 
@@ -70,11 +89,20 @@ export function AcoesBaseCury({
   const trazer = () =>
     start(async () => {
       setErro("");
-      const r = await baseCuryParaAprovados(id);
-      if (r.erro) setErro(r.erro);
-      else if (r.aprovadoId) {
-        setSituacao("aprovado");
-        router.push(`/admin/aprovados/${r.aprovadoId}`);
+      if (aprovado) {
+        const r = await baseCuryParaAprovados(id);
+        if (r.erro) setErro(r.erro);
+        else if (r.aprovadoId) {
+          setSituacao("aprovado");
+          router.push(`/admin/aprovados/${r.aprovadoId}`);
+        }
+      } else {
+        const r = await baseCuryParaLeads(id);
+        if (r.erro) setErro(r.erro);
+        else if (r.leadId) {
+          setSituacao("lead");
+          router.push(`/admin/leads/${r.leadId}`);
+        }
       }
     });
 
@@ -114,10 +142,12 @@ export function AcoesBaseCury({
       >
         {pending ? (
           <Loader2 size={13} className="animate-spin" />
-        ) : (
+        ) : aprovado ? (
           <BadgeCheck size={13} />
+        ) : (
+          <UserPlus size={13} />
         )}{" "}
-        Trazer para Aprovados
+        {aprovado ? "Trazer para Aprovados" : "Trazer para Leads"}
       </button>
       <button
         type="button"

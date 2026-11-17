@@ -113,7 +113,7 @@ export const LEMBRAR_OPCOES = [
 export const TZ = "America/Sao_Paulo";
 
 /** Redes de onde chegam os contatos cadastrados à mão (aba Redes sociais). */
-export const REDES = ["Instagram", "TikTok", "YouTube", "Status do WhatsApp", "Facebook", "Indicação", "Influenciador", "Base Salesforce", "Meta Ads", "Google Ads", "WhatsApp", "Plantão / stand", "Direto", "Outro"] as const;
+export const REDES = ["Instagram", "TikTok", "YouTube", "Status do WhatsApp", "Facebook", "Indicação", "Influenciador", "Base Salesforce", "Base Cury", "Meta Ads", "Google Ads", "WhatsApp", "Plantão / stand", "Direto", "Outro"] as const;
 
 export const VINCULOS = [
   { value: "clt", label: "Registrado (CLT)" },

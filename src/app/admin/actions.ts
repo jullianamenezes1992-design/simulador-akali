@@ -1724,3 +1724,60 @@ export async function baseCuryParaAprovados(id: string): Promise<{ erro?: string
     return { erro: msg(e) };
   }
 }
+
+/** Passa o cliente da Base Cury (sem aprovação válida) para os Leads, em atendimento. */
+export async function baseCuryParaLeads(id: string): Promise<{ erro?: string; leadId?: string }> {
+  try {
+    const { supabase, userId } = await assertAdmin();
+    if (!UUID_RE.test(id)) return { erro: "Cliente inválido." };
+    const { data: c } = await supabase.from("base_cury").select("*").eq("id", id).maybeSingle();
+    if (!c) return { erro: "Cliente não encontrado." };
+    if (c.lead_id) return { leadId: c.lead_id };
+    if (!/^\d{10,11}$/.test(c.telefone ?? "")) return { erro: "Cliente sem celular válido. Corrija no Salesforce e importe de novo." };
+    const db = createAdminClient();
+    const props = (c.propostas ?? []) as { pv: string; empreendimento: string | null; etapa: string | null }[];
+    const { data: existe } = await db.from("leads").select("id, status").eq("telefone", c.telefone).is("excluido_em", null).limit(1).maybeSingle();
+    let leadId = existe?.id as string | undefined;
+    if (leadId && existe && ["perdido", "arquivado"].includes(existe.status)) {
+      await db.from("leads").update({ status: "em_atendimento" }).eq("id", leadId);
+      await db.from("lead_events").insert({ lead_id: leadId, tipo: "status_alterado", dados: { de: existe.status, para: "em_atendimento", origem: "Base Cury" } });
+    }
+    if (!leadId) {
+      const { data: lead, error } = await db
+        .from("leads")
+        .insert({
+          nome: c.nome,
+          telefone: c.telefone,
+          email: c.email,
+          origem: "Base Cury",
+          utm_source: "base_cury",
+          utm_campaign: "Propostas Salesforce Cury",
+          status: "em_atendimento",
+          responsavel_id: userId,
+          cadastro_manual: true,
+          consentimento_em: new Date().toISOString(),
+          consentimento_versao: "base-cury",
+        })
+        .select("id")
+        .single();
+      if (error || !lead) return { erro: error?.message ?? "Não foi possível criar o lead." };
+      leadId = lead.id as string;
+    }
+    const info = [
+      "🏢 Veio da Base Cury (proposta no Salesforce da Cury).",
+      props.length ? `Propostas: ${props.map((p) => `${p.pv} ${p.empreendimento ?? ""} (${p.etapa ?? ""})`).join("; ")}.` : null,
+      c.ab_status ? `Análise bancária: ${c.ab_status}${c.ab_substatus ? ` / ${c.ab_substatus}` : ""}.` : "Sem análise bancária na Cury.",
+      c.renda_total ? `Renda informada: R$ ${Number(c.renda_total).toLocaleString("pt-BR")}.` : null,
+      c.observacoes_sf ? `Obs. Cury: ${c.observacoes_sf}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    await db.from("lead_notes").insert({ lead_id: leadId, autor_id: userId, texto: info });
+    await supabase.from("base_cury").update({ situacao: "lead", lead_id: leadId, atualizado_em: new Date().toISOString() }).eq("id", id);
+    revalidatePath("/admin/base-cury");
+    revalidatePath("/admin/leads");
+    return { leadId };
+  } catch (e) {
+    return { erro: msg(e) };
+  }
+}

@@ -38,6 +38,7 @@ type ClienteCury = {
   situacao: string;
   chamado_em: string | null;
   aprovado_id: string | null;
+  lead_id: string | null;
 };
 
 const FILTROS = [
@@ -45,20 +46,54 @@ const FILTROS = [
   { v: "nova", label: "Novos" },
   { v: "chamado", label: "Chamados" },
   { v: "aprovado", label: "Nos Aprovados" },
+  { v: "lead", label: "Nos Leads" },
   { v: "descartado", label: "Descartados" },
   { v: "todos", label: "Todos" },
 ];
 
-/** Mensagem de primeiro contato para um cliente com pasta na Cury. */
-function mensagem(c: ClienteCury, assinatura: string) {
+/** Tipo da análise bancária, para o segundo filtro. */
+const ANALISES = [
+  { v: "", label: "Todas as análises" },
+  { v: "valida", label: "Aprovação válida" },
+  { v: "vencida", label: "Aprovação vencida" },
+  { v: "pendente", label: "Pendente / em análise" },
+  { v: "sem", label: "Sem análise" },
+  { v: "reprovado", label: "Reprovado" },
+];
+
+const aprovadoCury = (c: { ab_status: string | null }) =>
+  /aprovad/i.test(c.ab_status ?? "");
+
+function tipoAnalise(c: ClienteCury, hoje: string) {
+  if (aprovadoCury(c))
+    return c.validade && c.validade < hoje ? "vencida" : "valida";
+  if (/reprovad/i.test(c.ab_status ?? "")) return "reprovado";
+  if (!c.ab_status) return "sem";
+  return "pendente";
+}
+
+/** Mensagem de primeiro contato para um cliente com proposta na Cury. */
+function mensagem(c: ClienteCury, assinatura: string, hoje: string) {
   const primeiro = c.nome.split(" ")[0];
   const nome = primeiro.charAt(0) + primeiro.slice(1).toLowerCase();
+  const emp = c.empreendimento
+    ? ` (você tinha interesse no ${c.empreendimento})`
+    : "";
+  const tipo = tipoAnalise(c, hoje);
+  const meio =
+    tipo === "valida"
+      ? `Vi que você tem uma análise de crédito aprovada para comprar seu apartamento${emp}.`
+      : tipo === "vencida"
+        ? `Vi que você chegou a ter uma aprovação de crédito para comprar seu apartamento${emp}. Ela venceu, mas com as novas regras do Minha Casa Minha Vida dá para fazer uma nova análise, muitas vezes com condição melhor.`
+        : tipo === "reprovado"
+          ? `Vi que você tentou comprar seu apartamento${emp} e a análise não foi aprovada na época. Com as novas regras do Minha Casa Minha Vida (e compondo renda, se precisar), vale a pena tentar de novo.`
+          : `Vi que você começou o processo para comprar seu apartamento${emp}. Conseguiu seguir?`;
   return [
     `Oi, ${nome}! Tudo bem? Aqui é ${assinatura}, corretora parceira da Cury.`,
-    c.empreendimento
-      ? `Vi que você tem uma análise de crédito aprovada para comprar seu apartamento${c.empreendimento ? ` (você tinha interesse no ${c.empreendimento})` : ""}.`
-      : "Vi que você tem uma análise de crédito aprovada para comprar seu apartamento.",
-    "Ainda está procurando? Tenho opções que cabem na sua aprovação e posso te mostrar sem compromisso. 😊",
+    meio,
+    tipo === "valida"
+      ? "Ainda está procurando? Tenho opções que cabem na sua aprovação e posso te mostrar sem compromisso. 😊"
+      : "Posso te ajudar com a análise e te mostrar as opções que cabem no seu bolso, sem compromisso. 😊",
   ].join("\n\n");
 }
 
@@ -70,6 +105,7 @@ export default async function BaseCuryPage({
   const { supabase } = await requireAdmin();
   const sp = await searchParams;
   const filtro = FILTROS.some((f) => f.v === sp.f) ? sp.f! : "abertos";
+  const analise = ANALISES.some((a) => a.v === sp.a) ? (sp.a ?? "") : "";
   const q = (sp.q ?? "").trim();
   const [s, ativo, devs, { data: todos }] = await Promise.all([
     getSettings(),
@@ -78,7 +114,7 @@ export default async function BaseCuryPage({
     supabase
       .from("base_cury")
       .select(
-        "id, nome, telefone, email, participantes, propostas, empreendimento, etapa, ab_status, ab_substatus, valor_aprovado, banco, validade, renda_total, parcela_max, fgts, primeiro_imovel, observacoes_sf, situacao, chamado_em, aprovado_id",
+        "id, nome, telefone, email, participantes, propostas, empreendimento, etapa, ab_status, ab_substatus, valor_aprovado, banco, validade, renda_total, parcela_max, fgts, primeiro_imovel, observacoes_sf, situacao, chamado_em, aprovado_id, lead_id",
       )
       .order("validade", { ascending: false, nullsFirst: false })
       .limit(2000),
@@ -98,6 +134,7 @@ export default async function BaseCuryPage({
           ? c.situacao === "nova" || c.situacao === "chamado"
           : c.situacao === filtro,
     )
+    .filter((c) => !analise || tipoAnalise(c, hoje) === analise)
     .filter((c) =>
       !q
         ? true
@@ -112,7 +149,7 @@ export default async function BaseCuryPage({
 
   // quantos projetos cabem para cada cliente (mesma conta dos Aprovados)
   const cabem = (c: ClienteCury) => {
-    if (!(Number(c.valor_aprovado) > 0)) return null;
+    if (!aprovadoCury(c) || !(Number(c.valor_aprovado) > 0)) return null;
     const a = {
       id: c.id,
       nome: c.nome,
@@ -138,7 +175,7 @@ export default async function BaseCuryPage({
     <div className="space-y-5">
       <PageHeader
         titulo="Base Cury"
-        descricao="Clientes com pasta na Cury (propostas do Salesforce da Cury). Ficam separados dos seus leads e aprovados até você decidir trabalhar o cliente."
+        descricao="Clientes com proposta na Cury (Salesforce da Cury), aprovados ou não. Ficam separados dos seus leads e aprovados até você decidir trabalhar o cliente."
       />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -147,10 +184,14 @@ export default async function BaseCuryPage({
           valor={cont("nova") + cont("chamado")}
           sub={`${cont("chamado")} já chamados`}
         />
-        <StatCard label="Nos Aprovados" valor={cont("aprovado")} />
+        <StatCard
+          label="Nos Aprovados / Leads"
+          valor={cont("aprovado") + cont("lead")}
+          sub={`${cont("aprovado")} aprovados · ${cont("lead")} leads`}
+        />
         <StatCard label="Descartados" valor={cont("descartado")} />
         <StatCard
-          label="Aprovação vencida"
+          label="Aprovação válida"
           valor={
             lista.filter(
               (c) =>
@@ -168,7 +209,7 @@ export default async function BaseCuryPage({
           {FILTROS.map((f) => (
             <a
               key={f.v}
-              href={`/admin/base-cury?f=${f.v}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
+              href={`/admin/base-cury?f=${f.v}${analise ? `&a=${analise}` : ""}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
               className={`rounded-full px-3 py-1.5 text-xs font-bold ${filtro === f.v ? "bg-caixa text-white" : "border border-line bg-white text-ink"}`}
             >
               {f.label}
@@ -176,6 +217,17 @@ export default async function BaseCuryPage({
           ))}
         </div>
         <input type="hidden" name="f" value={filtro} />
+        <select
+          name="a"
+          defaultValue={analise}
+          className="input !py-1.5 max-w-[12rem]"
+        >
+          {ANALISES.map((a) => (
+            <option key={a.v} value={a.v}>
+              {a.label}
+            </option>
+          ))}
+        </select>
         <input
           name="q"
           defaultValue={q}
@@ -214,7 +266,9 @@ export default async function BaseCuryPage({
                     </p>
                     <p className="text-xs">
                       {c.ab_status ? (
-                        <span className="font-semibold text-emerald-700">
+                        <span
+                          className={`font-semibold ${aprovadoCury(c) ? "text-emerald-700" : /reprovad/i.test(c.ab_status) ? "text-red-700" : "text-amber-700"}`}
+                        >
                           {c.ab_status}
                           {c.ab_substatus ? ` / ${c.ab_substatus}` : ""}
                         </span>
@@ -283,9 +337,11 @@ export default async function BaseCuryPage({
                   <AcoesBaseCury
                     id={c.id}
                     telefone={c.telefone}
-                    texto={mensagem(c, assinatura)}
+                    texto={mensagem(c, assinatura, hoje)}
                     situacao={c.situacao}
                     aprovadoId={c.aprovado_id}
+                    leadId={c.lead_id}
+                    aprovado={aprovadoCury(c)}
                   />
                 </li>
               );
