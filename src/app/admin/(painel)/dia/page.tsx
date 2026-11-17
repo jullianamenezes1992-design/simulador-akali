@@ -40,9 +40,36 @@ function saudacao() {
 
 export default async function MeuDiaPage() {
   const { supabase, nome } = await requireAdmin();
+  const r = await montarMeuDia(supabase).then(
+    (d) => ({ d, falha: null as string | null }),
+    (e: unknown) => {
+      console.error("Meu dia falhou:", e);
+      return {
+        d: null,
+        falha:
+          e instanceof Error
+            ? `${e.message}\n${(e.stack ?? "").split("\n").slice(1, 6).join("\n")}`
+            : String(e),
+      };
+    },
+  );
+  const dia = r.d;
+  const falha = r.falha;
+  if (!dia)
+    return (
+      <div className="card p-5">
+        <h1 className="text-lg font-bold">Não consegui montar o Meu dia</h1>
+        <p className="mt-1 text-sm text-ink-soft">
+          Mande um print desta tela para o suporte.
+        </p>
+        <pre className="mt-3 whitespace-pre-wrap text-xs text-red-700">
+          {falha}
+        </pre>
+      </div>
+    );
   const [{ hoje, blocos: todosBlocos, finalizado }, s, folgasQ] =
     await Promise.all([
-      montarMeuDia(supabase),
+      Promise.resolve(dia),
       getSettings(),
       supabase
         .from("rotina_dia")
