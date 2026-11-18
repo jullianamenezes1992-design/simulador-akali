@@ -37,12 +37,17 @@ function semValores(m: string): string | null {
     return "Valor dentro do que a sua simulação indica";
   if (/^Pode caber com entrada/.test(m))
     return "Pode caber com entrada parcelada (a corretora te explica)";
-  if (/acima da capacidade estimada/.test(m))
-    return "Valor acima do que a sua simulação indica";
-  if (/^Valor acima do teto da faixa/.test(m))
-    return "Valor acima do limite da sua faixa do programa";
+  // avisos de valor/faixa não aparecem para o cliente: o imóvel encanta, a realidade a corretora mostra depois
+  if (
+    /acima da capacidade estimada|^Valor acima do teto|voltado a outras faixas|^Preço sob consulta/.test(
+      m,
+    )
+  )
+    return null;
   return m;
 }
+const limpar = (l: string[]) =>
+  l.map(semValores).filter((m): m is string => !!m);
 
 export default async function ResultadoPage({
   params,
@@ -183,9 +188,8 @@ export default async function ResultadoPage({
                   }
                 >
                   <ul className="mt-3 space-y-1 border-t border-line pt-3 text-xs text-ink-soft">
-                    {match.motivos
+                    {limpar(match.motivos)
                       .slice(0, 4)
-                      .map(semValores)
                       .map((m) => (
                         <li key={m} className="flex gap-1.5">
                           <CheckCircle2
@@ -195,9 +199,8 @@ export default async function ResultadoPage({
                           {m}
                         </li>
                       ))}
-                    {match.atencao
+                    {limpar(match.atencao)
                       .slice(0, 2)
-                      .map(semValores)
                       .map((m) => (
                         <li key={m} className="flex gap-1.5">
                           <Info
@@ -237,9 +240,8 @@ export default async function ResultadoPage({
                 <DevelopmentCard key={dev.id} d={dev}>
                   {limpar(match.atencao).length > 0 && (
                     <ul className="mt-3 space-y-1 border-t border-line pt-3 text-xs text-ink-soft">
-                      {match.atencao
+                      {limpar(match.atencao)
                         .slice(0, 3)
-                        .map(semValores)
                         .map((m) => (
                           <li key={m} className="flex gap-1.5">
                             <Info
