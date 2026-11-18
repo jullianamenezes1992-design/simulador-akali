@@ -252,7 +252,7 @@ export default async function LeadsPage({
 
       <form
         method="get"
-        className="card mb-4 grid gap-3 p-3 sm:grid-cols-[1fr_auto_auto_auto]"
+        className="card mb-4 grid gap-3 p-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end"
       >
         {status && <input type="hidden" name="status" value={status} />}
         {incompletas && <input type="hidden" name="inc" value="1" />}
@@ -262,20 +262,27 @@ export default async function LeadsPage({
           placeholder="Buscar por nome, código, e-mail ou telefone"
           className="input"
         />
-        <input
-          type="date"
-          name="de"
-          defaultValue={de}
-          className="input"
-          aria-label="Data inicial"
-        />
-        <input
-          type="date"
-          name="ate"
-          defaultValue={ate}
-          className="input"
-          aria-label="Data final"
-        />
+        {/* período de cadastro: rótulo visível (no iPhone o campo de data aparece vazio) */}
+        <div className="grid grid-cols-2 gap-2 sm:contents">
+          <label className="min-w-0 text-xs font-semibold text-ink-soft">
+            Cadastrado de
+            <input
+              type="date"
+              name="de"
+              defaultValue={de}
+              className="input mt-1 w-full min-w-0"
+            />
+          </label>
+          <label className="min-w-0 text-xs font-semibold text-ink-soft">
+            até
+            <input
+              type="date"
+              name="ate"
+              defaultValue={ate}
+              className="input mt-1 w-full min-w-0"
+            />
+          </label>
+        </div>
         <button className="btn-primary">Filtrar</button>
       </form>
 
