@@ -674,7 +674,7 @@ export async function montarMeuDia(
     {
       item: "sem_resposta",
       hora: "10h15",
-      titulo: "Não responderam",
+      titulo: "Sem retorno",
       dica: "Mande a próxima mensagem da sequência (1, 2, 3).",
       clientes: semResp.map((l) => cli(l)),
       total: semResp.length,
