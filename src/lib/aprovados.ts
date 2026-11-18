@@ -5,6 +5,13 @@
  * e a uma parcela de até 30% da renda (nos meses até a entrega das chaves, mais as parcelas pós-chaves do projeto, se houver).
  */
 import { formatBRL } from "./format";
+import {
+  calcularFluxoPlano,
+  fluxoDaTabela,
+  linhasFluxoTexto,
+  type FluxoCalculado,
+  type FluxoPlano,
+} from "./plano-fluxo";
 import { regiaoLabel } from "./constants";
 import { mesesAteEntrega } from "./simulacao/engine";
 import type { SimulationParams } from "./simulacao/types";
@@ -60,6 +67,10 @@ export interface Aprovado {
   poder_compra: number;
   prazo_meses: number | null;
   parcela_max: number | null;
+  /** score do cliente na Plano&Plano (define o máximo de cada parcela) */
+  score?: number | null;
+  /** tabela de venda da Plano (Associativa, Associativa IR Futuro...) */
+  tabela_plano?: string | null;
   classificacao: string;
   regioes: string[];
   dormitorios_min: number | null;
@@ -216,6 +227,20 @@ export interface DevCompat {
   ato_minimo?: number | null;
   /** unidade mais barata por nº de dormitórios ({"1": 209184, "2": 245000}) — vem do tabelão */
   precos_por_dorm?: Record<string, number> | null;
+  /** fluxo de pagamento da Plano por tabela de venda (uso interno, coletado do simulador) */
+  fluxos_plano?: FluxoPlano[] | null;
+}
+
+type ClienteFluxo = { renda_familiar: number; score?: number | null; tabela_plano?: string | null };
+
+/** Fluxo máximo da Plano para este cliente neste projeto (precisa do score e do fluxo coletado). */
+export function fluxoPlanoDoCliente(
+  a: ClienteFluxo,
+  d: Pick<DevCompat, "fluxos_plano">,
+) {
+  if (a.score == null || !(Number(a.renda_familiar) > 0)) return null;
+  const f = fluxoDaTabela(d.fluxos_plano, a.tabela_plano);
+  return f ? calcularFluxoPlano(f, Number(a.renda_familiar), Number(a.score)) : null;
 }
 
 /**
@@ -319,12 +344,25 @@ export function regraEntrada(params?: SimulationParams | null): RegraEntrada {
 
 /** Quanto da entrada este cliente consegue parcelar neste empreendimento, e em quantos meses. */
 export function entradaParcelavelAprovado(
-  a: Pick<Aprovado, "renda_familiar">,
-  d: Pick<DevCompat, "status_obra" | "previsao_entrega" | "meses_pos_chaves">,
+  a: ClienteFluxo,
+  d: Pick<DevCompat, "status_obra" | "previsao_entrega" | "meses_pos_chaves" | "fluxos_plano">,
   preco: number,
   regra: RegraEntrada,
   hoje = new Date(),
 ) {
+  // Plano com score: vale o fluxo real do simulador (máximo de cada parcela pela renda e score)
+  const plano = fluxoPlanoDoCliente(a, d);
+  if (plano) {
+    const meses = Math.max(1, plano.meses);
+    return {
+      valorMax: Math.max(0, plano.total),
+      mesesObra: meses,
+      mesesPos: 0,
+      parcelaObra: plano.total / meses,
+      parcelaPos: 0,
+      plano,
+    };
+  }
   const renda = Number(a.renda_familiar || 0);
   const obra =
     d.status_obra === "pronto"
@@ -343,6 +381,7 @@ export function entradaParcelavelAprovado(
     mesesPos,
     parcelaObra,
     parcelaPos,
+    plano: null as FluxoCalculado | null,
   };
 }
 
@@ -350,7 +389,7 @@ export function entradaParcelavelAprovado(
 export function avaliarDev(
   a: Pick<
     Aprovado,
-    "poder_compra" | "renda_familiar" | "financiamento" | "dormitorios_min"
+    "poder_compra" | "renda_familiar" | "financiamento" | "dormitorios_min" | "score" | "tabela_plano"
   >,
   d: DevCompat,
   regra: RegraEntrada,
@@ -391,7 +430,7 @@ export const rotuloDormsAbaixo = (av: {
 function avaliarDevDorms(
   a: Pick<
     Aprovado,
-    "poder_compra" | "renda_familiar" | "financiamento" | "dormitorios_min"
+    "poder_compra" | "renda_familiar" | "financiamento" | "dormitorios_min" | "score" | "tabela_plano"
   >,
   d: DevCompat,
   regra: RegraEntrada,
@@ -423,6 +462,8 @@ function avaliarDevDorms(
     parcelaEntrada:
       falta > 0 && meses > 0 ? Math.min(falta, ep.valorMax) / meses : 0,
     meses,
+    /** fluxo máximo da Plano pelo score (quando o projeto tem o fluxo coletado) */
+    plano: ep.plano,
   };
 }
 
@@ -541,8 +582,11 @@ export function preSimulacao(
   const atoValor = Math.min(entradaTotal, Math.max(ato, vista));
   const aParcelar = Math.max(0, entradaTotal - atoValor);
   const ep = entradaParcelavelAprovado(a, d, preco, regra, hoje);
+  const fluxoPlano = ep.plano
+    ? linhasFluxoTexto(ep.plano, formatBRL, aParcelar)
+    : null;
   const naObra =
-    ep.mesesObra > 0 ? Math.min(aParcelar, ep.parcelaObra * ep.mesesObra) : 0;
+    ep.plano ? 0 : ep.mesesObra > 0 ? Math.min(aParcelar, ep.parcelaObra * ep.mesesObra) : 0;
   const resto = aParcelar - naObra;
   const mesesObra = naObra > 0 ? ep.mesesObra : 0;
   const mesesPos =
@@ -571,6 +615,10 @@ export function preSimulacao(
     parcelaFinanciamento: parcelaFin ? Math.round(parcelaFin) : null,
     /** a entrada não cabe nas regras (mais de 20% do imóvel ou parcela acima de 30% da renda) */
     excede: aParcelar > ep.valorMax + 1,
+    /** fluxo da Plano pelo score (parcelas proporcionais ao que falta) */
+    fluxoPlano,
+    planoTotal: ep.plano ? Math.round(ep.plano.total) : null,
+    planoTabela: ep.plano?.tabela ?? null,
     semAvaliacao: !(Number(d.avaliacao_min) > 0),
     /** a renda do cliente passa do limite da categoria dessa unidade (HIS/HMP) */
     foraEnquadramento,
@@ -607,6 +655,9 @@ export function textoPreSimulacao(
   } else {
     const partes = [
       p.ato > 0 ? `ato de ${formatBRL(p.ato)}` : null,
+      ...(p.fluxoPlano?.length && p.aParcelar <= (p.planoTotal ?? 0)
+        ? p.fluxoPlano.map((t) => `*${t}*`)
+        : []),
       p.mesesObra
         ? `*${p.mesesObra}x de ${formatBRL(p.parcelaObra)}* até as chaves`
         : null,

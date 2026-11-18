@@ -8,6 +8,7 @@ import EnviarOferta from "@/components/admin/EnviarOferta";
 import ExcluirAprovado from "@/components/admin/ExcluirAprovado";
 import RespondeuOferta from "@/components/admin/RespondeuOferta";
 import OutraUnidade from "@/components/admin/OutraUnidade";
+import { linhasFluxoTexto } from "@/lib/plano-fluxo";
 import { REANALISE, mensagemReanalise, STATUS_EM_ABERTO, compativeis, compraAte, diasParaVencer, mensagemOferta, ofertaDoProjeto, preSimulacao, ofertasPorProjeto, regraEntrada, rotuloDormsAbaixo, semRespostaSeguidas, type Aprovado, type OfertaEnviada } from "@/lib/aprovados";
 import { getActiveParams, getSettings } from "@/lib/data";
 import { regiaoLabel } from "@/lib/constants";
@@ -84,6 +85,13 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
               "Os recursos já cobrem o valor, sem parcelar entrada."
             )}
           </p>
+          {c.av.plano && c.av.entradaParcelar > 0 ? (
+            <p className="mt-1 rounded-lg bg-caixa-50 px-2 py-1 text-[11px] text-ink">
+              <strong>Fluxo Plano</strong> (score {a.score}, {c.av.plano.tabela}): {linhasFluxoTexto(c.av.plano, formatBRL).join(" · ")} · total até{" "}
+              <strong>{formatBRL(c.av.plano.total)}</strong>
+              {c.av.plano.sinalMin ? ` · sinal mín. ${formatBRL(c.av.plano.sinalMin)}` : ""}
+            </p>
+          ) : null}
           <p className="mt-0.5 flex flex-wrap gap-1 text-[11px] font-semibold">
             {c.regiaoOk && a.regioes?.length ? <span className="rounded-full bg-emerald-100 px-2 text-emerald-800">região certa</span> : null}
             {c.dormOk && a.dormitorios_min ? <span className="rounded-full bg-emerald-100 px-2 text-emerald-800">dormitórios ok</span> : null}
@@ -107,7 +115,7 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
       </Link>
       <PageHeader
         titulo={a.nome}
-        descricao={`Atualizado em ${formatDate(a.updated_at, true)} · Compra até ~${formatBRL(compraAte(a, regra))} · recursos ${formatBRL(Number(a.poder_compra))}${a.faixa ? ` · Faixa ${a.faixa}` : ""}${[a.oportunidade_sf && "Oportunidade " + a.oportunidade_sf, a.ar_numero, a.ab_numero].filter(Boolean).map((x) => " · " + x).join("")}`}
+        descricao={`Atualizado em ${formatDate(a.updated_at, true)} · Compra até ~${formatBRL(compraAte(a, regra))} · recursos ${formatBRL(Number(a.poder_compra))}${a.faixa ? ` · Faixa ${a.faixa}` : ""}${a.score != null ? ` · score Plano ${a.score} (${a.tabela_plano ?? "Associativa"})` : " · sem score Plano (informe para ver o fluxo real)"}${[a.oportunidade_sf && "Oportunidade " + a.oportunidade_sf, a.ar_numero, a.ab_numero].filter(Boolean).map((x) => " · " + x).join("")}`}
       >
         {a.lead_id && (
           <Link href={`/admin/leads/${a.lead_id}`} className="btn-secondary">

@@ -11,6 +11,7 @@ import { assertAdmin } from "@/lib/server/auth";
 import { validarParametros } from "@/lib/simulacao/engine";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { TABELAS_PLANO } from "@/lib/plano-fluxo";
 
 export interface ActionState {
   ok?: boolean;
@@ -905,6 +906,8 @@ async function montarAprovado(fd: FormData): Promise<{ erro: string } | { dados:
       entrada: numeroBR(fd.get("entrada")),
       prazo_meses: prazo && prazo >= 12 && prazo <= 480 ? prazo : null,
       parcela_max: numeroBR(fd.get("parcela_max")) || null,
+      score: scoreDe(fd.get("score")),
+      tabela_plano: TABELAS_PLANO.includes(String(fd.get("tabela_plano"))) ? String(fd.get("tabela_plano")) : "Associativa",
       classificacao: CLASSIFICACOES.some((c) => c.value === classif) ? classif : "morno",
       regioes: fd.getAll("regioes").map(String).filter((r) => RG.some((x) => x.value === r)),
       dormitorios_min: dorm && dorm >= 1 && dorm <= 4 ? dorm : null,
@@ -915,6 +918,14 @@ async function montarAprovado(fd: FormData): Promise<{ erro: string } | { dados:
       ab_numero: codigoSF(fd.get("ab_numero"), 30)?.toUpperCase() ?? null,
     },
   };
+}
+
+/** Score de 0 a 1000 (vazio = não informado). */
+function scoreDe(v: FormDataEntryValue | null) {
+  const t = String(v ?? "").replace(/\D/g, "");
+  if (!t) return null;
+  const n = Number(t);
+  return n >= 0 && n <= 1000 ? n : null;
 }
 
 /** Números do Salesforce (oportunidade, AR, AB): só letras, números e hífen (o ID da oportunidade diferencia maiúsculas). */
@@ -1201,10 +1212,10 @@ export async function simularProjetoLead(leadId: string, devId: string, tipo = -
   const [{ data: l }, { data: d }] = await Promise.all([
     supabase
       .from("leads")
-      .select("nome, simulacao, renda_principal, renda_composicao, renda_total, data_nascimento, idade_informada, fgts_saldo, fgts_tres_anos, entrada_disponivel, dormitorios_min, possui_imovel, financiamento_ativo, ja_beneficiado, restricao_credito")
+      .select("nome, score, simulacao, renda_principal, renda_composicao, renda_total, data_nascimento, idade_informada, fgts_saldo, fgts_tres_anos, entrada_disponivel, dormitorios_min, possui_imovel, financiamento_ativo, ja_beneficiado, restricao_credito")
       .eq("id", leadId)
       .maybeSingle(),
-    supabase.from("developments").select("id, slug, nome, bairro, regiao, preco_min, dormitorios, oferta_destaque, oferta_texto, unidades_disponiveis, status_obra, previsao_entrega, meses_pos_chaves, construtora, avaliacao_min, ato_minimo, precos_por_dorm, avaliacoes, tipologias").eq("id", devId).maybeSingle(),
+    supabase.from("developments").select("id, slug, nome, bairro, regiao, preco_min, dormitorios, oferta_destaque, oferta_texto, unidades_disponiveis, status_obra, previsao_entrega, meses_pos_chaves, construtora, avaliacao_min, ato_minimo, precos_por_dorm, avaliacoes, tipologias, fluxos_plano:plano_fluxos(tabela, tabela_nome, vigencia_fim, parcelas, coletado_em)").eq("id", devId).maybeSingle(),
   ]);
   if (!l || !d) return { erro: "Cliente ou projeto não encontrado." };
   if (!d.preco_min) return { erro: "Esse projeto está sem preço cadastrado." };
@@ -1255,6 +1266,7 @@ export async function simularProjetoLead(leadId: string, devId: string, tipo = -
     parcela_max: sim.parcelaMax,
     dormitorios_min: l.dormitorios_min ?? null,
     faixa: sim.faixa?.id ?? null,
+    score: l.score ?? null,
   } as unknown as import("@/lib/aprovados").Aprovado;
   // só os tipos de unidade em que o cliente se enquadra pela renda (HIS1/HIS2/HMP/R2V)
   const todas = (d.tipologias ?? []) as import("@/lib/aprovados").Tipologia[];
@@ -1301,6 +1313,8 @@ export async function simularProjetoLead(leadId: string, devId: string, tipo = -
       mesesPos: ps.mesesPos,
       parcelaPos: ps.parcelaPos,
       parcelaFinanciamento: ps.parcelaFinanciamento,
+      fluxoPlano: ps.fluxoPlano,
+      planoTabela: ps.planoTabela,
       subsidioPossivel: sim.subsidioPotencial,
       excede: ps.excede,
       semAvaliacao: ps.semAvaliacao,
@@ -1534,6 +1548,7 @@ export async function atualizarDadosLead(leadId: string, _prev: ActionState, fd:
       renda_total: renda + rendaComp,
       fgts_saldo: fgtsValor,
       fgts_tres_anos: fgtsValor > 0 ? true : !!l.fgts_tres_anos,
+      score: scoreDe(fd.get("score")),
     };
     // idade: se o cliente tem data de nascimento, ela continua valendo; senão guarda a idade informada
     const idadeMeses = l.data_nascimento && !idade ? null : idade ? idade * 12 : null;

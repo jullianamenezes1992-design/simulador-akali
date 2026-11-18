@@ -19,7 +19,7 @@ export default async function NovoAprovado({ searchParams }: { searchParams: Pro
   if (lead && /^[0-9a-f-]{36}$/i.test(lead)) {
     const { data: l } = await supabase
       .from("leads")
-      .select("id, nome, telefone, tipo_renda, renda_total, fgts_saldo, regioes, dormitorios_min, simulacao")
+      .select("id, nome, telefone, tipo_renda, renda_total, fgts_saldo, regioes, dormitorios_min, simulacao, score")
       .eq("id", lead)
       .maybeSingle();
     if (l) {
@@ -34,6 +34,7 @@ export default async function NovoAprovado({ searchParams }: { searchParams: Pro
         financiamento: Number(sim?.financiamentoMax ?? 0) || 0,
         regioes: l.regioes ?? [],
         dormitorios_min: l.dormitorios_min,
+        score: l.score ?? null,
         data_analise: new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" }),
       };
     }

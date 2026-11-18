@@ -306,6 +306,7 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
                     relacao_composicao: l.relacao_composicao ?? null,
                     renda_composicao: Number(l.renda_composicao ?? 0),
                     fgts_saldo: Number(l.fgts_saldo ?? 0),
+                    score: l.score ?? null,
                   }}
                 />
               </div>

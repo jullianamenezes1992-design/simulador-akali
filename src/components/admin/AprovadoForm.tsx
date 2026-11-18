@@ -1,5 +1,6 @@
 "use client";
 
+import { TABELAS_PLANO } from "@/lib/plano-fluxo";
 import { useActionState, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Save } from "lucide-react";
@@ -111,6 +112,19 @@ export default function AprovadoForm({
         <input name="prazo_meses" defaultValue={a.prazo_meses ?? ""} inputMode="numeric" placeholder="420" className="input" />
       </label>
       {campoDinheiro("parcela", "parcela_max", "Parcela máxima")}
+      <label>
+        <span className="label">Score na Plano&amp;Plano</span>
+        <input name="score" defaultValue={a.score ?? ""} inputMode="numeric" placeholder="Ex.: 650" className="input" />
+        <span className="mt-1 block text-xs text-slate-500">Aparece no simulador da Plano. Com ele o CRM calcula o fluxo real (entrada, mensais A e B, anuais).</span>
+      </label>
+      <label>
+        <span className="label">Tabela de venda (Plano)</span>
+        <select name="tabela_plano" defaultValue={a.tabela_plano ?? "Associativa"} className="input">
+          {TABELAS_PLANO.map((t) => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
+      </label>
 
       <div className="rounded-2xl bg-caixa p-4 text-white sm:col-span-2">
         <p className="text-xs font-bold uppercase tracking-wider text-white/80">Recursos do cliente</p>

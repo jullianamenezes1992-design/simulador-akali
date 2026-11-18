@@ -172,6 +172,12 @@ export default function SimulacaoProjeto({
                 ? ` + ${r.resumo.mesesPos}x ${formatBRL(r.resumo.parcelaPos)} pós-chaves`
                 : ""}
             </dd>
+            {r.resumo.fluxoPlano?.length ? (
+              <>
+                <dt className="text-ink-soft">Fluxo Plano ({r.resumo.planoTabela})</dt>
+                <dd>{r.resumo.fluxoPlano.join(" · ")}</dd>
+              </>
+            ) : null}
             {r.resumo.parcelaFinanciamento ? (
               <>
                 <dt className="text-ink-soft">Parcela Caixa</dt>

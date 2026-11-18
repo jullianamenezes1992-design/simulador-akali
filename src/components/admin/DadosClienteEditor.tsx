@@ -19,6 +19,7 @@ type Dados = {
   relacao_composicao: string | null;
   renda_composicao: number;
   fgts_saldo: number;
+  score?: number | null;
 };
 
 const br = (n: number) =>
@@ -166,6 +167,16 @@ export default function DadosClienteEditor({
             inputMode="decimal"
             defaultValue={br(dados.fgts_saldo)}
             placeholder="0 se não tiver"
+            className="input"
+          />
+        </label>
+        <label className="block">
+          <span className="label">Score na Plano&amp;Plano</span>
+          <input
+            name="score"
+            inputMode="numeric"
+            defaultValue={dados.score ?? ""}
+            placeholder="Ex.: 650 (do simulador)"
             className="input"
           />
         </label>
