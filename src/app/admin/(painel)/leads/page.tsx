@@ -5,9 +5,11 @@ import {
   BadgeCheck,
   Download,
   FolderOpen,
+  MoreHorizontal,
+  Search,
   Trash2,
-  XCircle,
   UserPlus,
+  XCircle,
 } from "lucide-react";
 import { PageHeader } from "@/components/admin/ui";
 import NovoContatoRedes from "@/components/admin/NovoContatoRedes";
@@ -163,25 +165,55 @@ export default async function LeadsPage({
         descricao={`${count ?? 0} cadastro(s) encontrados.`}
       >
         <NovoContatoRedes titulo="Novo lead" origemPadrao="Base Salesforce" />
-        <a
-          href="/api/admin/contatos-google"
-          className="btn-secondary"
-          title="Todos os leads no formato do Google Contatos: Nome - Bairro Zona - Origem"
-        >
-          <UserPlus size={16} /> Contatos p/ Google
-        </a>
-        <a href={exportar("xlsx")} className="btn-secondary">
-          <Download size={16} /> Excel
-        </a>
-        <a href={exportar("csv")} className="btn-secondary">
-          <Download size={16} /> CSV
-        </a>
-        <Link href="/admin/redes" className="btn-secondary">
-          <AtSign size={16} /> Redes sociais
-        </Link>
-        <Link href="/admin/leads/lixeira" className="btn-secondary">
-          <Trash2 size={16} /> Lixeira
-        </Link>
+        {/* computador: todos os botões à mostra */}
+        <div className="hidden flex-wrap gap-2 sm:flex">
+          <a
+            href="/api/admin/contatos-google"
+            className="btn-secondary"
+            title="Todos os leads no formato do Google Contatos: Nome - Bairro Zona - Origem"
+          >
+            <UserPlus size={16} /> Contatos p/ Google
+          </a>
+          <a href={exportar("xlsx")} className="btn-secondary">
+            <Download size={16} /> Excel
+          </a>
+          <a href={exportar("csv")} className="btn-secondary">
+            <Download size={16} /> CSV
+          </a>
+          <Link href="/admin/redes" className="btn-secondary">
+            <AtSign size={16} /> Redes sociais
+          </Link>
+          <Link href="/admin/leads/lixeira" className="btn-secondary">
+            <Trash2 size={16} /> Lixeira
+          </Link>
+        </div>
+        {/* celular: só "Novo lead" à mostra, o resto num menu */}
+        <details className="relative sm:hidden">
+          <summary className="btn-secondary cursor-pointer list-none">
+            <MoreHorizontal size={16} /> Mais opções
+          </summary>
+          <div className="absolute right-0 z-30 mt-2 grid w-60 gap-1 rounded-2xl border border-line bg-white p-2 shadow-lg [&>a]:justify-start [&>a]:border-0 [&>a]:shadow-none">
+            <a
+              href="/api/admin/contatos-google"
+              className="btn-secondary w-full"
+              title="Todos os leads no formato do Google Contatos: Nome - Bairro Zona - Origem"
+            >
+              <UserPlus size={16} /> Contatos p/ Google
+            </a>
+            <a href={exportar("xlsx")} className="btn-secondary w-full">
+              <Download size={16} /> Excel
+            </a>
+            <a href={exportar("csv")} className="btn-secondary w-full">
+              <Download size={16} /> CSV
+            </a>
+            <Link href="/admin/redes" className="btn-secondary w-full">
+              <AtSign size={16} /> Redes sociais
+            </Link>
+            <Link href="/admin/leads/lixeira" className="btn-secondary w-full">
+              <Trash2 size={16} /> Lixeira
+            </Link>
+          </div>
+        </details>
       </PageHeader>
       {sp.lixeira === "1" && (
         <p className="mb-4 rounded-xl bg-caixa-50 px-4 py-3 text-sm">
@@ -250,40 +282,50 @@ export default async function LeadsPage({
         próprias.
       </p>
 
-      <form
-        method="get"
-        className="card mb-4 grid gap-3 p-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end"
-      >
+      <form method="get" className="card mb-4 space-y-2 p-3">
         {status && <input type="hidden" name="status" value={status} />}
         {incompletas && <input type="hidden" name="inc" value="1" />}
-        <input
-          name="q"
-          defaultValue={q}
-          placeholder="Buscar por nome, código, e-mail ou telefone"
-          className="input"
-        />
-        {/* período de cadastro: rótulo visível (no iPhone o campo de data aparece vazio) */}
-        <div className="grid grid-cols-2 gap-2 sm:contents">
-          <label className="min-w-0 text-xs font-semibold text-ink-soft">
-            Cadastrado de
-            <input
-              type="date"
-              name="de"
-              defaultValue={de}
-              className="input mt-1 w-full min-w-0"
-            />
-          </label>
-          <label className="min-w-0 text-xs font-semibold text-ink-soft">
-            até
-            <input
-              type="date"
-              name="ate"
-              defaultValue={ate}
-              className="input mt-1 w-full min-w-0"
-            />
-          </label>
+        <div className="flex gap-2">
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="Buscar nome, telefone ou código"
+            className="input min-w-0 flex-1"
+          />
+          <button className="btn-primary shrink-0 px-4" aria-label="Buscar">
+            <Search size={16} />
+            <span className="hidden sm:inline">Buscar</span>
+          </button>
         </div>
-        <button className="btn-primary">Filtrar</button>
+        {/* período de cadastro: fica recolhido para não poluir a tela */}
+        <details open={!!(de || ate)} className="group">
+          <summary className="cursor-pointer list-none text-xs font-semibold text-caixa">
+            <span className="group-open:hidden">
+              + Filtrar por data de cadastro
+            </span>
+            <span className="hidden group-open:inline">− Data de cadastro</span>
+          </summary>
+          <div className="mt-2 grid grid-cols-2 gap-2 sm:max-w-md">
+            <label className="min-w-0 text-xs font-semibold text-ink-soft">
+              De
+              <input
+                type="date"
+                name="de"
+                defaultValue={de}
+                className="input mt-1 w-full min-w-0"
+              />
+            </label>
+            <label className="min-w-0 text-xs font-semibold text-ink-soft">
+              Até
+              <input
+                type="date"
+                name="ate"
+                defaultValue={ate}
+                className="input mt-1 w-full min-w-0"
+              />
+            </label>
+          </div>
+        </details>
       </form>
 
       {q && (achadosEmAprovados.count ?? 0) > 0 && (
@@ -314,7 +356,65 @@ export default async function LeadsPage({
         </p>
       )}
 
-      <div className="card overflow-hidden">
+      {/* celular: um cartão por cliente */}
+      <ul className="space-y-2 sm:hidden">
+        {(leads ?? []).map((l) => {
+          const st = leadStatusInfo(l.status);
+          const faixa = !l.simulacao_completa
+            ? "Sem simulação"
+            : ((l.simulacao as { faixa?: { nome: string } | null } | null)
+                ?.faixa?.nome ?? "Fora do programa");
+          const escolhido = (l.escolhido as unknown as { nome: string } | null)
+            ?.nome;
+          return (
+            <li key={l.id}>
+              <Link
+                href={`/admin/leads/${l.id}`}
+                className="card block p-4 transition active:scale-[0.99] active:bg-mist"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="min-w-0 truncate font-bold text-ink">
+                    {l.nome}
+                  </p>
+                  <span className={`chip shrink-0 ${st.cor}`}>{st.label}</span>
+                </div>
+                <p className="mt-0.5 text-sm text-ink-soft">
+                  {maskPhone(l.telefone)}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-soft">
+                  <span>
+                    💰{" "}
+                    {Number(l.renda_total) > 0
+                      ? formatBRL(Number(l.renda_total))
+                      : "renda —"}{" "}
+                    · {faixa}
+                  </span>
+                  {l.origem && <span>📍 {l.origem}</span>}
+                  <span>📅 {formatDate(l.created_at)}</span>
+                </div>
+                {escolhido && (
+                  <p className="mt-1 truncate text-xs font-semibold text-caixa">
+                    🏠 {escolhido}
+                  </p>
+                )}
+                {!l.simulacao_completa && (
+                  <span className="chip mt-2 w-fit bg-sol-50 text-ink">
+                    Simulação incompleta
+                    {l.etapa_parou ? ` · parou na etapa ${l.etapa_parou}` : ""}
+                  </span>
+                )}
+              </Link>
+            </li>
+          );
+        })}
+        {(leads ?? []).length === 0 && (
+          <li className="card p-8 text-center text-sm text-ink-soft">
+            Nenhum lead encontrado.
+          </li>
+        )}
+      </ul>
+
+      <div className="card hidden overflow-hidden sm:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-sm">
             <thead className="bg-mist text-left text-xs uppercase tracking-wide text-ink-soft">
