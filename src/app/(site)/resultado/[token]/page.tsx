@@ -232,8 +232,8 @@ export default async function ResultadoPage({
               Outros empreendimentos
             </h2>
             <p className="mt-1 text-sm text-ink-soft">
-              Explore livremente o catálogo. Indicamos o que pode não combinar
-              com a simulação.
+              Explore à vontade: a corretora te ajuda a encontrar o melhor
+              caminho para o imóvel que você gostar.
             </p>
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {demais.map(({ dev, match }) => (
