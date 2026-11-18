@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import BarraNavegacao from "@/components/BarraNavegacao";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 
@@ -43,7 +44,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" className={`${inter.variable} ${outfit.variable}`}>
-      <body className="min-h-dvh">{children}</body>
+      <body className="min-h-dvh">
+        <BarraNavegacao />
+        {children}
+      </body>
     </html>
   );
 }

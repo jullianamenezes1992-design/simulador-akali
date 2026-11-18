@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
@@ -55,7 +56,10 @@ const ABAS = [
 const MAIS = ["/admin/mais", "/admin/montagem", "/admin/aprovados", "/admin/reprovados", "/admin/numeros", "/admin/base-fria", "/admin/mensagens", "/admin/redes", "/admin/parametros", "/admin/configuracoes", "/admin/historico"];
 
 export default function AdminNav() {
-  const path = usePathname();
+  const atual = usePathname();
+  // a aba tocada já fica marcada na hora, sem esperar a página carregar
+  const [tocado, setTocado] = useState<{ href: string; de: string } | null>(null);
+  const path = tocado && tocado.de === atual ? tocado.href : atual;
   const ativo = (href: string) => (href === "/admin" ? path === "/admin" : path.startsWith(href));
   // no celular, a Visão geral (/admin) fica dentro de "Mais"
   const abaAtiva = (href: string) => (href === "/admin/mais" ? path === "/admin" || MAIS.some((m) => path.startsWith(m)) : ativo(href));
@@ -71,6 +75,7 @@ export default function AdminNav() {
             <Link
               key={href}
               href={href}
+              onClick={() => setTocado({ href, de: atual })}
               className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold ${
                 ativo(href) ? "bg-caixa text-white" : "text-ink hover:bg-mist"
               }`}
@@ -106,7 +111,8 @@ export default function AdminNav() {
                 <Link
                   href={href}
                   aria-current={on ? "page" : undefined}
-                  className={`flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold ${on ? "text-caixa" : "text-ink-soft"}`}
+                  onClick={() => setTocado({ href, de: atual })}
+                  className={`flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold transition active:scale-90 ${on ? "text-caixa" : "text-ink-soft"}`}
                 >
                   <Icon size={22} strokeWidth={on ? 2.4 : 1.8} aria-hidden />
                   {label}

@@ -40,7 +40,7 @@ body {
 }
 
 @utility btn {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-caixa disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition active:scale-[0.97] active:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-caixa disabled:cursor-not-allowed disabled:opacity-60;
 }
 
 @utility btn-primary {
@@ -109,4 +109,10 @@ h3 {
 
 @utility filtro-on {
     @apply border-caixa bg-caixa/10 text-caixa;
+}
+
+/* toque: retorno visual imediato em links e botões (celular) */
+a, button, [role="button"], summary, select {
+    -webkit-tap-highlight-color: rgba(0, 92, 169, 0.12);
+    touch-action: manipulation;
 }
