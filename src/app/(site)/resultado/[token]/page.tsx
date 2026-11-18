@@ -31,7 +31,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 /** Tira valores da análise das frases de compatibilidade (o resultado vai pelo WhatsApp). */
-function semValores(m: string) {
+function semValores(m: string): string | null {
   if (/^Atende a /.test(m)) return "Compatível com a renda informada";
   if (/^Valor a partir de .* dentro da capacidade/.test(m))
     return "Valor dentro do que a sua simulação indica";
@@ -235,7 +235,7 @@ export default async function ResultadoPage({
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {demais.map(({ dev, match }) => (
                 <DevelopmentCard key={dev.id} d={dev}>
-                  {match.atencao.length > 0 && (
+                  {limpar(match.atencao).length > 0 && (
                     <ul className="mt-3 space-y-1 border-t border-line pt-3 text-xs text-ink-soft">
                       {match.atencao
                         .slice(0, 3)
