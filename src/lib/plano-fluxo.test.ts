@@ -27,3 +27,12 @@ describe("fluxo Plano", () => {
     expect(f.sinalMin).toBe(200);
   });
 });
+
+describe("categorias de tabela", () => {
+  it("agrupa nomes", async () => {
+    const { categoriaTabela } = await import("./plano-fluxo");
+    expect(["48x", "24x IR Futuro HIS1", "48x - Renda Empresário", "Direta com renda", "60x", "À vista", "SFH", "Associativa", "24x HIS1"].map(categoriaTabela)).toEqual([
+      "Associativa", "Associativa IR Futuro", "Associativa - Renda Empresário", "Direta", "Alienação 60x", "À Vista", "Financiada", "Associativa", "Associativa",
+    ]);
+  });
+});

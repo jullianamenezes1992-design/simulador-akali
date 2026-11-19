@@ -29,3 +29,14 @@ alter table public.aprovados add column if not exists tabela_plano text not null
 alter table public.leads add column if not exists score smallint check (score is null or score between 0 and 1000);
 
 select 'ok' as resultado;
+
+-- liga o nome do portal da Plano ao empreendimento do CRM (palavras do nome do CRM contidas no da Plano)
+create or replace function public.plano_palavras(t text) returns text[] language sql immutable as $f$
+  select coalesce(array_agg(distinct w), '{}') from regexp_split_to_table(translate(lower(replace(t,'&',' ')),'áàâãéêíóôõúüç','aaaaeeiooouuc'), '[^a-z0-9]+') w
+  where w <> '' and w not in ('condominio','residencial','by','plano','e')
+$f$;
+-- (os dados vêm da coleta no simulador; depois de inserir:)
+-- update public.plano_fluxos f set development_id = (select d.id from public.developments d
+--   where d.construtora ilike '%plano%' and cardinality(public.plano_palavras(d.nome)) > 0
+--     and public.plano_palavras(d.nome) <@ public.plano_palavras(f.nome_plano)
+--   order by cardinality(public.plano_palavras(d.nome)) desc, d.ativo desc limit 1);

@@ -42,17 +42,33 @@ export const TABELAS_PLANO = [
   "Alienação 60x",
 ];
 
+/** Agrupa os nomes de tabela da Plano ("48x", "24x IR Futuro HIS1", "Direta com renda"...) nas opções do CRM. */
+export function categoriaTabela(nome: string) {
+  const n = nome.replace(/\s+/g, " ").trim();
+  if (/ir futuro/i.test(n)) return "Associativa IR Futuro";
+  if (/renda empres/i.test(n)) return "Associativa - Renda Empresário";
+  if (/alien|^60x/i.test(n)) return "Alienação 60x";
+  if (/direta/i.test(n)) return "Direta";
+  if (/vista/i.test(n)) return "À Vista";
+  if (/^(associativa|\d+x)\b/i.test(n)) return "Associativa";
+  return "Financiada";
+}
+
+/** variante "comum" primeiro (sem HIS, NR, investidor ou "sem renda") */
+const peso = (nome: string) =>
+  (/his|\bnr\b|investidor|sem renda/i.test(nome) ? 10 : 0) + nome.length / 100;
+
 /** Escolhe a tabela do cliente; se o projeto não tiver, usa a Associativa. */
 export function fluxoDaTabela(
   fluxos: FluxoPlano[] | null | undefined,
   tabela: string | null | undefined,
 ) {
   if (!fluxos?.length) return null;
-  return (
-    fluxos.find((f) => f.tabela === (tabela || "Associativa")) ??
-    fluxos.find((f) => f.tabela === "Associativa") ??
-    null
-  );
+  const da = (cat: string) =>
+    fluxos
+      .filter((f) => categoriaTabela(f.tabela) === cat && f.parcelas.some((p) => p.max))
+      .sort((a, b) => peso(a.tabela) - peso(b.tabela))[0];
+  return da(tabela || "Associativa") ?? da("Associativa") ?? null;
 }
 
 export interface LinhaFluxo {
