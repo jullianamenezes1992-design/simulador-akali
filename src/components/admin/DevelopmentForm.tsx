@@ -183,7 +183,10 @@ export default function DevelopmentForm({ dev }: { dev?: Development }) {
           <input type="checkbox" name="disponivel" defaultChecked={dev ? dev.disponivel : true} className="accent-caixa" /> Com unidades à venda
         </label>
         <label className="option">
-          <input type="checkbox" name="ativo" defaultChecked={dev ? dev.ativo : true} className="accent-caixa" /> Ativo (visível no site)
+          <input type="checkbox" name="ativo" defaultChecked={dev ? dev.ativo : true} className="accent-caixa" /> Ativo (aparece no CRM para ofertar)
+        </label>
+        <label className="option">
+          <input type="checkbox" name="no_site" defaultChecked={dev ? dev.no_site !== false : true} className="accent-caixa" /> Mostrar no site para os clientes
         </label>
         <div className="sm:col-span-2">
           <label className="label" htmlFor="condicoes_comerciais">Condições comerciais</label>

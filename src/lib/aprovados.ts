@@ -229,6 +229,8 @@ export interface DevCompat {
   precos_por_dorm?: Record<string, number> | null;
   /** fluxo de pagamento da Plano por tabela de venda (uso interno, coletado do simulador) */
   fluxos_plano?: FluxoPlano[] | null;
+  /** false = só no CRM (não tem página no site) */
+  no_site?: boolean | null;
 }
 
 type ClienteFluxo = { renda_familiar: number; score?: number | null; tabela_plano?: string | null };
@@ -716,7 +718,7 @@ export function mensagemOferta(
     "",
     preSim ? textoPreSimulacao(preSim) : null,
     preSim ? "" : null,
-    `Veja fotos e plantas: ${link}`,
+    link ? `Veja fotos e plantas: ${link}` : null,
     "",
     `Quer que eu separe a melhor unidade para você? A sua aprovação tem prazo, então vale garantir logo! 💙`,
     "",

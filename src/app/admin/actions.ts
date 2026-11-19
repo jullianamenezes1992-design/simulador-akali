@@ -85,6 +85,7 @@ const devSchema = z
     video_url: z.union([z.url("URL de vídeo inválida"), z.null()]),
     capa_url: z.string().max(1000).nullable(),
     ativo: z.boolean(),
+    no_site: z.boolean(),
   })
   .refine((d) => d.preco_max == null || d.preco_min == null || d.preco_max >= d.preco_min, { path: ["preco_max"], message: "Deve ser maior que o preço inicial" })
   .refine((d) => d.area_max == null || d.area_min == null || d.area_max >= d.area_min, { path: ["area_max"], message: "Deve ser maior que a área mínima" });
@@ -126,6 +127,7 @@ function lerEmpreendimento(fd: FormData) {
     video_url: textoOuNull(fd.get("video_url")),
     capa_url: textoOuNull(fd.get("capa_url")),
     ativo: fd.get("ativo") === "on",
+    no_site: fd.get("no_site") === "on",
   };
 }
 
@@ -1215,7 +1217,7 @@ export async function simularProjetoLead(leadId: string, devId: string, tipo = -
       .select("nome, score, simulacao, renda_principal, renda_composicao, renda_total, data_nascimento, idade_informada, fgts_saldo, fgts_tres_anos, entrada_disponivel, dormitorios_min, possui_imovel, financiamento_ativo, ja_beneficiado, restricao_credito")
       .eq("id", leadId)
       .maybeSingle(),
-    supabase.from("developments").select("id, slug, nome, bairro, regiao, preco_min, dormitorios, oferta_destaque, oferta_texto, unidades_disponiveis, status_obra, previsao_entrega, meses_pos_chaves, construtora, avaliacao_min, ato_minimo, precos_por_dorm, avaliacoes, tipologias, fluxos_plano:plano_fluxos(tabela, tabela_nome, vigencia_fim, parcelas, coletado_em)").eq("id", devId).maybeSingle(),
+    supabase.from("developments").select("id, slug, nome, bairro, regiao, preco_min, dormitorios, oferta_destaque, oferta_texto, unidades_disponiveis, status_obra, previsao_entrega, meses_pos_chaves, construtora, avaliacao_min, ato_minimo, precos_por_dorm, avaliacoes, tipologias, no_site, fluxos_plano:plano_fluxos(tabela, tabela_nome, vigencia_fim, parcelas, coletado_em)").eq("id", devId).maybeSingle(),
   ]);
   if (!l || !d) return { erro: "Cliente ou projeto não encontrado." };
   if (!d.preco_min) return { erro: "Esse projeto está sem preço cadastrado." };
@@ -1279,7 +1281,7 @@ export async function simularProjetoLead(leadId: string, devId: string, tipo = -
 
   const nome = (String(l.nome).trim().split(/\s+/)[0] || "").replace(/^./, (c) => c.toUpperCase());
   const s = await getSettings();
-  const link = `${siteUrl()}/empreendimentos/${d.slug}?utm_source=whatsapp&utm_medium=corretora&utm_content=simulacao`;
+  const link = d.no_site === false ? "" : `${siteUrl()}/empreendimentos/${d.slug}?utm_source=whatsapp&utm_medium=corretora&utm_content=simulacao`;
   const texto = [
     `Oi, ${nome}! Tudo bem? 😊`,
     "",
@@ -1287,7 +1289,7 @@ export async function simularProjetoLead(leadId: string, devId: string, tipo = -
     "",
     textoPreSimulacao(ps, { estimado: true, subsidioPossivel: sim.subsidioPotencial }),
     "",
-    `Veja fotos e plantas: ${link}`,
+    link ? `Veja fotos e plantas: ${link}` : null,
     "",
     `Quer que eu separe a melhor unidade e já faça a sua análise de crédito na Caixa (sem custo)? 💙`,
     "",

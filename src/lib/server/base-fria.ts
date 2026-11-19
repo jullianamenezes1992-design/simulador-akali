@@ -70,6 +70,7 @@ export async function sugestaoProjetoBF(db: SupabaseClient) {
     .from("developments")
     .select("id, slug, nome, bairro, regiao, preco_min, oferta_destaque")
     .eq("ativo", true)
+    .eq("no_site", true)
     .neq("disponivel", false)
     .not("preco_min", "is", null);
   const devs = (data ?? []) as DevBF[];

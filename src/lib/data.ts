@@ -91,6 +91,8 @@ export interface Development {
   fonte_url?: string | null;
   capa_url: string | null;
   ativo: boolean;
+  /** aparece no site para os clientes (false = só no CRM) */
+  no_site?: boolean;
   is_demo: boolean;
   created_at: string;
   updated_at: string;
@@ -163,6 +165,7 @@ export async function listPublicDevelopments(f: CatalogFilters = {}): Promise<De
     .from("developments")
     .select("*, development_media(*)")
     .eq("ativo", true)
+    .eq("no_site", true)
     .order("oferta_destaque", { ascending: false })
     .order("preco_min", { ascending: true, nullsFirst: false });
   if (f.regiao) q = q.eq("regiao", f.regiao);
@@ -189,6 +192,7 @@ export async function getPublicDevelopment(slug: string): Promise<Development | 
     .select("*, development_media(*)")
     .eq("slug", slug)
     .eq("ativo", true)
+    .eq("no_site", true)
     .maybeSingle();
   return data ? (normalizeDev(data) as Development) : null;
 }

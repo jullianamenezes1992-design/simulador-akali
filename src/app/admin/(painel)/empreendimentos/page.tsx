@@ -16,7 +16,7 @@ export default async function EmpreendimentosAdmin({ searchParams }: { searchPar
   const sp = await searchParams;
   const { data } = await supabase
     .from("developments")
-    .select("id, slug, nome, bairro, regiao, preco_min, faixas, status_obra, unidades_disponiveis, disponivel, ativo, is_demo, oferta_destaque, capa_url, updated_at")
+    .select("id, slug, nome, bairro, regiao, preco_min, faixas, status_obra, unidades_disponiveis, disponivel, ativo, no_site, is_demo, oferta_destaque, capa_url, updated_at")
     .order("ativo", { ascending: false })
     .order("updated_at", { ascending: false });
   const todos = data ?? [];
@@ -78,6 +78,7 @@ export default async function EmpreendimentosAdmin({ searchParams }: { searchPar
                   {d.nome}
                 </Link>
                 {d.is_demo && <span className="chip bg-red-100 text-red-700">Exemplo</span>}
+                {d.ativo && d.no_site === false && <span className="chip bg-zinc-200 text-zinc-800">Só no CRM (fora do site)</span>}
                 {d.oferta_destaque && <span className="chip bg-sol-50 text-sol-dark">Destaque</span>}
                 {(!d.disponivel || d.unidades_disponiveis === 0) && <span className="chip bg-slate-200 text-slate-700">Sem unidades</span>}
               </div>
@@ -88,11 +89,13 @@ export default async function EmpreendimentosAdmin({ searchParams }: { searchPar
               <p className="text-xs text-ink-soft">Atualizado em {formatDate(d.updated_at, true)}</p>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
-              {d.ativo && <CompartilharImovel slug={d.slug} nome={d.nome} preco={d.preco_min == null ? null : Number(d.preco_min)} />}
+              {d.ativo && d.no_site !== false && <CompartilharImovel slug={d.slug} nome={d.nome} preco={d.preco_min == null ? null : Number(d.preco_min)} />}
               <ToggleAtivo id={d.id} ativo={d.ativo} />
-              <Link href={`/empreendimentos/${d.slug}`} target="_blank" className="btn-secondary px-3">
-                Ver
-              </Link>
+              {d.no_site !== false && (
+                <Link href={`/empreendimentos/${d.slug}`} target="_blank" className="btn-secondary px-3">
+                  Ver
+                </Link>
+              )}
               <Link href={`/admin/empreendimentos/${d.id}`} className="btn-secondary px-3">
                 Editar
               </Link>

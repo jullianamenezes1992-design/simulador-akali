@@ -49,9 +49,12 @@ export async function getLeadPorToken(token: string): Promise<LeadPublico | null
   return data as LeadPublico;
 }
 
-export async function listarAtivosParaMatch(): Promise<Development[]> {
+/** Empreendimentos ativos para recomendar. Com { site: true }, só os que aparecem no site (o que o cliente vê). */
+export async function listarAtivosParaMatch(opc: { site?: boolean } = {}): Promise<Development[]> {
   const db = createAdminClient();
-  const { data } = await db.from("developments").select("*, development_media(*)").eq("ativo", true);
+  let q = db.from("developments").select("*, development_media(*)").eq("ativo", true);
+  if (opc.site) q = q.eq("no_site", true);
+  const { data } = await q;
   return (data ?? []).map(normalizeDev) as Development[];
 }
 

@@ -60,7 +60,7 @@ export default async function ResultadoPage({
   if (!lead || !lead.simulacao) notFound();
 
   const sim = lead.simulacao;
-  const [devs, s] = await Promise.all([listarAtivosParaMatch(), getSettings()]);
+  const [devs, s] = await Promise.all([listarAtivosParaMatch({ site: true }), getSettings()]);
   const corretora = s.corretora_nome || s.empresa_nome;
   const telCorretora = s.whatsapp_numero
     ? maskPhone(s.whatsapp_numero.replace(/^55/, ""))

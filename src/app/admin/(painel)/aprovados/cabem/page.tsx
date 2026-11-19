@@ -47,7 +47,7 @@ export default async function CabemPage({ searchParams }: { searchParams: Promis
         Number(y.a.classificacao === "quente") - Number(x.a.classificacao === "quente") ||
         y.av.folga - x.av.folga
     );
-  const link = `${siteUrl()}/empreendimentos/${dev.slug}?utm_source=whatsapp&utm_medium=corretora&utm_content=aprovado`;
+  const link = dev.no_site === false ? "" : `${siteUrl()}/empreendimentos/${dev.slug}?utm_source=whatsapp&utm_medium=corretora&utm_content=aprovado`;
   const assinatura = s.corretora_nome || s.empresa_nome;
 
   return (

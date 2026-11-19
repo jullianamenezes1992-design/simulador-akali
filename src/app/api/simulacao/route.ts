@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     ativo.versao
   );
 
-  const devs = await listarAtivosParaMatch();
+  const devs = await listarAtivosParaMatch({ site: true });
   const ranking = ranquearDevs(devs, resultado, {
     regioes: d.regioes,
     dormitoriosMin: d.dormitorios_min,

@@ -77,7 +77,7 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
   const { supabase, papel } = await requireAdmin();
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
 
-  const { data: l } = await supabase.from("leads").select("*, escolhido:escolhido_id(id, nome, slug)").eq("id", id).maybeSingle();
+  const { data: l } = await supabase.from("leads").select("*, escolhido:escolhido_id(id, nome, slug, no_site)").eq("id", id).maybeSingle();
   if (!l) notFound();
 
   // etapa "Simulação": lista de projetos para escolher qual simular
@@ -92,7 +92,7 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
     supabase.from("admin_users").select("user_id, nome").order("nome"),
     supabase.from("audit_log").select("id, acao, dados_antigos, dados_novos, created_at, ator_id").eq("tabela", "leads").eq("registro_id", id).order("created_at", { ascending: false }).limit(50),
     l.recomendados?.length
-      ? supabase.from("developments").select("id, nome, slug").in("id", l.recomendados)
+      ? supabase.from("developments").select("id, nome, slug, no_site").in("id", l.recomendados)
       : Promise.resolve({ data: [] as { id: string; nome: string; slug: string }[] }),
     supabase.from("lead_tasks").select("*").eq("lead_id", id).order("quando", { ascending: false }).limit(50),
     supabase.from("mensagens_prontas").select("status, ordem, titulo, texto").eq("status", l.status),
@@ -102,16 +102,18 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
   const nomesEquipe = new Map((equipe.data ?? []).map((p) => [p.user_id, p.nome]));
   const sim = l.simulacao as SimulationResult | null;
   const st = leadStatusInfo(l.status);
-  const escolhido = l.escolhido as unknown as { id: string; nome: string; slug: string } | null;
+  const escolhido = l.escolhido as unknown as { id: string; nome: string; slug: string; no_site?: boolean | null } | null;
   type Ev = { id: number; tipo: string; dados: Record<string, unknown>; created_at: string; development: { nome: string; slug: string } | null };
   const evs = (eventos.data ?? []) as unknown as Ev[];
   const visualizados = [...new Map(evs.filter((e) => e.tipo === "visualizou_empreendimento" && e.development).map((e) => [e.development!.slug, e])).values()];
-  const recOrdenados = (l.recomendados as string[]).map((rid) => (recomendados.data ?? []).find((d) => d.id === rid)).filter(Boolean) as { id: string; nome: string; slug: string }[];
+  const recOrdenados = (l.recomendados as string[]).map((rid) => (recomendados.data ?? []).find((d) => d.id === rid)).filter(Boolean) as { id: string; nome: string; slug: string; no_site?: boolean | null }[];
   const anonimizado = !!l.anonimizado_em;
 
   // Mensagens prontas da etapa atual, já com nome, imóvel e link do cliente
+  // imóvel só entra no link se tiver página no site (os "só no CRM" ficam de fora)
+  const noSite = (d: { no_site?: boolean | null } | null) => !!d && d.no_site !== false;
   const imovelMsg = escolhido ?? recOrdenados[0] ?? null;
-  const linkMsg = `${siteUrl() || "https://simulador-akali.vercel.app"}${imovelMsg ? `/empreendimentos/${imovelMsg.slug}` : ""}?utm_source=whatsapp&utm_medium=corretora&utm_content=followup`;
+  const linkMsg = `${siteUrl() || "https://simulador-akali.vercel.app"}${imovelMsg && noSite(imovelMsg) ? `/empreendimentos/${imovelMsg.slug}` : ""}?utm_source=whatsapp&utm_medium=corretora&utm_content=followup`;
   const ultimoStatus = evs.find((e) => e.tipo === "status_alterado")?.created_at ?? null;
   const mensagensEtapa = mensagensDaEtapa(l.status, msgSalvas.data ?? []).map((m) => {
     const env = evs.find(
