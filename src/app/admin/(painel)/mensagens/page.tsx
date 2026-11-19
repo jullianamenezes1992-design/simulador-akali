@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AbasSecao, ABAS_CONFIG } from "@/components/admin/AbasSecao";
 import { PageHeader } from "@/components/admin/ui";
 import EditorMensagens from "@/components/admin/EditorMensagens";
 import { LEAD_STATUS } from "@/lib/constants";
@@ -12,6 +13,7 @@ export default async function MensagensPage() {
   const { data: salvas } = await supabase.from("mensagens_prontas").select("status, ordem, titulo, texto");
   return (
     <>
+      <AbasSecao abas={ABAS_CONFIG} atual="/admin/mensagens" />
       <PageHeader titulo="Mensagens prontas" descricao="Na ficha do cliente aparecem 3 mensagens de WhatsApp para a etapa em que ele está. Aqui você ajusta os textos." />
       <section className="card mb-4 p-4 text-sm">
         <p className="mb-2 font-semibold">Palavras que são trocadas automaticamente:</p>

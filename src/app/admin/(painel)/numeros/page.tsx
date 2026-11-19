@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
+import { AbasSecao, ABAS_VISAO } from "@/components/admin/AbasSecao";
 import { PageHeader } from "@/components/admin/ui";
 import { diaSP } from "@/lib/agenda";
 import { LEAD_STATUS } from "@/lib/constants";
@@ -240,6 +241,7 @@ export default async function NumerosPage({
 
   return (
     <>
+      <AbasSecao abas={ABAS_VISAO} atual="/admin/numeros" />
       <PageHeader
         titulo="Números"
         descricao={`${ROTULO[p].atual}, comparado com ${ROTULO[p].anterior}.`}

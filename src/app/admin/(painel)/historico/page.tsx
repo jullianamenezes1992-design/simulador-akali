@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AbasSecao, ABAS_CONFIG } from "@/components/admin/AbasSecao";
 import { PageHeader } from "@/components/admin/ui";
 import { formatDate } from "@/lib/format";
 import { requireAdmin } from "@/lib/server/auth";
@@ -44,6 +45,7 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
 
   return (
     <>
+      <AbasSecao abas={ABAS_CONFIG} atual="/admin/historico" />
       <PageHeader titulo="Histórico de alterações" descricao="Registro automático de cadastros, edições, exclusões e acessos a dados sensíveis." />
       <div className="-mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1">
         <Link href="/admin/historico" className={`chip shrink-0 px-3 py-1.5 ${!tabela ? "bg-caixa text-white" : "bg-white"}`}>Tudo</Link>

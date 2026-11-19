@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import ParamsEditor from "@/components/admin/ParamsEditor";
 import ActivateVersion from "@/components/admin/ActivateVersion";
+import { AbasSecao, ABAS_CONFIG } from "@/components/admin/AbasSecao";
 import { PageHeader } from "@/components/admin/ui";
 import { formatDate } from "@/lib/format";
 import { requireAdmin } from "@/lib/server/auth";
@@ -32,6 +33,7 @@ export default async function ParametrosPage({ searchParams }: { searchParams: P
 
   return (
     <>
+      <AbasSecao abas={ABAS_CONFIG} atual="/admin/parametros" />
       <PageHeader
         titulo="Parâmetros de simulação"
         descricao="Cada alteração cria uma nova versão. As simulações registram a versão usada. Não insira taxas, subsídios ou limites sem fonte oficial."

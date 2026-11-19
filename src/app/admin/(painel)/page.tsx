@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AbasSecao, ABAS_VISAO } from "@/components/admin/AbasSecao";
 import { PageHeader, StatCard } from "@/components/admin/ui";
 import { agoraMs, diaSP } from "@/lib/agenda";
 import { BadgeCheck, CalendarDays } from "lucide-react";
@@ -54,6 +55,7 @@ export default async function Dashboard() {
 
   return (
     <>
+      <AbasSecao abas={ABAS_VISAO} atual="/admin" />
       <PageHeader titulo="Visão geral" descricao="Resumo do funil de simulações e atendimento." />
       {(opsNovas.count ?? 0) + (aprovVencendo.count ?? 0) > 0 && (
         <Link href="/admin/aprovados" className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">

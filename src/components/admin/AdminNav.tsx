@@ -4,22 +4,18 @@ import Link from "next/link";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import {
-  BarChart3,
+  FileSearch,
   Building2,
   CalendarDays,
   ListChecks,
   ExternalLink,
-  History,
   LayoutDashboard,
   Menu,
   AtSign,
   BadgeCheck,
   FolderOpen,
-  MessageSquareText,
   XCircle,
   Settings,
-  SlidersHorizontal,
-  Smartphone,
   Snowflake,
   Users,
  Landmark } from "lucide-react";
@@ -27,22 +23,24 @@ import {
 const ITENS = [
   { href: "/admin/dia", label: "Meu dia", icon: ListChecks },
   { href: "/admin", label: "Visão geral", icon: LayoutDashboard },
-  { href: "/admin/numeros", label: "Números", icon: BarChart3 },
   { href: "/admin/agenda", label: "Agenda", icon: CalendarDays },
   { href: "/admin/leads", label: "Leads", icon: Users },
   { href: "/admin/montagem", label: "Montagem de pasta", icon: FolderOpen },
+  { href: "/admin/analise", label: "Pastas em análise", icon: FileSearch },
   { href: "/admin/aprovados", label: "Aprovados", icon: BadgeCheck },
   { href: "/admin/reprovados", label: "Reprovados", icon: XCircle },
   { href: "/admin/base-fria", label: "Base fria", icon: Snowflake },
   { href: "/admin/base-cury", label: "Base Cury", icon: Landmark },
   { href: "/admin/redes", label: "Redes sociais", icon: AtSign },
   { href: "/admin/empreendimentos", label: "Empreendimentos", icon: Building2 },
-  { href: "/admin/mensagens", label: "Mensagens prontas", icon: MessageSquareText },
-  { href: "/admin/parametros", label: "Parâmetros", icon: SlidersHorizontal },
   { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
-  { href: "/admin/historico", label: "Histórico", icon: History },
-  { href: "/admin/mais", label: "App e backups", icon: Smartphone },
 ];
+
+/** páginas que ficam dentro de um item do menu (Números na Visão geral; Mensagens, Parâmetros... nas Configurações) */
+const DENTRO: Record<string, string[]> = {
+  "/admin": ["/admin/numeros"],
+  "/admin/configuracoes": ["/admin/mensagens", "/admin/parametros", "/admin/historico", "/admin/mais"],
+};
 
 // Menu de baixo no celular (estilo app)
 const ABAS = [
@@ -53,14 +51,15 @@ const ABAS = [
   { href: "/admin/mais", label: "Mais", icon: Menu },
 ];
 
-const MAIS = ["/admin/mais", "/admin/montagem", "/admin/aprovados", "/admin/reprovados", "/admin/numeros", "/admin/base-fria", "/admin/mensagens", "/admin/redes", "/admin/parametros", "/admin/configuracoes", "/admin/historico"];
+const MAIS = ["/admin/mais", "/admin/montagem", "/admin/analise", "/admin/base-cury", "/admin/aprovados", "/admin/reprovados", "/admin/numeros", "/admin/base-fria", "/admin/mensagens", "/admin/redes", "/admin/parametros", "/admin/configuracoes", "/admin/historico"];
 
 export default function AdminNav() {
   const atual = usePathname();
   // a aba tocada já fica marcada na hora, sem esperar a página carregar
   const [tocado, setTocado] = useState<{ href: string; de: string } | null>(null);
   const path = tocado && tocado.de === atual ? tocado.href : atual;
-  const ativo = (href: string) => (href === "/admin" ? path === "/admin" : path.startsWith(href));
+  const ativo = (href: string) =>
+    (href === "/admin" ? path === "/admin" : path.startsWith(href)) || (DENTRO[href] ?? []).some((d) => path.startsWith(d));
   // no celular, a Visão geral (/admin) fica dentro de "Mais"
   const abaAtiva = (href: string) => (href === "/admin/mais" ? path === "/admin" || MAIS.some((m) => path.startsWith(m)) : ativo(href));
 

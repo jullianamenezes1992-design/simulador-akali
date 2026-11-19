@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import SettingsForm from "@/components/admin/SettingsForm";
 import NotificacoesForm from "@/components/admin/NotificacoesForm";
 import PerfilCorretoraForm from "@/components/admin/PerfilCorretoraForm";
+import { AbasSecao, ABAS_CONFIG } from "@/components/admin/AbasSecao";
 import { PageHeader } from "@/components/admin/ui";
 import { getSettings } from "@/lib/data";
 import { requireAdmin } from "@/lib/server/auth";
@@ -14,7 +15,8 @@ export default async function ConfiguracoesPage() {
   if (papel !== "admin") {
     return (
       <>
-        <PageHeader titulo="Configurações" descricao="WhatsApp, avisos, rastreamento e textos da página inicial." />
+        <AbasSecao abas={ABAS_CONFIG} atual="/admin/configuracoes" />
+      <PageHeader titulo="Configurações" descricao="WhatsApp, avisos, rastreamento e textos da página inicial." />
         <p className="card p-4 text-sm text-ink-soft">Somente administradores podem alterar as configurações.</p>
       </>
     );
@@ -22,6 +24,7 @@ export default async function ConfiguracoesPage() {
   const { data: n } = await supabase.from("notification_settings").select("*").eq("id", 1).maybeSingle();
   return (
     <>
+      <AbasSecao abas={ABAS_CONFIG} atual="/admin/configuracoes" />
       <PageHeader titulo="Configurações" descricao="WhatsApp, avisos, rastreamento e textos da página inicial." />
       <PerfilCorretoraForm nome={s.corretora_nome ?? null} foto={s.corretora_foto_url ?? null} />
       <SettingsForm s={s} />
