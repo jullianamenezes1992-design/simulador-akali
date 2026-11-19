@@ -390,7 +390,7 @@ export async function sincronizarCury(): Promise<ResultadoCury> {
   };
   const { data: devs, error } = await db
     .from("developments")
-    .select("id, slug, nome, preco_min, avaliacoes, avaliacao_min, tipologias")
+    .select("id, slug, nome, preco_min, avaliacoes, avaliacao_min, tipologias, condicoes_comerciais")
     .in("slug", Object.keys(MAPA_CURY));
   if (error) return { ...res, erros: [error.message] };
   const fila = [...(devs ?? [])];
@@ -442,7 +442,9 @@ export async function sincronizarCury(): Promise<ResultadoCury> {
           upd.avaliacoes = juntas;
           if (!(Number(d.avaliacao_min) > 0) && juntas.mcmv)
             upd.avaliacao_min = juntas.mcmv;
-          upd.condicoes_comerciais = `Valor "a partir de" da unidade mais barata disponível na tabela Cury${validade ? ` (validade ${validade})` : ""}, sem contar unidades não residenciais (NR). Sujeito a alteração e disponibilidade.`;
+          // condições comerciais: só o que a corretora escrever (apaga o texto automático antigo)
+          if (/tabela Cury/i.test(String(d.condicoes_comerciais ?? "")))
+            upd.condicoes_comerciais = null;
         }
         const { error: e } = await db
           .from("developments")

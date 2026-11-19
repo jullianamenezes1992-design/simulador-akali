@@ -20,8 +20,6 @@ import { IGNORAR_TABELAO, MAPA_TABELAO, normNome } from "@/lib/tabelao-mapa";
  */
 
 export const TABELAO_URL = "https://rummeniggelima.github.io/tabelao/";
-const TEXTO_AUTO =
-  'Valor "a partir de" conforme o tabelão Plano&Plano (atualizado automaticamente todos os dias), sujeito a alteração e disponibilidade. Confirme a tabela vigente com o corretor.';
 const MES = [
   "jan",
   "fev",
@@ -506,8 +504,9 @@ export async function sincronizarTabelao(
           ].sort(),
         );
         const cond = (atual.condicoes_comerciais as string | null) ?? "";
-        if (!cond || /tabel[aã]o Plano&Plano/i.test(cond))
-          muda("condicoes_comerciais", TEXTO_AUTO);
+        // condições comerciais: só o que a corretora escrever (apaga o texto automático antigo)
+        if (/tabel[aã]o Plano&Plano/i.test(cond))
+          muda("condicoes_comerciais", null);
       }
 
       if (Object.keys(novo).length) {
