@@ -52,14 +52,14 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
   const aberto = STATUS_EM_ABERTO.includes(a.status);
 
   const linha = (c: ReturnType<typeof compativeis>[number]) => {
-    const link = c.dev.no_site === false ? "" : `${base}/empreendimentos/${c.dev.slug}?utm_source=whatsapp&utm_medium=corretora&utm_content=aprovado`;
+    const link = `${base}/empreendimentos/${c.dev.slug}?utm_source=whatsapp&utm_medium=corretora&utm_content=aprovado`;
     const enviada = ofertaDoProjeto(jaOfertado, c.dev);
     const ps = preSimulacao(a, c.dev, regra);
     const psOk = ps && !ps.excede ? ps : undefined;
     return (
       <li key={c.dev.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
         <div className="min-w-0">
-          <Link href={c.dev.no_site === false ? `/admin/empreendimentos/${c.dev.id}` : `/empreendimentos/${c.dev.slug}`} target="_blank" className="font-semibold hover:text-caixa">
+          <Link href={`/empreendimentos/${c.dev.slug}`} target="_blank" className="font-semibold hover:text-caixa">
             {c.dev.nome} <ExternalLink size={12} className="inline" />
           </Link>
           <p className="text-xs text-ink-soft">

@@ -1281,7 +1281,7 @@ export async function simularProjetoLead(leadId: string, devId: string, tipo = -
 
   const nome = (String(l.nome).trim().split(/\s+/)[0] || "").replace(/^./, (c) => c.toUpperCase());
   const s = await getSettings();
-  const link = d.no_site === false ? "" : `${siteUrl()}/empreendimentos/${d.slug}?utm_source=whatsapp&utm_medium=corretora&utm_content=simulacao`;
+  const link = `${siteUrl()}/empreendimentos/${d.slug}?utm_source=whatsapp&utm_medium=corretora&utm_content=simulacao`;
   const texto = [
     `Oi, ${nome}! Tudo bem? 😊`,
     "",

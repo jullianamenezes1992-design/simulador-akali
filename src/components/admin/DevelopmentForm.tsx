@@ -186,7 +186,7 @@ export default function DevelopmentForm({ dev }: { dev?: Development }) {
           <input type="checkbox" name="ativo" defaultChecked={dev ? dev.ativo : true} className="accent-caixa" /> Ativo (aparece no CRM para ofertar)
         </label>
         <label className="option">
-          <input type="checkbox" name="no_site" defaultChecked={dev ? dev.no_site !== false : true} className="accent-caixa" /> Mostrar no site para os clientes
+          <input type="checkbox" name="no_site" defaultChecked={dev ? dev.no_site !== false : true} className="accent-caixa" /> Mostrar na vitrine do site (desmarcado: a página só abre pelo link que você enviar)
         </label>
         <div className="sm:col-span-2">
           <label className="label" htmlFor="condicoes_comerciais">Condições comerciais</label>

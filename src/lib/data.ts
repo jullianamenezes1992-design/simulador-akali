@@ -194,5 +194,15 @@ export async function getPublicDevelopment(slug: string): Promise<Development | 
     .eq("ativo", true)
     .eq("no_site", true)
     .maybeSingle();
-  return data ? (normalizeDev(data) as Development) : null;
+  if (data) return normalizeDev(data) as Development;
+  // fora do site (ex.: Cury): não aparece no catálogo, mas a página abre para quem recebe o link da corretora
+  const { createAdminClient } = await import("./supabase/admin");
+  const { data: oculto } = await createAdminClient()
+    .from("developments")
+    .select("*, development_media(*)")
+    .eq("slug", slug)
+    .eq("ativo", true)
+    .eq("no_site", false)
+    .maybeSingle();
+  return oculto ? (normalizeDev(oculto) as Development) : null;
 }

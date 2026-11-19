@@ -110,10 +110,8 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
   const anonimizado = !!l.anonimizado_em;
 
   // Mensagens prontas da etapa atual, já com nome, imóvel e link do cliente
-  // imóvel só entra no link se tiver página no site (os "só no CRM" ficam de fora)
-  const noSite = (d: { no_site?: boolean | null } | null) => !!d && d.no_site !== false;
   const imovelMsg = escolhido ?? recOrdenados[0] ?? null;
-  const linkMsg = `${siteUrl() || "https://simulador-akali.vercel.app"}${imovelMsg && noSite(imovelMsg) ? `/empreendimentos/${imovelMsg.slug}` : ""}?utm_source=whatsapp&utm_medium=corretora&utm_content=followup`;
+  const linkMsg = `${siteUrl() || "https://simulador-akali.vercel.app"}${imovelMsg ? `/empreendimentos/${imovelMsg.slug}` : ""}?utm_source=whatsapp&utm_medium=corretora&utm_content=followup`;
   const ultimoStatus = evs.find((e) => e.tipo === "status_alterado")?.created_at ?? null;
   const mensagensEtapa = mensagensDaEtapa(l.status, msgSalvas.data ?? []).map((m) => {
     const env = evs.find(

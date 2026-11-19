@@ -25,6 +25,8 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     // foto do empreendimento redimensionada para o WhatsApp/Facebook mostrarem na prévia do link
     openGraph: { images: [{ url: `/api/og/${d.slug}?v=1`, width: 1200, height: 630, alt: d.nome }] },
     twitter: { card: "summary_large_image", images: [`/api/og/${d.slug}?v=1`] },
+    // fora do site: só por link, não aparece no Google
+    ...(d.no_site === false ? { robots: { index: false, follow: false } } : {}),
   };
 }
 
