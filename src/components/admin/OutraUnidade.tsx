@@ -93,10 +93,10 @@ export default function OutraUnidade({
               </>
             )}
           </p>
-          {ps.excede ? (
-            <p className="font-semibold text-red-700">
-              ⚠️ A entrada passa do limite (20% do imóvel ou parcela acima de
-              30% da renda). Talvez precise de mais entrada à vista ou FGTS.
+          {ps.atoExtra > 0 ? (
+            <p className="font-semibold text-amber-900">
+              ⚠️ Não fecha só com o parcelamento: faltam{" "}
+              {formatBRL(ps.atoExtra)}, somados ao ato ({formatBRL(ps.ato)}).
             </p>
           ) : (
             <p className="text-emerald-800">

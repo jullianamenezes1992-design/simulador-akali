@@ -47,7 +47,10 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
   const assinatura = s.corretora_nome || s.empresa_nome;
   const base = siteUrl();
   const cabem = naoRepetir(compativeis(a, devs, 0, regra));
-  const quase = naoRepetir(compativeis(a, devs, 0.05, regra).filter((c) => c.acimaDoPoder));
+  // os que não fecham a conta: aparecem com o que falta somado ao ato (menor ato primeiro)
+  const comAto = compativeis(a, devs, 1, regra)
+    .filter((c) => c.acimaDoPoder)
+    .sort((x, y) => x.av.atoExtra - y.av.atoExtra);
   const dias = diasParaVencer(a.vencimento);
   const aberto = STATUS_EM_ABERTO.includes(a.status);
 
@@ -55,7 +58,7 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
     const link = `${base}/empreendimentos/${c.dev.slug}?utm_source=whatsapp&utm_medium=corretora&utm_content=aprovado`;
     const enviada = ofertaDoProjeto(jaOfertado, c.dev);
     const ps = preSimulacao(a, c.dev, regra);
-    const psOk = ps && !ps.excede ? ps : undefined;
+    const psOk = ps ?? undefined;
     return (
       <li key={c.dev.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
         <div className="min-w-0">
@@ -73,8 +76,12 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
                 a partir de <strong>{formatBRL(Number(c.dev.preco_min))}</strong>
               </>
             )}
-            {c.folga < 0 ? ` · faltam ${formatBRL(-c.folga)}` : ""}
           </p>
+          {c.folga < 0 && ps ? (
+            <p className="mt-0.5 rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-950">
+              Faltam <strong>{formatBRL(-c.folga)}</strong> para fechar a conta → <strong>ato de {formatBRL(ps.ato)}</strong>
+            </p>
+          ) : null}
           <p className="text-xs text-ink-soft">
             {c.av.entradaParcelar > 0 ? (
               <>
@@ -165,10 +172,11 @@ export default async function AprovadoPage({ params, searchParams }: { params: P
           {cabem.some((c) => ofertaDoProjeto(jaOfertado, c.dev)) && (
             <p className="mt-2 text-xs text-ink-soft">Os projetos que você já ofereceu a este cliente ficam no fim da lista, marcados com 📤.</p>
           )}
-          {aberto && quase.length > 0 && (
+          {aberto && comAto.length > 0 && (
             <>
-              <h3 className="mb-1 mt-4 text-sm font-bold">Quase cabem (até 5% acima)</h3>
-              <ul className="divide-y divide-line">{quase.slice(0, 15).map(linha)}</ul>
+              <h3 className="mb-1 mt-4 text-sm font-bold">Fecham com ato maior ({comAto.length})</h3>
+              <p className="mb-1 text-xs text-ink-soft">Financiamento + entrada parcelada não cobrem tudo: o que falta vai para o ato. Os de menor ato aparecem primeiro.</p>
+              <ul className="divide-y divide-line">{comAto.slice(0, 40).map(linha)}</ul>
             </>
           )}
         </section>

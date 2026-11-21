@@ -459,6 +459,8 @@ function avaliarDevDorms(
     limite,
     folga: limite - preco,
     cabe: preco > 0 && limite >= preco * (1 - tolerancia),
+    /** quanto falta para fechar a conta (vai para o ato) */
+    atoExtra: preco > 0 ? Math.max(0, Math.round(preco - limite)) : 0,
     /** entrada a parcelar com a construtora (0 se os recursos já cobrem) */
     entradaParcelar: Math.min(falta, ep.valorMax),
     parcelaEntrada:
@@ -581,9 +583,12 @@ export function preSimulacao(
     Math.min(finMax, preco - sub - fgts - Math.max(ato, vista)),
   );
   const entradaTotal = Math.max(0, preco - financiamento - sub - fgts);
-  const atoValor = Math.min(entradaTotal, Math.max(ato, vista));
-  const aParcelar = Math.max(0, entradaTotal - atoValor);
+  const atoBase = Math.min(entradaTotal, Math.max(ato, vista));
   const ep = entradaParcelavelAprovado(a, d, preco, regra, hoje);
+  // o que passa do parcelamento permitido vai para o ato (o projeto aparece mesmo sem "fechar a conta")
+  const atoExtra = Math.max(0, entradaTotal - atoBase - ep.valorMax);
+  const atoValor = atoBase + atoExtra;
+  const aParcelar = Math.max(0, entradaTotal - atoValor);
   const fluxoPlano = ep.plano
     ? linhasFluxoTexto(ep.plano, formatBRL, aParcelar)
     : null;
@@ -615,7 +620,9 @@ export function preSimulacao(
     mesesPos,
     parcelaPos: mesesPos ? Math.round(resto / mesesPos) : 0,
     parcelaFinanciamento: parcelaFin ? Math.round(parcelaFin) : null,
-    /** a entrada não cabe nas regras (mais de 20% do imóvel ou parcela acima de 30% da renda) */
+    /** o que passou do parcelamento permitido e foi somado ao ato */
+    atoExtra: Math.round(atoExtra),
+    /** a entrada não cabe nas regras (sempre false: o excedente vai para o ato) */
     excede: aParcelar > ep.valorMax + 1,
     /** fluxo da Plano pelo score (parcelas proporcionais ao que falta) */
     fluxoPlano,
@@ -656,7 +663,7 @@ export function textoPreSimulacao(
     );
   } else {
     const partes = [
-      p.ato > 0 ? `ato de ${formatBRL(p.ato)}` : null,
+      p.ato > 0 ? (p.atoExtra > 0 ? `*ato de ${formatBRL(p.ato)}*` : `ato de ${formatBRL(p.ato)}`) : null,
       ...(p.fluxoPlano?.length && p.aParcelar <= (p.planoTotal ?? 0)
         ? p.fluxoPlano.map((t) => `*${t}*`)
         : []),

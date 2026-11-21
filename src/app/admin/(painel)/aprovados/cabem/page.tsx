@@ -91,7 +91,7 @@ export default async function CabemPage({ searchParams }: { searchParams: Promis
                     {ofertaAqui.has(a.id) && <span className="font-semibold text-zinc-700"> · 📤 já recebeu este projeto em {formatDate(ofertaAqui.get(a.id)!)}</span>}
                   </p>
                 </div>
-                <EnviarOferta aprovadoId={a.id} telefone={a.telefone} devNome={dev.nome} devId={dev.id} jaEnviada={ofertaAqui.get(a.id) ?? null} texto={mensagemOferta(a, dev, link, assinatura, (() => { const ps = preSimulacao(a, dev, regra); return ps && !ps.excede ? ps : undefined; })())} />
+                <EnviarOferta aprovadoId={a.id} telefone={a.telefone} devNome={dev.nome} devId={dev.id} jaEnviada={ofertaAqui.get(a.id) ?? null} texto={mensagemOferta(a, dev, link, assinatura, (() => { const ps = preSimulacao(a, dev, regra); return ps ?? undefined; })())} />
               </li>
             );
           })}

@@ -193,11 +193,11 @@ export default function SimulacaoProjeto({
               </>
             )}
           </dl>
-          {r.resumo.excede && (
+          {r.resumo.atoExtra > 0 && (
             <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-amber-50 p-2 text-amber-900">
-              <AlertTriangle size={15} className="mt-0.5 shrink-0" /> A entrada
-              passa de 20% do imóvel ou de 30% da renda por mês. Confira antes
-              de enviar ou escolha outro projeto.
+              <AlertTriangle size={15} className="mt-0.5 shrink-0" /> Não fecha
+              só com o parcelamento: faltam {formatBRL(r.resumo.atoExtra)}, que
+              foram somados ao ato.
             </p>
           )}
           {r.resumo.semAvaliacao && (

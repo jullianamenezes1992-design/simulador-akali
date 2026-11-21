@@ -1319,6 +1319,7 @@ export async function simularProjetoLead(leadId: string, devId: string, tipo = -
       planoTabela: ps.planoTabela,
       subsidioPossivel: sim.subsidioPotencial,
       excede: ps.excede,
+      atoExtra: ps.atoExtra,
       semAvaliacao: ps.semAvaliacao,
       faixa: sim.faixa?.nome ?? null,
       rotulo: ps.rotulo,
