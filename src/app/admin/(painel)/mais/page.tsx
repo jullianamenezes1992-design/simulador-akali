@@ -40,8 +40,6 @@ export default async function MaisPage() {
         <PageHeader titulo="App e backup" descricao="Instalar o painel no celular, notificações e cópias de segurança." />
       </div>
       <div className="space-y-4">
-        <AppCelular vapidPublic={chaves?.publicKey ?? null} />
-        {adm.papel === "admin" && <Backups arquivos={backups} podeGerar />}
         <nav className="card divide-y divide-line lg:hidden">
           {LINKS.map(({ href, label, desc, icon: Icon }) => (
             <Link key={href} href={href} className="flex items-center gap-3 px-4 py-3.5 hover:bg-mist">
@@ -57,12 +55,14 @@ export default async function MaisPage() {
             <ExternalLink size={20} className="shrink-0 text-caixa" aria-hidden />
             <span className="flex-1 font-semibold">Ver o site</span>
           </a>
-          <form action={sair}>
-            <button className="flex w-full items-center gap-3 px-4 py-3.5 text-left font-semibold text-red-700 hover:bg-mist">
-              <LogOut size={20} aria-hidden /> Sair
-            </button>
-          </form>
         </nav>
+        <AppCelular vapidPublic={chaves?.publicKey ?? null} />
+        {adm.papel === "admin" && <Backups arquivos={backups} podeGerar />}
+        <form action={sair} className="card lg:hidden">
+          <button className="flex w-full items-center gap-3 px-4 py-3.5 text-left font-semibold text-red-700 hover:bg-mist">
+            <LogOut size={20} aria-hidden /> Sair
+          </button>
+        </form>
       </div>
     </>
   );
