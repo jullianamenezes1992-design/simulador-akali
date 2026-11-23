@@ -1,6 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { leadStatusInfo } from "@/lib/constants";
+import { LEAD_STATUS, leadStatusInfo } from "@/lib/constants";
 import { notificarLead } from "@/lib/server/notificacoes";
 
 /**
@@ -22,6 +22,9 @@ export interface LeadEquipe {
   regiao?: string | null;
   observacao?: string | null;
   criado_em?: string | null;
+  /** etapa inicial no CRM da corretora (só para lead novo) */
+  status?: string | null;
+  produto?: string | null;
 }
 
 export async function lerIntegracao(db: DB = createAdminClient()) {
@@ -62,6 +65,7 @@ export async function receberLeadEquipe(db: DB, l: LeadEquipe) {
   const renda = num(l.renda);
   const info = [
     `📥 Veio do CRM da equipe${l.campanha ? ` · campanha: ${l.campanha}` : ""}${l.origem ? ` · ${l.origem}` : ""}.`,
+    l.produto ? `Interesse: ${l.produto}.` : null,
     l.regiao ? `Região: ${l.regiao}.` : null,
     renda ? `Renda informada: R$ ${renda.toLocaleString("pt-BR")}.` : null,
     l.observacao ? `Obs. da equipe: ${String(l.observacao).slice(0, 2000)}` : null,
@@ -76,7 +80,11 @@ export async function receberLeadEquipe(db: DB, l: LeadEquipe) {
     if (!ja.email && email) upd.email = email;
     if (!ja.renda_total && renda) upd.renda_total = renda;
     if (Object.keys(upd).length) await db.from("leads").update(upd).eq("id", ja.id);
-    if (l.observacao) await db.from("lead_notes").insert({ lead_id: ja.id, texto: info });
+    if (l.observacao) {
+      const trecho = String(l.observacao).slice(0, 200);
+      const { count } = await db.from("lead_notes").select("id", { count: "exact", head: true }).eq("lead_id", ja.id).ilike("texto", `%${trecho.replace(/[%_]/g, "")}%`);
+      if (!count) await db.from("lead_notes").insert({ lead_id: ja.id, texto: info });
+    }
     return { id: ja.id as string, novo: false };
   }
 
@@ -104,7 +112,7 @@ export async function receberLeadEquipe(db: DB, l: LeadEquipe) {
       origem: "Equipe",
       utm_source: "crm_equipe",
       utm_campaign: l.campanha ? String(l.campanha).slice(0, 120) : "Campanha da equipe",
-      status: "novo",
+      status: l.status && LEAD_STATUS.some((x) => x.value === l.status) ? l.status : "novo",
       cadastro_manual: true,
       equipe_id: equipeId,
       consentimento_em: l.criado_em && !isNaN(Date.parse(l.criado_em)) ? new Date(l.criado_em).toISOString() : new Date().toISOString(),
@@ -115,7 +123,7 @@ export async function receberLeadEquipe(db: DB, l: LeadEquipe) {
   if (error || !lead) return { erro: (error?.message ?? "não foi possível criar") as string };
   await db.from("lead_notes").insert({ lead_id: lead.id, texto: info });
   await db.from("lead_events").insert({ lead_id: lead.id, tipo: "lead_equipe", dados: { equipe_id: equipeId, campanha: l.campanha ?? null } });
-  await notificarLead("concluida", {
+  if (!l.status || l.status === "novo") await notificarLead("concluida", {
     id: lead.id,
     codigo: lead.codigo,
     nome,
@@ -185,4 +193,45 @@ export async function enviarAtualizacoesEquipe(db: DB = createAdminClient(), lim
     console.error("Integração equipe: falha ao enviar", e);
     return { enviados: 0 };
   }
+}
+
+
+/** Atualizações esperando para ir ao CRM da equipe (modo "pelo Chrome": o navegador busca e aplica). */
+export async function pendentesEquipe(db: DB) {
+  const { data } = await db
+    .from("equipe_saida")
+    .select("id, evento, dados, criado_em, lead:leads(equipe_id, nome, status)")
+    .is("enviado_em", null)
+    .lt("tentativas", 20)
+    .order("criado_em")
+    .limit(200);
+  return (data ?? [])
+    .map((f) => {
+      const lead = f.lead as unknown as { equipe_id: string | null; nome: string; status: string } | null;
+      const d = (f.dados ?? {}) as { de?: string; para?: string; texto?: string };
+      return {
+        fila_id: f.id as number,
+        id: lead?.equipe_id ?? null,
+        nome: lead?.nome ?? "",
+        evento: f.evento as string,
+        para: f.evento === "status" ? (d.para ?? null) : null,
+        para_nome: f.evento === "status" ? leadStatusInfo(d.para ?? "").label : null,
+        texto: f.evento === "observacao" ? (d.texto ?? "") : null,
+        quando: f.criado_em as string,
+      };
+    })
+    .filter((x) => x.id);
+}
+
+export async function confirmarEquipe(db: DB, ok: number[], erros: Record<string, string>) {
+  const agora = new Date().toISOString();
+  if (ok.length) await db.from("equipe_saida").update({ enviado_em: agora, erro: null }).in("id", ok);
+  for (const [id, erro] of Object.entries(erros)) {
+    const { data } = await db.from("equipe_saida").select("tentativas").eq("id", Number(id)).maybeSingle();
+    await db.from("equipe_saida").update({ tentativas: (data?.tentativas ?? 0) + 1, erro: String(erro).slice(0, 300) }).eq("id", Number(id));
+  }
+  await db
+    .from("integracao_equipe")
+    .update({ ...(ok.length ? { ultimo_envio: agora } : {}), ultimo_erro: Object.values(erros)[0] ?? null })
+    .eq("id", 1);
 }
