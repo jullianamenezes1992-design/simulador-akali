@@ -7,6 +7,7 @@ import { enviarPush, temAparelhosPush } from "@/lib/server/push";
 import { salvarBackup } from "@/lib/server/backup";
 import { sincronizarTabelao } from "@/lib/server/tabelao";
 import { sincronizarCury } from "@/lib/server/cury";
+import { enviarAtualizacoesEquipe } from "@/lib/server/equipe";
 import { somarDias } from "@/lib/agenda";
 import {
   enviarEmailLivre,
@@ -486,6 +487,10 @@ ${url ? `<p><a href="${url}" style="color:#005CA9;font-weight:bold">Abrir Meu di
       }
     }
   }
+
+  // CRM da equipe: reenvia atualizações que ficaram pendentes
+  const eq = await enviarAtualizacoesEquipe(db);
+  if (eq.enviados) (resultado as Record<string, unknown>).equipe = `${eq.enviados} enviada(s)`;
 
   return NextResponse.json(resultado);
 }

@@ -1,6 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { randomBytes } from "node:crypto";
+import { enviarAtualizacoesEquipe } from "@/lib/server/equipe";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { LEAD_STATUS, REGIOES, STATUS_OBRA, TIPOS_TAREFA } from "@/lib/constants";
@@ -258,6 +261,7 @@ export async function atualizarStatusLead(leadId: string, status: string) {
     tipo: "status_alterado",
     dados: { de: atual?.status ?? null, para: status },
   });
+  after(() => enviarAtualizacoesEquipe());
   revalidatePath(`/admin/leads/${leadId}`);
   revalidatePath("/admin/leads");
 }
@@ -278,6 +282,7 @@ export async function adicionarNota(_prev: ActionState, fd: FormData): Promise<A
     if (texto.length > 4000) return { erro: "Observação muito longa." };
     const { error } = await supabase.from("lead_notes").insert({ lead_id: leadId, autor_id: userId, texto });
     if (error) return { erro: error.message };
+    after(() => enviarAtualizacoesEquipe());
     revalidatePath(`/admin/leads/${leadId}`);
     return { ok: true };
   } catch (e) {
@@ -1798,4 +1803,40 @@ export async function baseCuryParaLeads(id: string): Promise<{ erro?: string; le
   } catch (e) {
     return { erro: msg(e) };
   }
+}
+
+
+/** Integração com o CRM da equipe: liga/desliga, endereço de retorno e (opcional) nova chave. */
+export async function salvarIntegracaoEquipe(_prev: ActionState, fd: FormData): Promise<ActionState & { chave?: string }> {
+  try {
+    const { supabase, papel } = await assertAdmin();
+    if (papel !== "admin") return { erro: "Somente administradores." };
+    const url = String(fd.get("url_retorno") ?? "").trim();
+    if (url && !/^https:\/\/[^\s]+$/i.test(url)) return { erro: "O endereço precisa começar com https://" };
+    const upd: Record<string, unknown> = {
+      ativo: fd.get("ativo") === "on",
+      url_retorno: url || null,
+      atualizado_em: new Date().toISOString(),
+    };
+    let chave: string | undefined;
+    const { data: atual } = await supabase.from("integracao_equipe").select("chave").eq("id", 1).maybeSingle();
+    if (fd.get("nova_chave") === "1" || !atual?.chave) {
+      chave = `akali_${randomBytes(24).toString("base64url")}`;
+      upd.chave = chave;
+    }
+    const { error } = await supabase.from("integracao_equipe").update(upd).eq("id", 1);
+    if (error) return { erro: error.message };
+    revalidatePath("/admin/configuracoes");
+    return { ok: true, chave };
+  } catch (e) {
+    return { erro: msg(e) };
+  }
+}
+
+/** Manda já as atualizações pendentes (botão "Enviar agora"). */
+export async function enviarAgoraEquipe(): Promise<{ enviados: number; erro?: string | null }> {
+  await assertAdmin();
+  const r = await enviarAtualizacoesEquipe(undefined, 100);
+  revalidatePath("/admin/configuracoes");
+  return { enviados: r.enviados, erro: "erro" in r ? r.erro : null };
 }
