@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { confirmarEquipe, receberLeadEquipe, type LeadEquipe } from "@/lib/server/equipe";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /**
  * Sincronização pelo navegador da corretora (o CRM da equipe é lido com o login dela):

@@ -22,7 +22,14 @@ export default function PonteEquipe() {
       if (ev.origin !== ORIGEM || !ev.data || typeof ev.data !== "object") return;
       try {
         if (ev.data.tipo === "leads") {
-          const r = await sincronizar({ leads: ev.data.leads });
+          // em lotes de 15 para não estourar o tempo do servidor
+          const r = { criados: 0, atualizados: 0, erros: [] as unknown[] };
+          for (let i = 0; i < ev.data.leads.length; i += 15) {
+            const parte = await sincronizar({ leads: ev.data.leads.slice(i, i + 15) });
+            r.criados += parte.criados ?? 0;
+            r.atualizados += parte.atualizados ?? 0;
+            r.erros.push(...(parte.erros ?? []));
+          }
           log(`Leads: ${r.criados ?? 0} novo(s), ${r.atualizados ?? 0} já estavam${r.erros?.length ? `, ${r.erros.length} com erro` : ""}.`);
           const p = await fetch("/api/admin/equipe/pendentes").then((x) => x.json());
           log(`Atualizações para levar ao CRM da equipe: ${p.itens?.length ?? 0}.`);
