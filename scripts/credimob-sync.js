@@ -68,5 +68,40 @@
     }
     return { confirmados, erros };
   };
+  // abre a ponte do CRM da corretora (popup), manda os leads e aplica as atualizações que voltarem
+  window.__sync = { etapa: "parado" };
+  window.__credimobSync = () => {
+    const CRM = "https://simulador-akali.vercel.app";
+    window.__sync = { etapa: "abrindo", inicio: Date.now() };
+    try { if (window.__w && !window.__w.closed) window.__w.close(); } catch {}
+    const w = window.open(CRM + "/admin/equipe-ponte" + Q + "v" + E + Date.now(), "ponte" + Date.now(), "popup,width=520,height=420");
+    window.__w = w;
+    if (!w) { window.__sync.etapa = "popup bloqueado"; return; }
+    let enviado = false;
+    const ouvir = async (ev) => {
+      if (ev.origin !== CRM || ev.source !== w) return;
+      const m = ev.data || {};
+      const S = window.__sync;
+      try {
+        if (m.tipo === "pronto" && !enviado) {
+          enviado = true; S.etapa = "lendo leads";
+          const L = await window.__credimobLer(); S.lidos = L.length;
+          w.postMessage({ tipo: "leads", leads: L }, CRM); S.etapa = "enviado";
+        } else if (m.tipo === "pendentes") {
+          S.resumo = m.resumo; S.pendentes = m.itens.length; S.etapa = "aplicando";
+          const r = await window.__credimobAplicar(m.itens); S.aplicados = r.confirmados.length; S.erros = r.erros;
+          w.postMessage({ tipo: "confirmar", ...r }, CRM);
+        } else if (m.tipo === "fim") { S.etapa = "concluido"; window.removeEventListener("message", ouvir); }
+        else if (m.tipo === "erro") { S.etapa = "erro ponte: " + m.erro; }
+      } catch (e) { S.etapa = "erro aqui: " + e.message; }
+    };
+    window.addEventListener("message", ouvir);
+  };
+  document.getElementById("__sinc")?.remove();
+  const b = document.createElement("button");
+  b.id = "__sinc"; b.textContent = "SINCRONIZAR COM MEU CRM";
+  b.style.cssText = "position:fixed;top:120px;left:300px;z-index:999999;padding:16px;background:#ff0;font-size:18px";
+  b.onclick = () => window.__credimobSync();
+  document.body.appendChild(b);
   return "ok";
 })();
