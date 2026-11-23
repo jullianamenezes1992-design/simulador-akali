@@ -229,8 +229,8 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
         <p className="mb-4 rounded-xl bg-slate-100 px-4 py-3 text-sm">Dados pessoais anonimizados em {formatDate(l.anonimizado_em, true)}.</p>
       )}
 
-      {/* Observações no topo: o último atendimento aparece assim que abre o cliente */}
-      <div className="mb-4">
+      {/* Observações e agenda no topo: o último atendimento e os próximos compromissos aparecem assim que abre o cliente */}
+      <div className="mb-4 grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <Bloco titulo="Observações do atendimento">
           {(() => {
             const lista = notas.data ?? [];
@@ -261,6 +261,36 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
                             {autor(n)} • {formatDate(n.created_at, true)}
                           </p>
                         </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+              </>
+            );
+          })()}
+        </Bloco>
+        <Bloco titulo="Agenda do cliente">
+          <NovaTarefaForm leadId={l.id} />
+          {(() => {
+            const ts = (tarefas.data ?? []) as Tarefa[];
+            const pend = ts.filter((t) => t.status === "pendente").sort((a, b) => a.quando.localeCompare(b.quando));
+            const outros = ts.filter((t) => t.status !== "pendente").slice(0, 5);
+            const hoje = diaSP();
+            const agora = agoraMs();
+            return (
+              <>
+                <ul className="mt-4 space-y-2">
+                  {pend.map((t) => (
+                    <TarefaItem key={t.id} t={{ ...t, lead: { id: l.id, nome: l.nome, codigo: l.codigo, telefone: l.telefone } }} hoje={hoje} agora={agora} />
+                  ))}
+                  {pend.length === 0 && <li className="text-sm text-ink-soft">Nenhum compromisso pendente.</li>}
+                </ul>
+                {outros.length > 0 && (
+                  <details className="mt-3 text-sm">
+                    <summary className="cursor-pointer font-semibold text-ink-soft">Concluídos e cancelados ({outros.length})</summary>
+                    <ul className="mt-2 space-y-2">
+                      {outros.map((t) => (
+                        <TarefaItem key={t.id} t={{ ...t, lead: { id: l.id, nome: l.nome, codigo: l.codigo, telefone: l.telefone } }} hoje={hoje} agora={agora} />
                       ))}
                     </ul>
                   </details>
@@ -464,37 +494,6 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
               />
             </Bloco>
           )}
-
-          <Bloco titulo="Agenda do cliente">
-            <NovaTarefaForm leadId={l.id} />
-            {(() => {
-              const ts = (tarefas.data ?? []) as Tarefa[];
-              const pend = ts.filter((t) => t.status === "pendente").sort((a, b) => a.quando.localeCompare(b.quando));
-              const outros = ts.filter((t) => t.status !== "pendente").slice(0, 5);
-              const hoje = diaSP();
-              const agora = agoraMs();
-              return (
-                <>
-                  <ul className="mt-4 space-y-2">
-                    {pend.map((t) => (
-                      <TarefaItem key={t.id} t={{ ...t, lead: { id: l.id, nome: l.nome, codigo: l.codigo, telefone: l.telefone } }} hoje={hoje} agora={agora} />
-                    ))}
-                    {pend.length === 0 && <li className="text-sm text-ink-soft">Nenhum compromisso pendente.</li>}
-                  </ul>
-                  {outros.length > 0 && (
-                    <details className="mt-3 text-sm">
-                      <summary className="cursor-pointer font-semibold text-ink-soft">Concluídos e cancelados ({outros.length})</summary>
-                      <ul className="mt-2 space-y-2">
-                        {outros.map((t) => (
-                          <TarefaItem key={t.id} t={{ ...t, lead: { id: l.id, nome: l.nome, codigo: l.codigo, telefone: l.telefone } }} hoje={hoje} agora={agora} />
-                        ))}
-                      </ul>
-                    </details>
-                  )}
-                </>
-              );
-            })()}
-          </Bloco>
 
           <Bloco titulo="Origem e campanha">
             {!anonimizado && <OrigemEditor leadId={l.id} atual={l.origem} />}
