@@ -41,12 +41,18 @@ export default function PonteEquipe() {
     };
     window.addEventListener("message", aoReceber);
     // avisa a aba do CRM da equipe que está pronta (repete até ela responder)
+    enviar({ tipo: "pronto" });
     const t = setInterval(() => enviar({ tipo: "pronto" }), 700);
-    const parar = () => clearInterval(t);
-    window.addEventListener("message", parar, { once: true });
+    const parar = (ev: MessageEvent) => {
+      if (ev.origin !== ORIGEM) return;
+      clearInterval(t);
+      window.removeEventListener("message", parar);
+    };
+    window.addEventListener("message", parar);
     return () => {
       clearInterval(t);
       window.removeEventListener("message", aoReceber);
+      window.removeEventListener("message", parar);
     };
   }, []);
 
