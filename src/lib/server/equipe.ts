@@ -108,7 +108,7 @@ export async function receberLeadEquipe(db: DB, l: LeadEquipe) {
       nome,
       telefone,
       email,
-      renda_total: renda,
+      renda_total: renda ?? 0,
       origem: "Equipe",
       utm_source: "crm_equipe",
       utm_campaign: l.campanha ? String(l.campanha).slice(0, 120) : "Campanha da equipe",
