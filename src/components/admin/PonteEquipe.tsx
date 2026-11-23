@@ -15,8 +15,13 @@ export default function PonteEquipe() {
 
   useEffect(() => {
     const enviar = (m: unknown) => window.opener?.postMessage(m, ORIGEM);
-    const sincronizar = (corpo: unknown) =>
-      fetch("/api/admin/equipe/sincronizar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) }).then((r) => r.json());
+    let passo = "";
+    const sincronizar = async (corpo: unknown) => {
+      passo = "sincronizar";
+      const r = await fetch("/api/admin/equipe/sincronizar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
+      if (!r.ok) throw new Error(`sincronizar HTTP ${r.status}`);
+      return r.json();
+    };
 
     const aoReceber = async (ev: MessageEvent<Msg>) => {
       if (ev.origin !== ORIGEM || !ev.data || typeof ev.data !== "object") return;
@@ -31,6 +36,7 @@ export default function PonteEquipe() {
             r.erros.push(...(parte.erros ?? []));
           }
           log(`Leads: ${r.criados ?? 0} novo(s), ${r.atualizados ?? 0} já estavam${r.erros?.length ? `, ${r.erros.length} com erro` : ""}.`);
+          passo = "pendentes";
           const p = await fetch("/api/admin/equipe/pendentes").then((x) => x.json());
           log(`Atualizações para levar ao CRM da equipe: ${p.itens?.length ?? 0}.`);
           enviar({ tipo: "pendentes", itens: p.itens ?? [], resumo: r });
@@ -43,7 +49,7 @@ export default function PonteEquipe() {
         }
       } catch (e) {
         log(`Erro: ${e instanceof Error ? e.message : String(e)}`);
-        enviar({ tipo: "erro", erro: String(e) });
+        enviar({ tipo: "erro", erro: `${passo}: ${String(e)}` });
       }
     };
     window.addEventListener("message", aoReceber);
