@@ -56,23 +56,17 @@ export const ESSENCIAIS_EXTERNO = ["agenda", "novos", "quentes", "fechamento"];
 /** Pausas fixas do dia, mostradas entre os blocos (depois do bloco indicado). */
 export const PAUSAS: Record<string, string> = {
   novos: "9h – 9h30 · Café ☕ (liberado no stand)",
-  aprovados: "14h30 · Almoço 🍽️",
+  carteira: "14h30 – 15h30 · Almoço 🍽️",
+  base_fria_tarde:
+    "16h15 – 17h15 · Tempo livre para retornos, visitas e imprevistos",
 };
 
 /** Parte da carteira antiga para chamar por dia (5%), entre 3 e 15 clientes. */
 export const CARTEIRA_PCT = 0.05;
-/** Ofertas para aprovados por dia. */
+/** Ofertas para aprovados por dia (contando as já enviadas hoje). */
 const OFERTAS_DIA = 5;
-
-/** Quem entra no "rebater carteira" (o resto já tem bloco próprio no dia). */
-const INDICACOES_DIA = 3;
 /** Reanálises de reprovados por dia. */
 const REANALISES_DIA = 5;
-const ROTULO_CARTEIRA: Record<string, string> = {
-  reprovado: "reprovado: ver se dá para nova análise",
-  vendido: "já comprou: pedir indicação",
-  perdido: "perdido: tentar reativar",
-};
 const ATIVOS = [
   "novo",
   "em_atendimento",
@@ -96,8 +90,6 @@ export async function montarMeuDia(
   const d30 = new Date(Date.now() - 30 * 864e5).toISOString();
   const d7 = new Date(Date.now() - 7 * 864e5).toISOString();
   const d15 = new Date(Date.now() + 15 * 864e5).toISOString().slice(0, 10);
-  const d15atras = new Date(Date.now() - 15 * 864e5).toISOString();
-  const d180atras = new Date(Date.now() - 180 * 864e5).toISOString();
 
   const base = () =>
     db
@@ -120,7 +112,7 @@ export async function montarMeuDia(
     vencendoQ,
     ofertaQ,
     carteiraQ,
-    contatos15Q,
+    ofertasHojeQ,
     rebatidosHojeQ,
     tocadosQ,
     futurasQ,
@@ -205,7 +197,7 @@ export async function montarMeuDia(
       .or(`ultima_oferta_em.is.null,ultima_oferta_em.lt.${d7}`)
       .order("ultima_oferta_em", { ascending: true, nullsFirst: true })
       .limit(300),
-    // reanálises (reprovados com data de reanálise chegando) e indicações (quem comprou, a cada 6 meses)
+    // reanálises: reprovados sem data de reanálise ou com a data chegando
     db
       .from("leads")
       .select(
@@ -214,23 +206,16 @@ export async function montarMeuDia(
       .is("excluido_em", null)
       .is("anonimizado_em", null)
       .eq("em_aprovados", false)
-      .or(
-        `and(status.eq.reprovado,or(reanalise_em.is.null,reanalise_em.lte.${hoje})),and(status.eq.vendido,or(rebatido_em.is.null,rebatido_em.lt.${d180atras})))`,
-      )
+      .eq("status", "reprovado")
+      .or(`reanalise_em.is.null,reanalise_em.lte.${hoje}`)
       .order("reanalise_em", { ascending: true, nullsFirst: false })
-      .order("rebatido_em", { ascending: true, nullsFirst: true })
       .limit(300),
+    // ofertas já enviadas hoje (contam na meta diária de aprovados)
     db
-      .from("lead_events")
-      .select("lead_id")
-      .gte("created_at", d15atras)
-      .in("tipo", [
-        "mensagem_enviada",
-        "oferta_enviada",
-        "carteira_rebatida",
-        "clique_whatsapp",
-      ])
-      .limit(5000),
+      .from("ofertas_enviadas")
+      .select("aprovado_id")
+      .gte("enviado_em", inicio)
+      .limit(1000),
     db
       .from("leads")
       .select("id, nome, telefone, status")
@@ -325,7 +310,7 @@ export async function montarMeuDia(
     const item = manha ? "base_fria_manha" : "base_fria_tarde";
     return {
       item,
-      hora: manha ? "11h" : "17h",
+      hora: manha ? "11h45" : "15h45",
       titulo: `Base fria · ${manha ? "manhã" : "fim da tarde"} (nº da carteira)`,
       dica: totalBF
         ? `Chame ${meta} contato(s) da planilha antiga pelo WhatsApp da carteira. ${manha ? "Quem responder durante o dia, marque “Respondeu” na tela da Base fria." : "Aproveite e marque quem respondeu de manhã."}`
@@ -369,10 +354,6 @@ export async function montarMeuDia(
     href: `/admin/leads/${l.id}`,
   });
 
-  // "rebater carteira": quem não recebeu nenhum contato nos últimos 15 dias e não foi cadastrado nesse período
-  const contatados15 = new Set(
-    (contatos15Q.data ?? []).map((e) => e.lead_id as string),
-  );
   type LC = {
     id: string;
     nome: string;
@@ -416,13 +397,7 @@ export async function montarMeuDia(
     0,
     Math.max(0, REANALISES_DIA - reanalisadosHoje),
   );
-  // já comprou: pedido de indicação a cada 6 meses, poucos por dia
-  const indicacoes = lc
-    .filter((l) => l.status === "vendido" && !contatados15.has(l.id))
-    .slice(0, INDICACOES_DIA);
-  const carteiraTodos = [...reanalises, ...indicacoes];
-  const tamCarteira = carteiraTodos.length;
-  const metaCarteira = tamCarteira;
+  const metaCarteira = reanalises.length;
   const rebatidosHoje = rebatidosHojeQ.data ?? [];
 
   // revisão das análises (aprovando no sistema da Caixa), 2x ao dia
@@ -451,7 +426,7 @@ export async function montarMeuDia(
     const lista = clientesAnalise(turno);
     return {
       item,
-      hora: turno === "manha" ? "10h45" : "16h30",
+      hora: turno === "manha" ? "11h30" : "15h30",
       titulo: `Revisar análises · ${turno === "manha" ? "manhã" : "tarde"}`,
       dica:
         turno === "manha"
@@ -671,11 +646,14 @@ export async function montarMeuDia(
       vencimento: string | null;
       lead_id: string | null;
     })[]
-  )
-    .filter(podeOfertar)
-    .slice(0, OFERTAS_DIA);
+  ).filter(podeOfertar);
   const opsNovas = opsQ.count ?? 0;
-  const carteira = carteiraTodos;
+  // meta de 5 ofertas por dia: quem já recebeu oferta hoje conta
+  const ofertadosHoje = new Set(
+    (ofertasHojeQ.data ?? []).map((o) => o.aprovado_id as string),
+  ).size;
+  const vagasOfertas = Math.max(0, OFERTAS_DIA - ofertadosHoje);
+  const carteira = reanalises;
 
   const hora = (iso: string) =>
     new Intl.DateTimeFormat("pt-BR", {
@@ -732,7 +710,7 @@ export async function montarMeuDia(
     },
     {
       item: "sem_resposta",
-      hora: "10h15",
+      hora: "10h45",
       titulo: "Sem retorno",
       dica: "Mande a próxima mensagem da sequência (1, 2, 3).",
       clientes: semResp.map((l) => cli(l)),
@@ -741,7 +719,7 @@ export async function montarMeuDia(
     },
     {
       item: "pasta",
-      hora: "10h30",
+      hora: "11h",
       titulo: "Cobrar documentos (montagem de pasta)",
       dica: "Uma cobrança por dia para cada cliente com pasta em montagem. Toque em “Cobrar” para mandar a mensagem com o que falta.",
       link: { href: "/admin/montagem", label: "Abrir Montagem de pasta" },
@@ -766,7 +744,7 @@ export async function montarMeuDia(
     blocoBF("manha"),
     {
       item: "conteudo",
-      hora: "11h30",
+      hora: "12h15",
       titulo: "Gravar conteúdo para as redes",
       dica: "Pelo menos 1 vídeo por dia: tour, dica de MCMV, cliente que comprou… É de lá que vêm os leads.",
       clientes: [],
@@ -778,9 +756,9 @@ export async function montarMeuDia(
     },
     {
       item: "aprovados",
-      hora: "13h30",
+      hora: "13h",
       titulo: "Aprovados: ofertas do dia",
-      dica: `${opsNovas ? `${opsNovas} oportunidade(s) nova(s) (preço baixou ou promoção). ` : ""}${vencendo.length ? `${vencendo.length} aprovação(ões) vencendo em 15 dias. ` : ""}Ofereça um projeto para até ${OFERTAS_DIA} clientes.`,
+      dica: `Ofereça um projeto para ${OFERTAS_DIA} clientes por dia (hoje: ${Math.min(ofertadosHoje, OFERTAS_DIA)} de ${OFERTAS_DIA}). Primeiro quem tem a aprovação vencendo, depois quem está há mais tempo sem oferta.${opsNovas ? ` ${opsNovas} oportunidade(s) nova(s) (preço baixou ou promoção) para usar nas ofertas.` : ""}`,
       link: { href: "/admin/aprovados", label: "Abrir Aprovados" },
       clientes: [
         ...vencendo.map((a) => ({
@@ -802,26 +780,23 @@ export async function montarMeuDia(
             href: `/admin/aprovados/${a.id}`,
           })),
       ],
-      total: vencendo.length + ofertas.length + opsNovas,
+      total: vencendo.length + ofertas.length,
       feito:
-        (vencendo.length === 0 && ofertas.length === 0 && opsNovas === 0) ||
+        (vencendo.length === 0 && ofertas.length === 0) ||
         feitos.has("aprovados"),
     },
     {
       item: "carteira",
-      hora: "15h30",
-      titulo: "Reanálises e indicações",
-      dica: `Reanálise dos reprovados: ${REANALISES_DIA} por dia (hoje: ${reanalisadosHoje} de ${REANALISES_DIA}; ${reanalisesTodas.length} na fila). Veja se a renda mudou ou se limpou o nome. Ao tocar em “Chamar”, fica registrada a reanálise de hoje e a próxima volta em 2 meses. Depois, até ${INDICACOES_DIA} cliente(s) que já compraram para pedir indicação (a cada 6 meses).`,
+      hora: "13h45",
+      titulo: "Reanálises dos reprovados",
+      dica: `${REANALISES_DIA} por dia (hoje: ${Math.min(reanalisadosHoje, REANALISES_DIA)} de ${REANALISES_DIA}; ${reanalisesTodas.length} na fila). Veja se a renda mudou ou se limpou o nome. Ao tocar em “Chamar”, fica registrada a reanálise de hoje e a próxima volta em 2 meses.`,
       clientes: carteira.map((l) => ({
         id: l.id,
         nome: l.nome,
         telefone: l.telefone,
-        detalhe:
-          l.status === "reprovado"
-            ? l.reanalise_em
-              ? `reanálise prevista para ${l.reanalise_em.split("-").reverse().join("/")}`
-              : "reprovado: primeira reanálise (sem data ainda)"
-            : (ROTULO_CARTEIRA[l.status] ?? null),
+        detalhe: l.reanalise_em
+          ? `reanálise prevista para ${l.reanalise_em.split("-").reverse().join("/")}`
+          : "reprovado: primeira reanálise (sem data ainda)",
         href: `/admin/leads/${l.id}`,
         status: l.status,
       })),
@@ -832,7 +807,7 @@ export async function montarMeuDia(
     blocoBF("tarde"),
     {
       item: "redes",
-      hora: "17h30",
+      hora: "17h15",
       titulo: "Contatos das redes sociais",
       dica: "Cadastre no CRM quem chamou no Instagram/TikTok hoje.",
       link: { href: "/admin/redes", label: "Abrir Redes sociais" },
@@ -843,7 +818,7 @@ export async function montarMeuDia(
     },
     {
       item: "fechamento",
-      hora: "17h45",
+      hora: "17h30",
       titulo: "Fechamento do dia",
       dica: "Confira se ficou algo pendente e anote nas observações o que combinou com cada cliente. Quem precisa de retorno em data marcada, agende na Agenda; os outros seguem as etapas normais.",
       clientes: [],
@@ -872,6 +847,13 @@ export async function montarMeuDia(
     if (!tirados) continue;
     b.total = Math.max(0, b.total - tirados);
     if (b.clientes.length === 0 && !b.manual) b.feito = true;
+  }
+  // aprovados: no máximo 5 ofertas por dia (as já enviadas hoje contam)
+  const blocoAprov = blocos.find((b) => b.item === "aprovados");
+  if (blocoAprov) {
+    blocoAprov.clientes = blocoAprov.clientes.slice(0, vagasOfertas);
+    blocoAprov.total = blocoAprov.clientes.length;
+    if (blocoAprov.clientes.length === 0) blocoAprov.feito = true;
   }
   const finalizado = feitos.has("dia_finalizado");
   return {
