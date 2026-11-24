@@ -154,6 +154,26 @@ export default async function BaseFriaPage({
         descricao="A carteira antiga da planilha, separada dos leads. Um lote por dia; só vira lead quem responder."
       />
 
+      <section className="card mb-4 p-4">
+        <form className="flex gap-2" action="/admin/base-fria">
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="Buscar na base fria por nome ou telefone"
+            className="input min-w-0 flex-1"
+          />
+          <button className="btn-secondary">Buscar</button>
+        </form>
+        {busca && (
+          <Lista
+            assinatura={assinatura}
+            sugerir={sugerir}
+            itens={busca}
+            vazio="Ninguém encontrado na base fria."
+          />
+        )}
+      </section>
+
       <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
         <Smartphone size={20} className="mt-0.5 shrink-0" />
         <p>
@@ -234,26 +254,6 @@ export default async function BaseFriaPage({
           />
         </section>
       )}
-
-      <section className="card mb-4 p-4">
-        <form className="flex gap-2" action="/admin/base-fria">
-          <input
-            name="q"
-            defaultValue={q}
-            placeholder="Buscar na base fria por nome ou telefone"
-            className="input min-w-0 flex-1"
-          />
-          <button className="btn-secondary">Buscar</button>
-        </form>
-        {busca && (
-          <Lista
-            assinatura={assinatura}
-            sugerir={sugerir}
-            itens={busca}
-            vazio="Ninguém encontrado na base fria."
-          />
-        )}
-      </section>
 
       <details className="card p-4" open={total === 0}>
         <summary className="cursor-pointer text-lg font-extrabold">
