@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Akali · CRM da equipe",
+  "short_name": "Akali Sync",
+  "version": "1.0.0",
+  "description": "Sincroniza sozinha os seus leads do CRM da equipe (Credimob) com o seu CRM (simulador-akali.vercel.app).",
+  "permissions": ["storage", "alarms"],
+  "host_permissions": [
+    "https://apartamentonaplantasp.com.br/*",
+    "https://simulador-akali.vercel.app/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["https://apartamentonaplantasp.com.br/crm/*"],
+      "js": ["credimob.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Akali · CRM da equipe",
+    "default_popup": "popup.html",
+    "default_icon": { "16": "icone16.png", "32": "icone32.png", "48": "icone48.png", "128": "icone128.png" }
+  },
+  "icons": { "16": "icone16.png", "32": "icone32.png", "48": "icone48.png", "128": "icone128.png" }
+}

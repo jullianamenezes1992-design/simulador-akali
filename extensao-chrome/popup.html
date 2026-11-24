@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<style>
+  body { font: 14px/1.4 system-ui, sans-serif; color: #263746; margin: 0; width: 320px; background: #fff; }
+  header { background: #005CA9; color: #fff; padding: 12px 14px; font-weight: 700; }
+  header small { display: block; font-weight: 400; opacity: .85; }
+  main { padding: 12px 14px; }
+  .st { border-radius: 8px; padding: 10px; margin-bottom: 10px; background: #F1F4F7; }
+  .ok { background: #E8F5E9; } .erro { background: #FDECEA; color: #8E1C1C; }
+  button { width: 100%; padding: 9px; border: 0; border-radius: 8px; font-weight: 700; cursor: pointer; margin-top: 6px; }
+  .pri { background: #F5A623; color: #263746; } .sec { background: #E3E8ED; color: #263746; }
+  input { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #C9D2DA; border-radius: 8px; }
+  label { font-weight: 600; font-size: 12px; display: block; margin: 10px 0 4px; }
+  ul { padding-left: 16px; margin: 6px 0 0; font-size: 12px; } li { margin-bottom: 4px; }
+  .mini { font-size: 12px; color: #5B6B78; }
+  details { margin-top: 10px; }
+</style>
+</head>
+<body>
+<header>Akali · CRM da equipe<small>Sincroniza sozinha enquanto o CRM da equipe estiver aberto no Chrome</small></header>
+<main>
+  <div id="st" class="st">Carregando…</div>
+  <button id="agora" class="pri">Sincronizar agora</button>
+  <button id="abrir" class="sec">Abrir o CRM da equipe</button>
+  <div id="hist"></div>
+  <details id="cfg">
+    <summary class="mini">Chave da integração</summary>
+    <label for="chave">Cole aqui a chave (no seu CRM: Configurações → CRM da equipe → Copiar chave)</label>
+    <input id="chave" type="password" autocomplete="off" placeholder="cole a chave">
+    <button id="salvar" class="sec">Salvar chave</button>
+    <p id="msg" class="mini"></p>
+  </details>
+</main>
+<script src="popup.js"></script>
+</body>
+</html>
