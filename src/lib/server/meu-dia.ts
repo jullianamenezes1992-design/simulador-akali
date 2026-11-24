@@ -103,7 +103,7 @@ export async function montarMeuDia(
     db
       .from("leads")
       .select(
-        "id, nome, telefone, status, updated_at, origem, aguardando_docs_em, escolhido:escolhido_id(nome)",
+        "id, nome, telefone, status, updated_at, created_at, origem, aguardando_docs_em, escolhido:escolhido_id(nome)",
       )
       .is("excluido_em", null)
       .is("anonimizado_em", null);
@@ -124,8 +124,9 @@ export async function montarMeuDia(
     rebatidosHojeQ,
     tocadosQ,
     futurasQ,
+    equipeNovosQ,
   ] = await Promise.all([
-    db.from("rotina_dia").select("item, nota").eq("dia", hoje),
+    db.from("rotina_dia").select("item, nota, feito_em").eq("dia", hoje),
     db
       .from("lead_tasks")
       .select(
@@ -248,12 +249,26 @@ export async function montarMeuDia(
       .eq("status", "pendente")
       .gt("quando", fim)
       .limit(2000),
+    // leads que acabaram de chegar do CRM da equipe (já podem vir com outra etapa, ex.: em atendimento)
+    base()
+      .eq("origem", "Equipe")
+      .eq("em_aprovados", false)
+      .in("status", ["novo", "em_atendimento", "simulacao", "sem_resposta"])
+      .gte("created_at", d7)
+      .order("created_at", { ascending: false })
+      .limit(100),
   ]);
 
   const feitos = new Map(
     (feitosQ.data ?? []).map((f) => [
       f.item as string,
       (f.nota as string | null) ?? null,
+    ]),
+  );
+  const feitoEm = new Map(
+    (feitosQ.data ?? []).map((f) => [
+      f.item as string,
+      (f.feito_em as string | null) ?? null,
     ]),
   );
   const tocados = new Set(
@@ -340,6 +355,7 @@ export async function montarMeuDia(
     telefone: string;
     status: string;
     updated_at: string;
+    created_at: string;
     origem: string | null;
     aguardando_docs_em: string | null;
     escolhido: { nome: string } | null;
@@ -456,9 +472,46 @@ export async function montarMeuDia(
   };
   const tarefas = (tarefasQ.data ?? []) as unknown as T[];
   // novos: basta não ter recebido mensagem ainda (o cadastro de hoje já vem com data de hoje)
-  const novos = ((novosQ.data ?? []) as unknown as L[]).filter(
+  const novosStatus = ((novosQ.data ?? []) as unknown as L[]).filter(
     (l) => !tocados.has(l.id),
   );
+  // leads que chegaram do CRM da equipe (últimos 7 dias) entram em Novos mesmo
+  // vindo com outra etapa, até receberem a primeira mensagem/atendimento
+  const jaEmNovos = new Set(novosStatus.map((l) => l.id));
+  const equipeCand = ((equipeNovosQ.data ?? []) as unknown as L[]).filter(
+    (l) => !jaEmNovos.has(l.id) && !tocados.has(l.id),
+  );
+  let equipeNovos: L[] = [];
+  if (equipeCand.length) {
+    const { data: atendidos } = await db
+      .from("lead_events")
+      .select("lead_id")
+      .in(
+        "lead_id",
+        equipeCand.map((l) => l.id),
+      )
+      .in("tipo", [
+        "mensagem_enviada",
+        "nota",
+        "compromisso_agendado",
+        "oferta_enviada",
+        "simulacao_enviada",
+      ])
+      .limit(2000);
+    const ja = new Set((atendidos ?? []).map((e) => e.lead_id as string));
+    equipeNovos = equipeCand.filter((l) => !ja.has(l.id));
+  }
+  const novos = [...novosStatus, ...equipeNovos].sort((a, b) =>
+    (b.created_at ?? "").localeCompare(a.created_at ?? ""),
+  );
+  const idsNovos = new Set(novos.map((l) => l.id));
+  // "Novos" marcado como feito volta a abrir se chegar alguém depois
+  const novosFeitoEm = feitoEm.get("novos");
+  const chegouDepois = novosFeitoEm
+    ? novos.some(
+        (l) => new Date(l.created_at).getTime() > new Date(novosFeitoEm).getTime(),
+      )
+    : false;
   // leads quentes: só voltam para a lista depois de 1 dia inteiro sem contato
   // (mensagem, simulação enviada, observação, mudança de etapa ou edição no cadastro)
   const quentesTodos = (quentesQ.data ?? []) as unknown as L[];
@@ -500,9 +553,15 @@ export async function montarMeuDia(
     for (const r of simR.data ?? []) simEnviada.add(r.lead_id as string);
   }
   const quentes = quentesTodos.filter(
-    (l) => !tocados.has(l.id) && !recentes.has(l.id) && l.updated_at < ontemIni,
+    (l) =>
+      !tocados.has(l.id) &&
+      !recentes.has(l.id) &&
+      !idsNovos.has(l.id) &&
+      l.updated_at < ontemIni,
   );
-  const semResp = ((semRespQ.data ?? []) as unknown as L[]).filter(naoTocado);
+  const semResp = ((semRespQ.data ?? []) as unknown as L[]).filter(
+    (l) => naoTocado(l) && !idsNovos.has(l.id),
+  );
   // montagem de pasta: cobrar documentos 1x ao dia (some da lista quem já foi cobrado/atendido hoje)
   type LP = {
     id: string;
@@ -651,7 +710,7 @@ export async function montarMeuDia(
       link: { href: "/admin/leads?status=novo", label: "Ver em Leads" },
       clientes: novos.map((l) => cli(l, l.origem)),
       total: novos.length,
-      feito: novos.length === 0 || feitos.has("novos"),
+      feito: novos.length === 0 || (feitos.has("novos") && !chegouDepois),
     },
     {
       item: "quentes",
