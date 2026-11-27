@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import {
   Bell,
@@ -32,85 +32,180 @@ const ICONE: Record<string, typeof Phone> = {
   lembrete: Bell,
 };
 
-/** Próxima hora cheia, no fuso de São Paulo. */
-function padraoDataHora() {
-  const d = new Date(Date.now() + 60 * 60 * 1000);
-  const dia = diaSP(d);
-  const hora = horaSP(d).slice(0, 2);
-  return { dia, hora: `${hora}:00` };
+/** Data/hora "AAAA-MM-DDTHH:MM" (fuso de São Paulo), para o campo "Quando". */
+function localSP(d: Date) {
+  return `${diaSP(d)}T${horaSP(d)}`;
 }
 
-export function NovaTarefaForm({ leadId }: { leadId: string }) {
-  const [state, action, pending] = useActionState<ActionState, FormData>(criarTarefa, {});
+/** Soma dias a um dia "AAAA-MM-DD" (sem depender do fuso do navegador). */
+function somarDias(dia: string, n: number) {
+  return diaSP(new Date(new Date(`${dia}T12:00:00-03:00`).getTime() + n * 864e5));
+}
+
+/** Atalhos de horário, como no CRM da equipe. */
+function atalhos() {
+  const agora = Date.now();
+  const hoje = diaSP();
+  // daqui a 2 horas, arredondado para os próximos 15 minutos
+  const q = 15 * 60 * 1000;
+  const em2h = new Date(Math.ceil((agora + 2 * 3600 * 1000) / q) * q);
+  return [
+    { label: "Daqui a 2 horas", valor: localSP(em2h) },
+    { label: "Amanhã 10h", valor: `${somarDias(hoje, 1)}T10:00` },
+    { label: "Amanhã 18h", valor: `${somarDias(hoje, 1)}T18:00` },
+    { label: "Em 3 dias", valor: `${somarDias(hoje, 3)}T10:00` },
+    { label: "Próxima semana", valor: `${somarDias(hoje, 7)}T10:00` },
+  ];
+}
+
+export function NovaTarefaForm({ leadId, leadNome }: { leadId: string; leadNome?: string }) {
   const [aberto, setAberto] = useState(false);
   const [tipo, setTipo] = useState("ligacao");
-  const [padrao] = useState(padraoDataHora);
-  const ref = useRef<HTMLFormElement>(null);
+  const [quando, setQuando] = useState("");
+  const [opcoes, setOpcoes] = useState<ReturnType<typeof atalhos>>([]);
+  const [aviso, setAviso] = useState<string | null>(null);
+  // salvou: fecha a janela e mostra o aviso ao lado do botão
+  const [state, action, pending] = useActionState<ActionState, FormData>(async (prev, fd) => {
+    const r = await criarTarefa(prev, fd);
+    if (r.ok) {
+      setAberto(false);
+      setAviso(r.mensagem ?? "Contato agendado.");
+    }
+    return r;
+  }, {});
   const c = state.campos ?? {};
 
-  useEffect(() => {
-    if (state.ok) ref.current?.reset();
-  }, [state]);
+  const abrir = () => {
+    const ops = atalhos();
+    setOpcoes(ops);
+    setQuando(ops[1].valor); // padrão: amanhã 10h
+    setTipo("ligacao");
+    setAviso(null);
+    setAberto(true);
+  };
 
-  if (!aberto) {
-    return (
-      <button type="button" className="btn-primary w-full sm:w-auto" onClick={() => setAberto(true)}>
-        <Plus size={16} /> Agendar
-      </button>
-    );
-  }
+  // Esc fecha a janela
+  useEffect(() => {
+    if (!aberto) return;
+    const fn = (e: KeyboardEvent) => e.key === "Escape" && setAberto(false);
+    window.addEventListener("keydown", fn);
+    return () => window.removeEventListener("keydown", fn);
+  }, [aberto]);
+
+  const [data, hora] = quando ? quando.split("T") : ["", ""];
 
   return (
-    <form ref={ref} action={action} className="space-y-3 rounded-xl bg-mist p-3">
-      <input type="hidden" name="lead_id" value={leadId} />
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <label className="label" htmlFor="t_tipo">Tipo</label>
-          <select id="t_tipo" name="tipo" value={tipo} onChange={(e) => setTipo(e.target.value)} className="input">
-            {TIPOS_TAREFA.map((t) => (
-              <option key={t.value} value={t.value}>{t.label}</option>
-            ))}
-          </select>
-          {c.tipo && <p className="field-error">{c.tipo}</p>}
-        </div>
-        <div>
-          <label className="label" htmlFor="t_lembrar">Me avisar</label>
-          <select id="t_lembrar" name="lembrar_min" defaultValue="30" className="input">
-            {LEMBRAR_OPCOES.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="label" htmlFor="t_data">Data</label>
-          <input id="t_data" name="data" type="date" defaultValue={padrao.dia} required className="input" />
-          {c.data && <p className="field-error">{c.data}</p>}
-        </div>
-        <div>
-          <label className="label" htmlFor="t_hora">Hora</label>
-          <input id="t_hora" name="hora" type="time" defaultValue={padrao.hora} required className="input" />
-        </div>
-        <div className="sm:col-span-2">
-          <label className="label" htmlFor="t_desc">Anotação (opcional)</label>
-          <textarea id="t_desc" name="descricao" rows={2} maxLength={1000} className="input min-h-0" placeholder="Ex.: levar tabela do Urban Vila Maria" />
-        </div>
-        {tipo === "visita" && (
-          <label className="option sm:col-span-2 w-fit">
-            <input type="checkbox" name="mudar_etapa" defaultChecked className="accent-caixa" />
-            Mudar a etapa do cliente para &quot;Visita agendada&quot;
-          </label>
+    <>
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="button" className="btn-primary w-full sm:w-auto" onClick={abrir}>
+          <Plus size={16} /> Programar contato
+        </button>
+        {aviso && (
+          <span className="text-sm font-medium text-emerald-700">
+            <Check size={14} className="mr-1 inline" aria-hidden />
+            {aviso}
+          </span>
         )}
       </div>
-      <div className="flex flex-wrap gap-2">
-        <button className="btn-primary" disabled={pending}>
-          {pending ? <Loader2 size={16} className="animate-spin" /> : <CalendarPlus size={16} />} Salvar compromisso
-        </button>
-        <button type="button" className="btn-secondary" onClick={() => setAberto(false)}>
-          Fechar
-        </button>
-      </div>
-      <Feedback erro={state.erro} mensagem={state.ok ? state.mensagem : undefined} />
-    </form>
+
+      {aberto && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
+          onClick={(e) => e.target === e.currentTarget && setAberto(false)}
+        >
+          <form
+            action={action}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="t_titulo"
+            className="max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl sm:max-w-xl sm:rounded-3xl sm:p-7"
+          >
+            <input type="hidden" name="lead_id" value={leadId} />
+            <input type="hidden" name="data" value={data} />
+            <input type="hidden" name="hora" value={hora} />
+
+            <h2 id="t_titulo" className="text-2xl font-bold text-ink">Programar contato</h2>
+            {leadNome && <p className="mt-1 text-ink-soft">{leadNome}</p>}
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              {opcoes.map((o) => (
+                <button
+                  key={o.label}
+                  type="button"
+                  onClick={() => setQuando(o.valor)}
+                  className={`rounded-xl border px-3.5 py-2 text-sm font-medium transition ${
+                    quando === o.valor ? "border-caixa bg-caixa-50 text-caixa" : "border-line bg-white text-ink hover:bg-mist"
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="label" htmlFor="t_quando">Quando</label>
+                <input
+                  id="t_quando"
+                  type="datetime-local"
+                  value={quando}
+                  onChange={(e) => setQuando(e.target.value)}
+                  required
+                  className="input"
+                />
+                {c.data && <p className="field-error">{c.data}</p>}
+              </div>
+              <div>
+                <label className="label" htmlFor="t_tipo">Tipo</label>
+                <select id="t_tipo" name="tipo" value={tipo} onChange={(e) => setTipo(e.target.value)} className="input">
+                  {TIPOS_TAREFA.map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </select>
+                {c.tipo && <p className="field-error">{c.tipo}</p>}
+              </div>
+              <div className="sm:col-span-2">
+                <label className="label" htmlFor="t_desc">O que fazer</label>
+                <input
+                  id="t_desc"
+                  name="descricao"
+                  maxLength={1000}
+                  className="input"
+                  placeholder="Ex.: enviar a simulação do Residencial"
+                />
+              </div>
+              <div className="sm:col-span-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+                <label className="flex items-center gap-2 text-sm text-ink-soft" htmlFor="t_lembrar">
+                  <Bell size={14} aria-hidden /> Me avisar
+                  <select id="t_lembrar" name="lembrar_min" defaultValue="30" className="input w-auto py-1.5 text-sm">
+                    {LEMBRAR_OPCOES.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </label>
+                {tipo === "visita" && (
+                  <label className="flex items-center gap-2 text-sm text-ink-soft">
+                    <input type="checkbox" name="mudar_etapa" defaultChecked className="accent-caixa" />
+                    Mudar a etapa para &quot;Visita agendada&quot;
+                  </label>
+                )}
+              </div>
+            </div>
+
+            <Feedback erro={state.erro} />
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" className="btn-secondary" onClick={() => setAberto(false)}>
+                Cancelar
+              </button>
+              <button className="btn-primary" disabled={pending || !quando}>
+                {pending ? <Loader2 size={16} className="animate-spin" /> : <CalendarPlus size={16} />} Agendar
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    </>
   );
 }
 

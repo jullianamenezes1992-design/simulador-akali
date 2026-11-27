@@ -270,7 +270,7 @@ export default async function LeadDetalhe({ params }: { params: Promise<{ id: st
           })()}
         </Bloco>
         <Bloco titulo="Agenda do cliente">
-          <NovaTarefaForm leadId={l.id} />
+          <NovaTarefaForm leadId={l.id} leadNome={l.nome} />
           {(() => {
             const ts = (tarefas.data ?? []) as Tarefa[];
             const pend = ts.filter((t) => t.status === "pendente").sort((a, b) => a.quando.localeCompare(b.quando));
