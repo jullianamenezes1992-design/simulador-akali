@@ -64,9 +64,9 @@ export const PAUSAS: Record<string, string> = {
 /** Parte da carteira antiga para chamar por dia (5%), entre 3 e 15 clientes. */
 export const CARTEIRA_PCT = 0.05;
 /** Ofertas para aprovados por dia (contando as já enviadas hoje). */
-const OFERTAS_DIA = 5;
+const OFERTAS_DIA = 2;
 /** Reanálises de reprovados por dia. */
-const REANALISES_DIA = 5;
+const REANALISES_DIA = 2;
 const ATIVOS = [
   "novo",
   "em_atendimento",
@@ -365,7 +365,7 @@ export async function montarMeuDia(
   };
   const lc = ((carteiraQ.data ?? []) as LC[]).filter((l) => !tocados.has(l.id));
   // reprovado: sem data de reanálise ou com a data chegando; ao chamar, a próxima fica para daqui a 2 meses
-  // no máximo 5 por dia (primeiro quem tem data vencida, depois quem ainda não tem data)
+  // no máximo REANALISES_DIA por dia (primeiro quem tem data vencida, depois quem ainda não tem data)
   // conta como reanálise de hoje: "Chamar" na reanálise, quem saiu de Reprovado hoje
   // (mudou de etapa) e o reprovado com quem você falou hoje por outro caminho
   const { data: evReanalise } = await db
@@ -648,7 +648,7 @@ export async function montarMeuDia(
     })[]
   ).filter(podeOfertar);
   const opsNovas = opsQ.count ?? 0;
-  // meta de 5 ofertas por dia: quem já recebeu oferta hoje conta
+  // meta de OFERTAS_DIA ofertas por dia: quem já recebeu oferta hoje conta
   const ofertadosHoje = new Set(
     (ofertasHojeQ.data ?? []).map((o) => o.aprovado_id as string),
   ).size;
@@ -848,7 +848,7 @@ export async function montarMeuDia(
     b.total = Math.max(0, b.total - tirados);
     if (b.clientes.length === 0 && !b.manual) b.feito = true;
   }
-  // aprovados: no máximo 5 ofertas por dia (as já enviadas hoje contam)
+  // aprovados: no máximo OFERTAS_DIA ofertas por dia (as já enviadas hoje contam)
   const blocoAprov = blocos.find((b) => b.item === "aprovados");
   if (blocoAprov) {
     blocoAprov.clientes = blocoAprov.clientes.slice(0, vagasOfertas);
